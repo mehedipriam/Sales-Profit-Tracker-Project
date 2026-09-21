@@ -226,3 +226,8 @@ select.status.RETURNED, select.status.CANCELLED { color: var(--danger); }
 .alert-card h2 { margin: 0 0 0.4rem; font-size: 1rem; color: #b3261e; }
 .alert-card ul { list-style: none; margin: 0; padding: 0; }
 .alert-card li { display: flex; justify-content: space-between; gap: 1rem; padding: 0.2rem 0; font-size: 0.92rem; }
+
+/* ---- net profit ---- */
+.key-line.dashed { height: 0; border-top: 2px dashed currentColor; background: none !important; border-radius: 0; }
+.expense-line { margin: 0.5rem 0 0; font-size: 0.88rem; }
+.ledger th.sub { padding-left: 1rem; font-weight: 400; color: var(--muted); }

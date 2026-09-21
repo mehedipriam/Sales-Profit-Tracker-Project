@@ -8,7 +8,7 @@ import TrendChart from '../components/charts/TrendChart'
 import RangePicker from '../components/RangePicker'
 import Stat from '../components/Stat'
 import { describeRange, resolveRange } from '../utils/dateRange'
-import { money } from '../utils/format'
+import { EXPENSE_LABEL, money } from '../utils/format'
 
 const pct = (part, whole) => (Number(whole) > 0 ? `${((Number(part) / Number(whole)) * 100).toFixed(1)}%` : '—')
 
@@ -51,6 +51,7 @@ export default function Reports() {
   const summary = data?.summary
   const realized = summary?.realized
 
+  const soldRows = summary?.byPlatform.filter((r) => r.orders > 0) ?? []
   const platformName = platforms.find((p) => String(p.id) === platformId)?.name
   const periodLabel = describeRange(resolved)
 
@@ -86,26 +87,46 @@ export default function Reports() {
           <p className="muted period no-print">
             {periodLabel}
             {platformName && ` · ${platformName}`}
-            {' · paid orders'}
+            {' · paid orders, less expenses'}
           </p>
 
           <div className="stats">
             <Stat label="Revenue" value={money(realized.revenue)} hint={`${realized.orders} paid orders`} />
             <Stat label="Cost of goods" value={money(realized.cost)} />
             <Stat
-              label={realized.profit < 0 ? 'Loss' : 'Profit'}
+              label={realized.profit < 0 ? 'Gross loss' : 'Gross profit'}
               value={money(realized.profit)}
               tone={tone(realized.profit)}
-              hint={`${pct(realized.profit, realized.revenue)} margin`}
+              hint={`revenue − cost · ${pct(realized.profit, realized.revenue)} margin`}
+            />
+            <Stat label="Expenses" value={money(summary.expenses.total)} hint="delivery, commission, ads…" />
+            <Stat
+              label={summary.netProfit < 0 ? 'Net loss' : 'Net profit'}
+              value={money(summary.netProfit)}
+              tone={tone(summary.netProfit)}
+              hint={`gross − expenses · ${pct(summary.netProfit, realized.revenue)} margin`}
             />
           </div>
+
+          {summary.expenses.byType.length > 0 && (
+            <p className="muted expense-line">
+              Expenses:{' '}
+              {summary.expenses.byType.map((t) => `${EXPENSE_LABEL[t.type]} ${money(t.total)}`).join(' · ')}
+              {Number(summary.expenses.unallocated) > 0 && ` · of which ${money(summary.expenses.unallocated)} is not tied to a platform`}
+            </p>
+          )}
+          {platformId && (
+            <p className="hint">
+              Expenses not tied to an order (ads, overhead) belong to no platform, so they are left out while a platform is selected.
+            </p>
+          )}
 
           <div className="stats secondary-stats">
             <Stat
               label="Pending (expected)"
               value={money(summary.pending.profit)}
               tone={tone(summary.pending.profit)}
-              hint={`${summary.pending.orders} unpaid orders · ${money(summary.pending.revenue)} revenue`}
+              hint={`${summary.pending.orders} unpaid orders · ${money(summary.pending.revenue)} revenue · before expenses`}
             />
             <Stat label="Returned / refunded" value={summary.returnedOrders} hint="excluded from totals" />
             <Stat label="Cancelled" value={summary.cancelledOrders} hint="excluded from totals" />
@@ -114,20 +135,21 @@ export default function Reports() {
           <TrendChart trend={data.trend} />
 
           <ShareBars
-            rows={summary.byPlatform}
+            rows={soldRows}
             platforms={platforms}
             revenueTotal={realized.revenue}
-            profitTotal={summary.byPlatform.filter((r) => r.profit > 0).reduce((s, r) => s + Number(r.profit), 0)}
+            profitTotal={soldRows.filter((r) => r.profit > 0).reduce((s, r) => s + Number(r.profit), 0)}
           />
 
-          <h2 className="section-title">By platform <span className="muted">(paid orders)</span></h2>
+          <h2 className="section-title">By platform <span className="muted">(paid orders; expenses tied to the platform's orders)</span></h2>
           <div className="table-wrap">
             <table>
               <thead>
                 <tr>
                   <th>Platform</th><th className="num">Orders</th><th className="num">Revenue</th>
-                  <th className="num">Cost</th><th className="num">Profit</th>
-                  <th className="num">Margin</th><th className="num">Revenue share</th>
+                  <th className="num">Cost</th><th className="num">Gross profit</th>
+                  <th className="num">Expenses</th><th className="num">Net profit</th>
+                  <th className="num">Net margin</th><th className="num">Revenue share</th>
                 </tr>
               </thead>
               <tbody>
@@ -138,12 +160,14 @@ export default function Reports() {
                     <td className="num">{money(r.revenue)}</td>
                     <td className="num">{money(r.cost)}</td>
                     <td className={`num ${tone(r.profit)}`}>{money(r.profit)}</td>
-                    <td className="num">{pct(r.profit, r.revenue)}</td>
+                    <td className="num">{money(r.expenses)}</td>
+                    <td className={`num ${tone(r.netProfit)}`}>{money(r.netProfit)}</td>
+                    <td className="num">{pct(r.netProfit, r.revenue)}</td>
                     <td className="num">{pct(r.revenue, realized.revenue)}</td>
                   </tr>
                 ))}
                 {summary.byPlatform.length === 0 && (
-                  <tr><td colSpan={7} className="empty">No paid orders in this period.</td></tr>
+                  <tr><td colSpan={9} className="empty">No paid orders in this period.</td></tr>
                 )}
               </tbody>
             </table>

@@ -95,6 +95,22 @@ Open http://localhost:5173, register a business, and you land on the dashboard.
 - Orders recorded before a product started tracking stock have no log rows, so the first time such an order is edited or
   its status changes it will take stock as if it were new.
 
+## Net profit (Phase 4c)
+- **Gross profit** is still revenue - cost of goods (`realized.profit`). **Net profit** = gross profit - expenses
+  (`netProfit`), shown side by side on the dashboard, Reports and the monthly statement.
+- `GET /api/reports/summary` adds `expenses {total, unallocated, byType[]}`, `netProfit`, and `expenses` / `netProfit` on
+  every `byPlatform` row. `GET /api/reports/trend` points carry `expenses` and `netProfit` (the chart draws net as a dashed
+  line). `GET /api/dashboard` adds all-time `expenses` and `netProfit`. All aggregated in SQL.
+- **Which expenses count** (dated by `expenseDate`, so they follow the same range filter as sales):
+  - every expense **except** those tied to a still-`PENDING` order - those belong to the pending (expected) figures and start
+    counting when the order is paid. Pending profit on screen is therefore gross, before expenses.
+  - expenses tied to a `RETURNED` / `CANCELLED` order **do** count: a returned parcel's delivery cost is a real loss (its
+    automatic commission is already refunded and gone).
+  - expenses tied to no order (ads, overhead) count in the total but have no platform, so they appear as `unallocated`
+    and are left out when a platform filter is set. Platform rows plus `unallocated` add up to the total.
+  - a platform with expenses but no paid orders still gets a row (zero revenue, negative net).
+- The CSV export is unchanged: it lists order lines with gross figures. Expenses are on the Expenses page.
+
 ## Tests
 ```bash
 cd backend && mvn test      # integration tests start a throwaway MySQL via Testcontainers, so Docker must be running

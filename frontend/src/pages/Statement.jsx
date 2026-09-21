@@ -4,7 +4,7 @@ import api, { errorMessage } from '../api/client'
 import { useAuth } from '../auth/AuthContext'
 import ExportButtons from '../components/ExportButtons'
 import { toDateStr } from '../utils/dateRange'
-import { money } from '../utils/format'
+import { EXPENSE_LABEL, money } from '../utils/format'
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
 const pad = (n) => String(n).padStart(2, '0')
@@ -88,11 +88,19 @@ export default function Statement() {
               <tbody>
                 <tr><th scope="row">Total sold</th><td className="num">{money(paid.revenue)}</td></tr>
                 <tr><th scope="row">Total cost of goods</th><td className="num">{money(paid.cost)}</td></tr>
-                <tr className="ledger-total">
-                  <th scope="row">{paid.profit < 0 ? 'Net loss' : 'Net profit'}</th>
+                <tr>
+                  <th scope="row">{paid.profit < 0 ? 'Gross loss' : 'Gross profit'}</th>
                   <td className={`num ${tone(paid.profit)}`}>{money(paid.profit)}</td>
                 </tr>
-                <tr><th scope="row" className="muted">Margin</th><td className="num muted">{pct(paid.profit, paid.revenue)}</td></tr>
+                {summary.expenses.byType.map((t) => (
+                  <tr key={t.type}><th scope="row" className="sub">less {EXPENSE_LABEL[t.type].toLowerCase()}</th>
+                    <td className="num">{money(t.total)}</td></tr>
+                ))}
+                <tr className="ledger-total">
+                  <th scope="row">{summary.netProfit < 0 ? 'Net loss' : 'Net profit'}</th>
+                  <td className={`num ${tone(summary.netProfit)}`}>{money(summary.netProfit)}</td>
+                </tr>
+                <tr><th scope="row" className="muted">Net margin</th><td className="num muted">{pct(summary.netProfit, paid.revenue)}</td></tr>
               </tbody>
             </table>
 
@@ -100,7 +108,8 @@ export default function Statement() {
             <table className="ledger wide">
               <thead>
                 <tr><th>Platform</th><th className="num">Orders</th><th className="num">Total sold</th>
-                  <th className="num">Cost of goods</th><th className="num">Net profit / loss</th></tr>
+                  <th className="num">Cost of goods</th><th className="num">Gross profit</th>
+                  <th className="num">Expenses</th><th className="num">Net profit / loss</th></tr>
               </thead>
               <tbody>
                 {summary.byPlatform.map((r) => (
@@ -110,13 +119,23 @@ export default function Statement() {
                     <td className="num">{money(r.revenue)}</td>
                     <td className="num">{money(r.cost)}</td>
                     <td className={`num ${tone(r.profit)}`}>{money(r.profit)}</td>
+                    <td className="num">{money(r.expenses)}</td>
+                    <td className={`num ${tone(r.netProfit)}`}>{money(r.netProfit)}</td>
                   </tr>
                 ))}
-                {summary.byPlatform.length === 0 && (
-                  <tr><td colSpan={5} className="empty">No paid orders in {period}.</td></tr>
+                {Number(summary.expenses.unallocated) > 0 && (
+                  <tr>
+                    <td>Not tied to a platform <span className="muted">(ads, overhead)</span></td>
+                    <td className="num">—</td><td className="num">—</td><td className="num">—</td><td className="num">—</td>
+                    <td className="num">{money(summary.expenses.unallocated)}</td>
+                    <td className="num neg">{money(-summary.expenses.unallocated)}</td>
+                  </tr>
+                )}
+                {summary.byPlatform.length === 0 && Number(summary.expenses.unallocated) === 0 && (
+                  <tr><td colSpan={7} className="empty">No paid orders in {period}.</td></tr>
                 )}
               </tbody>
-              {summary.byPlatform.length > 0 && (
+              {(summary.byPlatform.length > 0 || Number(summary.expenses.unallocated) > 0) && (
                 <tfoot>
                   <tr>
                     <th>Total</th>
@@ -124,6 +143,8 @@ export default function Statement() {
                     <td className="num">{money(paid.revenue)}</td>
                     <td className="num">{money(paid.cost)}</td>
                     <td className={`num ${tone(paid.profit)}`}>{money(paid.profit)}</td>
+                    <td className="num">{money(summary.expenses.total)}</td>
+                    <td className={`num ${tone(summary.netProfit)}`}>{money(summary.netProfit)}</td>
                   </tr>
                 </tfoot>
               )}
@@ -137,8 +158,9 @@ export default function Statement() {
                 <li>{summary.returnedOrders} returned / refunded, {summary.cancelledOrders} cancelled</li>
               </ul>
               <p className="muted">
-                Figures cover paid orders only. Delivery, commission and advertising expenses are not tracked yet,
-                so profit here is total sold minus cost of goods.
+                Sales figures cover paid orders only. Net profit is gross profit minus the period's expenses (delivery,
+                packaging, platform commission, ads and the like); expenses on orders that are still pending count once
+                the order is paid.
               </p>
             </div>
           </>

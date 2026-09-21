@@ -2,6 +2,8 @@ package com.salestracker.dashboard;
 
 import com.salestracker.common.DateRange;
 import com.salestracker.order.OrderDtos.OrderSummary;
+import com.salestracker.expense.ExpenseRepository;
+import com.salestracker.expense.ExpenseTypeTotals;
 import com.salestracker.order.OrderService;
 import com.salestracker.order.OrderStatus;
 import com.salestracker.order.SaleOrderRepository;
@@ -34,6 +36,7 @@ public class DashboardService {
      * RETURNED and CANCELLED orders are excluded from money totals and only counted.
      */
     public record DashboardResponse(Totals realized, Totals pending, long returnedOrders, long cancelledOrders,
+                                    BigDecimal expenses, BigDecimal netProfit,
                                     List<OrderSummary> recentOrders, List<LowStockItem> lowStock) {}
 
     /** A product whose stock has fallen to or below its own low-stock threshold. */
@@ -46,11 +49,14 @@ public class DashboardService {
     private final SaleOrderRepository orders;
     private final OrderService orderService;
     private final ProductRepository products;
+    private final ExpenseRepository expenseRepository;
 
-    public DashboardService(SaleOrderRepository orders, OrderService orderService, ProductRepository products) {
+    public DashboardService(SaleOrderRepository orders, OrderService orderService, ProductRepository products,
+                            ExpenseRepository expenseRepository) {
         this.orders = orders;
         this.orderService = orderService;
         this.products = products;
+        this.expenseRepository = expenseRepository;
     }
 
     public DashboardResponse get(Long tenantId) {
@@ -59,11 +65,18 @@ public class DashboardService {
         orders.totalsByStatus(tenantId, 0L, allTime.from(), allTime.toExclusive())
                 .forEach(t -> byStatus.put(t.status(), t));
 
+        // Expenses that reduce realized profit: all of them except those tied to a still-pending order.
+        BigDecimal expenses = expenseRepository.realizedByType(tenantId, 0L,
+                        allTime.from().toLocalDate(), allTime.toExclusive().toLocalDate()).stream()
+                .map(ExpenseTypeTotals::total).reduce(BigDecimal.ZERO, BigDecimal::add);
+        Totals realized = totals(byStatus, OrderStatus.PAID);
+
         return new DashboardResponse(
-                totals(byStatus, OrderStatus.PAID),
+                realized,
                 totals(byStatus, OrderStatus.PENDING),
                 totals(byStatus, OrderStatus.RETURNED).orders(),
                 totals(byStatus, OrderStatus.CANCELLED).orders(),
+                expenses, realized.profit().subtract(expenses),
                 orderService.list(tenantId, null, null, allTime, 0, RECENT_ORDERS).content(),
                 products.lowStock(tenantId, PageRequest.of(0, LOW_STOCK_LIMIT)).stream().map(LowStockItem::of).toList());
     }

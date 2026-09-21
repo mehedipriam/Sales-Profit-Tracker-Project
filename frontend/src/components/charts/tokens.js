@@ -4,6 +4,7 @@
 
 export const REVENUE = '#2a78d6' // blue, slot 1
 export const PROFIT = '#008300' // green, slot 6
+export const NET = '#0b0b0b' // ink, drawn dashed so it never reads as a fourth hue
 export const LOSS = '#e34948' // red, slot 8 - the negative pole of the margin bars
 
 // Platforms: orange, aqua, yellow, magenta, violet, red. Beyond six, platforms share a neutral gray and are

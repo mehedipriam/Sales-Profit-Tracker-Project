@@ -17,7 +17,7 @@ export default function Dashboard() {
   if (error) return <p className="error" role="alert">{error}</p>
   if (!data) return <p className="center-note">Loading…</p>
 
-  const { realized, pending, returnedOrders, cancelledOrders, recentOrders, lowStock } = data
+  const { realized, pending, returnedOrders, cancelledOrders, recentOrders, lowStock, expenses, netProfit } = data
   const tone = (n) => (n < 0 ? 'neg' : 'pos')
   const noOrders = recentOrders.length === 0
 
@@ -30,10 +30,17 @@ export default function Dashboard() {
         <Stat label="Revenue" value={money(realized.revenue)} hint={`${realized.orders} paid orders`} />
         <Stat label="Cost of goods" value={money(realized.cost)} />
         <Stat
-          label={realized.profit < 0 ? 'Loss' : 'Profit'}
+          label={realized.profit < 0 ? 'Gross loss' : 'Gross profit'}
           value={money(realized.profit)}
           tone={tone(realized.profit)}
           hint="revenue − cost"
+        />
+        <Stat label="Expenses" value={money(expenses)} hint="delivery, commission, ads…" />
+        <Stat
+          label={netProfit < 0 ? 'Net loss' : 'Net profit'}
+          value={money(netProfit)}
+          tone={tone(netProfit)}
+          hint="gross − expenses"
         />
       </div>
 
