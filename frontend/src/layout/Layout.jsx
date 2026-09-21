@@ -1,9 +1,11 @@
-import { NavLink, Outlet, useNavigate } from 'react-router-dom'
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
+import ErrorBoundary from '../components/ErrorBoundary'
 
 export default function Layout() {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
+  const { pathname } = useLocation()
 
   const onLogout = () => {
     logout()
@@ -30,7 +32,9 @@ export default function Layout() {
         <button className="btn secondary" onClick={onLogout}>Log out</button>
       </header>
       <main className="content">
-        <Outlet />
+        <ErrorBoundary key={pathname}>
+          <Outlet />
+        </ErrorBoundary>
       </main>
     </div>
   )

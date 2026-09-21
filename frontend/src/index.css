@@ -231,3 +231,8 @@ select.status.RETURNED, select.status.CANCELLED { color: var(--danger); }
 .key-line.dashed { height: 0; border-top: 2px dashed currentColor; background: none !important; border-radius: 0; }
 .expense-line { margin: 0.5rem 0 0; font-size: 0.88rem; }
 .ledger th.sub { padding-left: 1rem; font-weight: 400; color: var(--muted); }
+
+/* ---- error boundary ---- */
+.crash { max-width: 34rem; margin: 3rem auto; padding: 1.25rem 1.5rem; border: 1px solid var(--border); border-radius: 8px; background: #fff; }
+.crash h2 { margin-top: 0; }
+.crash-detail { font-family: monospace; font-size: 0.82rem; background: #f4f5f7; padding: 0.5rem 0.75rem; border-radius: 6px; overflow-wrap: anywhere; }
