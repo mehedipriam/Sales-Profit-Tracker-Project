@@ -41,4 +41,10 @@ Open http://localhost:5173, register a business, and you land on the dashboard.
 - Each item snapshots the product's cost at sale time (kept on edit for unchanged lines). Line profit = (sold price - cost) x quantity; order totals are the sums.
 - Statuses: `PAID`, `PENDING`, `RETURNED`, `CANCELLED`.
 
+## Dashboard API (Phase 2c)
+- `GET /api/dashboard` - all-time totals via SQL `SUM`/`GROUP BY`, plus the 8 most recent orders.
+  - `realized`: PAID orders (revenue, cost, profit = revenue - cost)
+  - `pending`: PENDING orders, shown separately as expected money (e.g. cash on delivery)
+  - RETURNED and CANCELLED orders are excluded from money totals and only counted
+
 Secrets (`MYSQL_*`, `JWT_SECRET`) come from environment variables only; `.env` is gitignored.

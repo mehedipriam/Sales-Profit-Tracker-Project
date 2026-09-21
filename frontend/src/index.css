@@ -101,3 +101,17 @@ select.status.PAID { color: #1a7f45; }
 select.status.PENDING { color: #b7791f; }
 select.status.RETURNED, select.status.CANCELLED { color: var(--danger); }
 @media (max-width: 700px) { .card .row { flex-direction: column; } }
+
+.section-title { font-size: 1.1rem; margin: 1.5rem 0 0.75rem; }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; }
+.secondary-stats { margin-top: 1rem; }
+.stat { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 1rem; display: flex; flex-direction: column; gap: 0.25rem; }
+.stat-label { color: var(--muted); font-size: 0.85rem; }
+.stat-value { font-size: 1.6rem; font-weight: 700; }
+.stat-value.pos { color: #1a7f45; }
+.stat-value.neg { color: var(--danger); }
+.stat-hint { color: var(--muted); font-size: 0.8rem; }
+.badge { padding: 0.15rem 0.5rem; border-radius: 999px; font-size: 0.8rem; background: #eef1f6; white-space: nowrap; }
+.badge.PAID { background: #dcf5e6; color: #1a7f45; }
+.badge.PENDING { background: #fdf0d5; color: #b7791f; }
+.badge.RETURNED, .badge.CANCELLED { background: #fbe0dc; color: var(--danger); }

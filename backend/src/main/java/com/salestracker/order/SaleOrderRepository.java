@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 
 public interface SaleOrderRepository extends JpaRepository<SaleOrder, Long> {
@@ -19,6 +20,16 @@ public interface SaleOrderRepository extends JpaRepository<SaleOrder, Long> {
             """)
     Page<SaleOrder> search(@Param("tenantId") Long tenantId, @Param("platformId") long platformId,
                            @Param("statuses") Collection<OrderStatus> statuses, Pageable pageable);
+
+    @Query("""
+            select new com.salestracker.order.StatusTotals(
+                o.status, count(distinct o.id),
+                sum(i.soldPrice * i.quantity), sum(i.costPriceSnapshot * i.quantity))
+            from SaleOrder o left join o.items i
+            where o.tenantId = :tenantId
+            group by o.status
+            """)
+    List<StatusTotals> totalsByStatus(@Param("tenantId") Long tenantId);
 
     Optional<SaleOrder> findByIdAndTenantId(Long id, Long tenantId);
 }
