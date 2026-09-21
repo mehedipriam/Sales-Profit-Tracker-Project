@@ -28,4 +28,10 @@ Open http://localhost:5173, register a business, and you land on the dashboard.
 - `POST /api/auth/login` - `{email, password}`
 - `GET /api/auth/me` - current user (requires `Authorization: Bearer <token>`)
 
+## Catalog API (Phase 2a) - all require a Bearer token and are scoped to the caller's tenant
+- `GET/POST /api/products`, `PUT/DELETE /api/products/{id}` - list supports `q` (name/SKU), `category`, `page`, `size`; delete is a soft delete
+- `GET /api/products/categories`
+- `GET/POST /api/customers`, `PUT/DELETE /api/customers/{id}` - list supports `q` (name/phone/address), `platformId`, `page`, `size`
+- `GET /api/platforms` - seeded with Facebook Page and Daraz for every new workspace
+
 Secrets (`MYSQL_*`, `JWT_SECRET`) come from environment variables only; `.env` is gitignored.

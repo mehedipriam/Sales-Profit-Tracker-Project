@@ -1,6 +1,8 @@
 package com.salestracker.auth;
 
 import com.salestracker.auth.AuthDtos.*;
+import com.salestracker.platform.Platform;
+import com.salestracker.platform.PlatformRepository;
 import com.salestracker.tenant.Tenant;
 import com.salestracker.tenant.TenantRepository;
 import com.salestracker.user.Role;
@@ -11,16 +13,21 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
+
 @Service
 public class AuthService {
     private final TenantRepository tenants;
     private final UserRepository users;
+    private final PlatformRepository platforms;
     private final PasswordEncoder encoder;
     private final JwtService jwt;
 
-    public AuthService(TenantRepository tenants, UserRepository users, PasswordEncoder encoder, JwtService jwt) {
+    public AuthService(TenantRepository tenants, UserRepository users, PlatformRepository platforms,
+                       PasswordEncoder encoder, JwtService jwt) {
         this.tenants = tenants;
         this.users = users;
+        this.platforms = platforms;
         this.encoder = encoder;
         this.jwt = jwt;
     }
@@ -32,6 +39,8 @@ public class AuthService {
             throw new ApiException(HttpStatus.CONFLICT, "Email already registered");
         }
         Tenant tenant = tenants.save(new Tenant(req.businessName().trim()));
+        platforms.saveAll(List.of(new Platform(tenant.getId(), "Facebook Page"),
+                new Platform(tenant.getId(), "Daraz")));
         User user = users.save(new User(tenant.getId(), email, encoder.encode(req.password()),
                 req.fullName().trim(), Role.OWNER));
         return toResponse(user);
