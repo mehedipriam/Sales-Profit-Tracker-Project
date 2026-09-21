@@ -9,6 +9,7 @@ import OrderForm from './pages/OrderForm'
 import Orders from './pages/Orders'
 import Platforms from './pages/Platforms'
 import Products from './pages/Products'
+import Reports from './pages/Reports'
 
 export default function App() {
   return (
@@ -26,6 +27,7 @@ export default function App() {
               <Route path="/orders/new" element={<OrderForm />} />
               <Route path="/orders/:id" element={<OrderForm />} />
               <Route path="/platforms" element={<Platforms />} />
+              <Route path="/reports" element={<Reports />} />
             </Route>
           </Route>
         </Routes>

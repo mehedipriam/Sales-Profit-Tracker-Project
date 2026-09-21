@@ -1,5 +1,6 @@
 package com.salestracker.dashboard;
 
+import com.salestracker.common.DateRange;
 import com.salestracker.order.OrderDtos.OrderSummary;
 import com.salestracker.order.OrderService;
 import com.salestracker.order.OrderStatus;
@@ -40,18 +41,21 @@ public class DashboardService {
     }
 
     public DashboardResponse get(Long tenantId) {
+        DateRange allTime = DateRange.of(null, null);
         Map<OrderStatus, StatusTotals> byStatus = new EnumMap<>(OrderStatus.class);
-        orders.totalsByStatus(tenantId).forEach(t -> byStatus.put(t.status(), t));
+        orders.totalsByStatus(tenantId, 0L, allTime.from(), allTime.toExclusive())
+                .forEach(t -> byStatus.put(t.status(), t));
 
         return new DashboardResponse(
                 totals(byStatus, OrderStatus.PAID),
                 totals(byStatus, OrderStatus.PENDING),
                 totals(byStatus, OrderStatus.RETURNED).orders(),
                 totals(byStatus, OrderStatus.CANCELLED).orders(),
-                orderService.list(tenantId, null, null, 0, RECENT_ORDERS).content());
+                orderService.list(tenantId, null, null, allTime, 0, RECENT_ORDERS).content());
     }
 
-    private static Totals totals(Map<OrderStatus, StatusTotals> byStatus, OrderStatus status) {
+    /** Totals for one status out of a status->totals map; zeros when that status has no orders. */
+    public static Totals totals(Map<OrderStatus, StatusTotals> byStatus, OrderStatus status) {
         StatusTotals t = byStatus.getOrDefault(status, new StatusTotals(status, 0, null, null));
         return Totals.of(t);
     }

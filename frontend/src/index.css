@@ -115,3 +115,6 @@ select.status.RETURNED, select.status.CANCELLED { color: var(--danger); }
 .badge.PAID { background: #dcf5e6; color: #1a7f45; }
 .badge.PENDING { background: #fdf0d5; color: #b7791f; }
 .badge.RETURNED, .badge.CANCELLED { background: #fbe0dc; color: var(--danger); }
+
+.inline-label { flex-direction: row; align-items: center; gap: 0.4rem; }
+.period { margin: 0 0 0.75rem; }

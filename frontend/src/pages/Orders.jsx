@@ -1,12 +1,15 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import api, { errorMessage } from '../api/client'
 import Pager from '../components/Pager'
+import RangePicker from '../components/RangePicker'
+import { resolveRange } from '../utils/dateRange'
 import { STATUSES, STATUS_LABEL, dateTime, money } from '../utils/format'
 
 export default function Orders() {
   const [platformId, setPlatformId] = useState('')
   const [status, setStatus] = useState('')
+  const [range, setRange] = useState({ preset: 'all', from: '', to: '' })
   const [page, setPage] = useState(0)
   const [data, setData] = useState(null)
   const [platforms, setPlatforms] = useState([])
@@ -16,12 +19,17 @@ export default function Orders() {
     api.get('/platforms').then((res) => setPlatforms(res.data)).catch(() => {})
   }, [])
 
+  const resolved = useMemo(() => resolveRange(range), [range])
+
   const load = useCallback(() => {
+    if (resolved.error) return
     api
-      .get('/orders', { params: { platformId: platformId || undefined, status: status || undefined, page } })
+      .get('/orders', {
+        params: { platformId: platformId || undefined, status: status || undefined, from: resolved.from, to: resolved.to, page },
+      })
       .then((res) => { setData(res.data); setError('') })
       .catch((err) => setError(errorMessage(err)))
-  }, [platformId, status, page])
+  }, [platformId, status, resolved, page])
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { load() }, [load])
 
@@ -60,9 +68,11 @@ export default function Orders() {
           <option value="">All statuses</option>
           {STATUSES.map((s) => <option key={s} value={s}>{STATUS_LABEL[s]}</option>)}
         </select>
+        <RangePicker value={range} onChange={(r) => { setRange(r); setPage(0) }} />
       </div>
 
-      {error && <p className="error" role="alert">{error}</p>}
+      {resolved.error && <p className="error" role="alert">{resolved.error}</p>}
+      {error &&<p className="error" role="alert">{error}</p>}
 
       <div className="table-wrap">
         <table>

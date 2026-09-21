@@ -47,4 +47,16 @@ Open http://localhost:5173, register a business, and you land on the dashboard.
   - `pending`: PENDING orders, shown separately as expected money (e.g. cash on delivery)
   - RETURNED and CANCELLED orders are excluded from money totals and only counted
 
+## Reports API (Phase 3a)
+- `GET /api/reports/summary?from=yyyy-MM-dd&to=yyyy-MM-dd&platformId=` - all params optional; `from`/`to` are inclusive
+  local dates (omit either for an open-ended range). Returns `realized` (PAID), `pending`, returned/cancelled counts
+  and a `byPlatform` breakdown of paid orders, all aggregated in SQL.
+- `GET /api/orders` accepts the same `from`/`to` filters.
+- The frontend computes the presets (this month, last month, this year, all time, custom) in the user's local time.
+
+## Tests
+```bash
+cd backend && mvn test      # integration tests start a throwaway MySQL via Testcontainers, so Docker must be running
+```
+
 Secrets (`MYSQL_*`, `JWT_SECRET`) come from environment variables only; `.env` is gitignored.

@@ -1,6 +1,7 @@
 package com.salestracker.order;
 
 import com.salestracker.auth.ApiException;
+import com.salestracker.common.DateRange;
 import com.salestracker.common.PageResponse;
 import com.salestracker.common.Search;
 import com.salestracker.customer.Customer;
@@ -41,11 +42,13 @@ public class OrderService {
     }
 
     @Transactional(readOnly = true)
-    public PageResponse<OrderSummary> list(Long tenantId, Long platformId, OrderStatus status, int page, int size) {
+    public PageResponse<OrderSummary> list(Long tenantId, Long platformId, OrderStatus status, DateRange range,
+                                           int page, int size) {
         Collection<OrderStatus> statuses = status == null ? List.of(OrderStatus.values()) : List.of(status);
         Pageable newestFirst = PageRequest.of(Math.max(page, 0), Math.min(Math.max(size, 1), 100),
                 Sort.by(Sort.Order.desc("orderedAt"), Sort.Order.desc("id")));
-        Page<SaleOrder> result = orders.search(tenantId, platformId == null ? 0L : platformId, statuses, newestFirst);
+        Page<SaleOrder> result = orders.search(tenantId, platformId == null ? 0L : platformId, statuses,
+                range.from(), range.toExclusive(), newestFirst);
 
         Map<Long, Platform> platformById = byId(platforms.findAllById(
                 result.stream().map(SaleOrder::getPlatformId).collect(Collectors.toSet())), Platform::getId);
