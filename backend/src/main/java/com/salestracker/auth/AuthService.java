@@ -1,0 +1,62 @@
+package com.salestracker.auth;
+
+import com.salestracker.auth.AuthDtos.*;
+import com.salestracker.tenant.Tenant;
+import com.salestracker.tenant.TenantRepository;
+import com.salestracker.user.Role;
+import com.salestracker.user.User;
+import com.salestracker.user.UserRepository;
+import org.springframework.http.HttpStatus;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+@Service
+public class AuthService {
+    private final TenantRepository tenants;
+    private final UserRepository users;
+    private final PasswordEncoder encoder;
+    private final JwtService jwt;
+
+    public AuthService(TenantRepository tenants, UserRepository users, PasswordEncoder encoder, JwtService jwt) {
+        this.tenants = tenants;
+        this.users = users;
+        this.encoder = encoder;
+        this.jwt = jwt;
+    }
+
+    @Transactional
+    public AuthResponse register(RegisterRequest req) {
+        String email = req.email().trim().toLowerCase();
+        if (users.existsByEmail(email)) {
+            throw new ApiException(HttpStatus.CONFLICT, "Email already registered");
+        }
+        Tenant tenant = tenants.save(new Tenant(req.businessName().trim()));
+        User user = users.save(new User(tenant.getId(), email, encoder.encode(req.password()),
+                req.fullName().trim(), Role.OWNER));
+        return toResponse(user);
+    }
+
+    @Transactional(readOnly = true)
+    public AuthResponse login(LoginRequest req) {
+        User user = users.findByEmail(req.email().trim().toLowerCase())
+                .filter(u -> encoder.matches(req.password(), u.getPasswordHash()))
+                .orElseThrow(() -> new ApiException(HttpStatus.UNAUTHORIZED, "Invalid email or password"));
+        return toResponse(user);
+    }
+
+    @Transactional(readOnly = true)
+    public UserInfo me(AuthUser principal) {
+        User user = users.findById(principal.userId())
+                .orElseThrow(() -> new ApiException(HttpStatus.UNAUTHORIZED, "User no longer exists"));
+        return toInfo(user);
+    }
+
+    private AuthResponse toResponse(User user) {
+        return new AuthResponse(jwt.generate(user), toInfo(user));
+    }
+
+    private UserInfo toInfo(User u) {
+        return new UserInfo(u.getId(), u.getTenantId(), u.getEmail(), u.getFullName(), u.getRole());
+    }
+}
