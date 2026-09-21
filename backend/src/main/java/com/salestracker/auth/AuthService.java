@@ -66,6 +66,7 @@ public class AuthService {
     }
 
     private UserInfo toInfo(User u) {
-        return new UserInfo(u.getId(), u.getTenantId(), u.getEmail(), u.getFullName(), u.getRole());
+        String businessName = tenants.findById(u.getTenantId()).map(Tenant::getName).orElse("");
+        return new UserInfo(u.getId(), u.getTenantId(), businessName, u.getEmail(), u.getFullName(), u.getRole());
     }
 }

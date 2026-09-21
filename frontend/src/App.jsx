@@ -10,6 +10,7 @@ import OrderForm from './pages/OrderForm'
 import Orders from './pages/Orders'
 import Platforms from './pages/Platforms'
 import Products from './pages/Products'
+import Statement from './pages/Statement'
 
 // The charting library is the heaviest dependency; load it only when Reports is opened.
 const Reports = lazy(() => import('./pages/Reports'))
@@ -30,6 +31,7 @@ export default function App() {
               <Route path="/orders/new" element={<OrderForm />} />
               <Route path="/orders/:id" element={<OrderForm />} />
               <Route path="/platforms" element={<Platforms />} />
+              <Route path="/statement" element={<Statement />} />
               <Route path="/reports" element={<Suspense fallback={<p className="center-note">Loading…</p>}><Reports /></Suspense>} />
             </Route>
           </Route>

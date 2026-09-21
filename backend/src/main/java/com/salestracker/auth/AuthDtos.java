@@ -16,7 +16,7 @@ public final class AuthDtos {
 
     public record LoginRequest(@NotBlank @Email String email, @NotBlank String password) {}
 
-    public record UserInfo(Long id, Long tenantId, String email, String fullName, Role role) {}
+    public record UserInfo(Long id, Long tenantId, String businessName, String email, String fullName, Role role) {}
 
     public record AuthResponse(String token, UserInfo user) {}
 }

@@ -55,9 +55,16 @@ Open http://localhost:5173, register a business, and you land on the dashboard.
   beyond that, zero-filled so quiet periods show as flat rather than missing. Returns `granularity` (`day`/`month`).
 - `GET /api/reports/products` (same params) - `topSellers` (by units) and `lowestMargin` (loss-making first), 10 each,
   over paid orders. `marginPct` is null for a product that earned no revenue.
+- `GET /api/reports/export.csv` (same params) - one row per order line, **all statuses** (filter the `Status` column to
+  `PAID` to match the on-screen totals), oldest first, streamed page by page. UTF-8 with a BOM so Excel shows the taka
+  sign and Bangla names; names starting with `=`, `+`, `-` or `@` get a leading apostrophe to block CSV formula injection.
 - `GET /api/orders` accepts the same `from`/`to` filters.
 - The Reports page charts these (Recharts is lazy-loaded with the page). Chart colors live in
   `frontend/src/components/charts/tokens.js`; every chart has a table view or is itself a table.
+- **PDF** is the browser's *Print / Save as PDF* on the Reports page and on `/statement` (a print stylesheet hides the
+  app chrome). It is deliberately not a server-side PDF library: the browser shapes Bangla script correctly, which
+  common Java PDF libraries cannot.
+- `/statement?month=yyyy-MM` is the monthly summary statement: total sold, total cost, net profit/loss, by platform.
 - The frontend computes the presets (this month, last month, this year, all time, custom) in the user's local time.
 
 ## Tests

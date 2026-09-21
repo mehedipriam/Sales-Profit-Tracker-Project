@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import api, { errorMessage } from '../api/client'
+import { useAuth } from '../auth/AuthContext'
 import { BestSellers, LowestMargin } from '../components/charts/ProductLists'
+import ExportButtons from '../components/ExportButtons'
 import ShareBars from '../components/charts/ShareBars'
 import TrendChart from '../components/charts/TrendChart'
 import RangePicker from '../components/RangePicker'
@@ -11,6 +13,7 @@ import { money } from '../utils/format'
 const pct = (part, whole) => (Number(whole) > 0 ? `${((Number(part) / Number(whole)) * 100).toFixed(1)}%` : '—')
 
 export default function Reports() {
+  const { user } = useAuth()
   const [range, setRange] = useState({ preset: 'this_month', from: '', to: '' })
   const [platformId, setPlatformId] = useState('')
   const [platforms, setPlatforms] = useState([])
@@ -48,9 +51,24 @@ export default function Reports() {
   const summary = data?.summary
   const realized = summary?.realized
 
+  const platformName = platforms.find((p) => String(p.id) === platformId)?.name
+  const periodLabel = describeRange(resolved)
+
   return (
     <section>
-      <div className="page-head"><h1>Reports</h1></div>
+      <div className="print-only print-header">
+        <h1>{user.businessName} · Sales report</h1>
+        <p>{periodLabel}{platformName ? ` · ${platformName}` : ' · all platforms'} · paid orders</p>
+        <p className="muted">Generated {new Date().toLocaleDateString('en-GB', { dateStyle: 'long' })}</p>
+      </div>
+
+      <div className="page-head no-print">
+        <h1>Reports</h1>
+        {!resolved.error && (
+          <ExportButtons range={resolved} platformId={platformId} platformName={platformName}
+                         printTitle={`Sales report - ${periodLabel}${platformName ? ` - ${platformName}` : ''}`} />
+        )}
+      </div>
 
       <div className="filters">
         <RangePicker value={range} onChange={setRange} />
@@ -65,9 +83,9 @@ export default function Reports() {
 
       {data && !resolved.error && (
         <div className={loading ? 'stale' : undefined} aria-busy={loading}>
-          <p className="muted period">
-            {describeRange(resolved)}
-            {platformId && ` · ${platforms.find((p) => String(p.id) === platformId)?.name ?? ''}`}
+          <p className="muted period no-print">
+            {periodLabel}
+            {platformName && ` · ${platformName}`}
             {' · paid orders'}
           </p>
 

@@ -21,7 +21,10 @@ import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
  * Boots the real app against a throwaway MySQL (Flyway migrations included).
  * One container is shared by every test class; tests isolate themselves by registering their own tenant.
  */
-@SpringBootTest(properties = "app.jwt.secret=integration-test-secret-that-is-long-enough-0123456789")
+@SpringBootTest(properties = {
+        "app.jwt.secret=integration-test-secret-that-is-long-enough-0123456789",
+        "app.export.page-size=2" // tiny pages so CSV streaming crosses page boundaries in tests
+})
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
 public abstract class AbstractIntegrationTest {
@@ -56,6 +59,16 @@ public abstract class AbstractIntegrationTest {
     protected JsonNode post(Tenant t, String url, String body, int expectedStatus) throws Exception {
         return call(MockMvcRequestBuilders.post(url).header("Authorization", t.bearer())
                 .contentType(MediaType.APPLICATION_JSON).content(body), expectedStatus);
+    }
+
+    /** POST without credentials, for the public register/login endpoints. */
+    protected JsonNode postAnonymous(String url, String body, int expectedStatus) throws Exception {
+        return call(MockMvcRequestBuilders.post(url).contentType(MediaType.APPLICATION_JSON).content(body), expectedStatus);
+    }
+
+    /** Raw response (status, headers, bytes) for non-JSON endpoints such as the CSV export. */
+    protected MvcResult rawGet(Tenant t, String url) throws Exception {
+        return mvc.perform(MockMvcRequestBuilders.get(url).header("Authorization", t.bearer())).andReturn();
     }
 
     private JsonNode call(MockHttpServletRequestBuilder request, int expectedStatus) throws Exception {

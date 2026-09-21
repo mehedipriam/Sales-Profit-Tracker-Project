@@ -178,7 +178,7 @@ public class ReportService {
     }
 
     /** 0 means "all platforms"; a platform id must belong to the caller's business. */
-    private long platformFilter(Long tenantId, Long platformId) {
+    long platformFilter(Long tenantId, Long platformId) {
         if (platformId != null && !platforms.existsByIdAndTenantId(platformId, tenantId)) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "Unknown platform");
         }
