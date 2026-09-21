@@ -77,3 +77,27 @@ tbody tr:last-child td { border-bottom: 0; }
 .form .row > label { flex: 1; min-width: 0; }
 .actions { display: flex; justify-content: flex-end; gap: 0.5rem; }
 @media (max-width: 560px) { .form .row { flex-direction: column; } }
+
+a.btn { text-decoration: none; display: inline-block; }
+.card.wide { max-width: none; }
+.card .row { display: flex; gap: 0.75rem; }
+.card .row > label { flex: 1; min-width: 0; }
+fieldset { border: 1px solid var(--border); border-radius: 8px; padding: 0.9rem; display: flex; flex-direction: column; gap: 0.75rem; }
+legend { padding: 0 0.4rem; font-weight: 600; font-size: 0.9rem; }
+.chosen { margin: 0; display: flex; gap: 0.5rem; align-items: baseline; }
+input.small { width: 6.5rem; text-align: right; }
+.totals { display: flex; gap: 1.5rem; justify-content: flex-end; font-size: 1.05rem; flex-wrap: wrap; }
+.picker { position: relative; }
+.picker input { width: 100%; }
+.picker-list {
+  position: absolute; z-index: 5; left: 0; right: 0; margin: 2px 0 0; padding: 0; list-style: none;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 6px; max-height: 240px; overflow-y: auto;
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.12);
+}
+.picker-list li { padding: 0.55rem 0.7rem; cursor: pointer; }
+.picker-list li:hover { background: #eef1f6; }
+select.status { padding: 0.25rem 0.4rem; font-size: 0.85rem; }
+select.status.PAID { color: #1a7f45; }
+select.status.PENDING { color: #b7791f; }
+select.status.RETURNED, select.status.CANCELLED { color: var(--danger); }
+@media (max-width: 700px) { .card .row { flex-direction: column; } }

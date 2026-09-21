@@ -5,6 +5,9 @@ import Layout from './layout/Layout'
 import AuthForm from './pages/AuthForm'
 import Customers from './pages/Customers'
 import Dashboard from './pages/Dashboard'
+import OrderForm from './pages/OrderForm'
+import Orders from './pages/Orders'
+import Platforms from './pages/Platforms'
 import Products from './pages/Products'
 
 export default function App() {
@@ -19,6 +22,10 @@ export default function App() {
               <Route path="/" element={<Dashboard />} />
               <Route path="/products" element={<Products />} />
               <Route path="/customers" element={<Customers />} />
+              <Route path="/orders" element={<Orders />} />
+              <Route path="/orders/new" element={<OrderForm />} />
+              <Route path="/orders/:id" element={<OrderForm />} />
+              <Route path="/platforms" element={<Platforms />} />
             </Route>
           </Route>
         </Routes>

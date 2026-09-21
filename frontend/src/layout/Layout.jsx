@@ -16,8 +16,10 @@ export default function Layout() {
         <strong className="brand">Sales &amp; Profit Tracker</strong>
         <nav>
           <NavLink to="/" end>Dashboard</NavLink>
+          <NavLink to="/orders">Orders</NavLink>
           <NavLink to="/products">Products</NavLink>
           <NavLink to="/customers">Customers</NavLink>
+          <NavLink to="/platforms">Platforms</NavLink>
         </nav>
         <div className="spacer" />
         <span className="who">{user.fullName} · {user.role}</span>

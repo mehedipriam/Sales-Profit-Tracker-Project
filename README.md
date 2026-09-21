@@ -32,6 +32,13 @@ Open http://localhost:5173, register a business, and you land on the dashboard.
 - `GET/POST /api/products`, `PUT/DELETE /api/products/{id}` - list supports `q` (name/SKU), `category`, `page`, `size`; delete is a soft delete
 - `GET /api/products/categories`
 - `GET/POST /api/customers`, `PUT/DELETE /api/customers/{id}` - list supports `q` (name/phone/address), `platformId`, `page`, `size`
-- `GET /api/platforms` - seeded with Facebook Page and Daraz for every new workspace
+- `GET/POST /api/platforms`, `PUT/DELETE /api/platforms/{id}` - seeded with Facebook Page and Daraz for every new workspace; delete deactivates
+
+## Sales API (Phase 2b)
+- `GET /api/orders` (`platformId`, `status`, `page`, `size`; newest first), `GET /api/orders/{id}`
+- `POST /api/orders`, `PUT /api/orders/{id}` - body: `platformId`, `customerId` **or** `newCustomer`, `status`, `orderedAt`, `notes`, `items[{productId, quantity, soldPrice}]`
+- `PATCH /api/orders/{id}/status`, `DELETE /api/orders/{id}`
+- Each item snapshots the product's cost at sale time (kept on edit for unchanged lines). Line profit = (sold price - cost) x quantity; order totals are the sums.
+- Statuses: `PAID`, `PENDING`, `RETURNED`, `CANCELLED`.
 
 Secrets (`MYSQL_*`, `JWT_SECRET`) come from environment variables only; `.env` is gitignored.

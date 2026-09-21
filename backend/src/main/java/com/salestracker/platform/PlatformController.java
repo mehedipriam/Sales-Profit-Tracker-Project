@@ -1,18 +1,34 @@
 package com.salestracker.platform;
 
+import com.salestracker.auth.ApiException;
 import com.salestracker.auth.AuthUser;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.DecimalMax;
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Digits;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
 import java.util.List;
 
 @RestController
 @RequestMapping("/api/platforms")
+@Transactional
 public class PlatformController {
-    public record PlatformResponse(Long id, String name, BigDecimal commissionPct) {}
+    public record PlatformRequest(
+            @NotBlank @Size(max = 100) String name,
+            @DecimalMin("0.00") @DecimalMax("100.00") @Digits(integer = 3, fraction = 2) BigDecimal commissionPct) {}
+
+    public record PlatformResponse(Long id, String name, BigDecimal commissionPct) {
+        static PlatformResponse of(Platform p) {
+            return new PlatformResponse(p.getId(), p.getName(), p.getCommissionPct());
+        }
+    }
 
     private final PlatformRepository platforms;
 
@@ -21,9 +37,43 @@ public class PlatformController {
     }
 
     @GetMapping
+    @Transactional(readOnly = true)
     public List<PlatformResponse> list(@AuthenticationPrincipal AuthUser user) {
         return platforms.findByTenantIdAndActiveTrueOrderByName(user.tenantId()).stream()
-                .map(p -> new PlatformResponse(p.getId(), p.getName(), p.getCommissionPct()))
-                .toList();
+                .map(PlatformResponse::of).toList();
+    }
+
+    @PostMapping
+    @ResponseStatus(HttpStatus.CREATED)
+    public PlatformResponse create(@AuthenticationPrincipal AuthUser user, @Valid @RequestBody PlatformRequest req) {
+        return save(new Platform(user.tenantId(), req.name().trim()), req);
+    }
+
+    @PutMapping("/{id}")
+    public PlatformResponse update(@AuthenticationPrincipal AuthUser user, @PathVariable Long id,
+                                   @Valid @RequestBody PlatformRequest req) {
+        return save(find(user, id), req);
+    }
+
+    /** Deactivate rather than delete: existing orders keep pointing at the platform. */
+    @DeleteMapping("/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deactivate(@AuthenticationPrincipal AuthUser user, @PathVariable Long id) {
+        find(user, id).deactivate();
+    }
+
+    private Platform find(AuthUser user, Long id) {
+        return platforms.findByIdAndTenantId(id, user.tenantId())
+                .filter(Platform::isActive)
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Platform not found"));
+    }
+
+    private PlatformResponse save(Platform p, PlatformRequest req) {
+        String name = req.name().trim();
+        platforms.findByTenantIdAndName(p.getTenantId(), name)
+                .filter(other -> !other.getId().equals(p.getId()))
+                .ifPresent(other -> { throw new ApiException(HttpStatus.CONFLICT, "Platform name already in use"); });
+        p.apply(name, req.commissionPct() == null ? BigDecimal.ZERO : req.commissionPct());
+        return PlatformResponse.of(platforms.save(p));
     }
 }

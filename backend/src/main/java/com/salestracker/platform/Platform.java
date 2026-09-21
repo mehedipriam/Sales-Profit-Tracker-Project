@@ -30,6 +30,13 @@ public class Platform {
         this.name = name;
     }
 
+    public void apply(String name, BigDecimal commissionPct) {
+        this.name = name;
+        this.commissionPct = commissionPct;
+    }
+
+    public void deactivate() { this.active = false; }
+
     public Long getId() { return id; }
     public Long getTenantId() { return tenantId; }
     public String getName() { return name; }
