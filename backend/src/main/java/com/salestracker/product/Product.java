@@ -29,6 +29,9 @@ public class Product {
     @Column(name = "stock_qty")
     private Integer stockQty;
 
+    @Column(name = "low_stock_threshold")
+    private Integer lowStockThreshold;
+
     @Column(nullable = false)
     private boolean active = true;
 
@@ -39,14 +42,18 @@ public class Product {
     }
 
     public void apply(String name, String sku, String category, BigDecimal costPrice,
-                      BigDecimal sellingPrice, Integer stockQty) {
+                      BigDecimal sellingPrice, Integer stockQty, Integer lowStockThreshold) {
         this.name = name;
         this.sku = sku;
         this.category = category;
         this.costPrice = costPrice;
         this.sellingPrice = sellingPrice;
         this.stockQty = stockQty;
+        this.lowStockThreshold = lowStockThreshold;
     }
+
+    /** Moves tracked stock by a signed amount; the caller writes the matching stock log row. */
+    public void addStock(int delta) { this.stockQty = this.stockQty + delta; }
 
     public void deactivate() { this.active = false; }
 
@@ -58,5 +65,6 @@ public class Product {
     public BigDecimal getCostPrice() { return costPrice; }
     public BigDecimal getSellingPrice() { return sellingPrice; }
     public Integer getStockQty() { return stockQty; }
+    public Integer getLowStockThreshold() { return lowStockThreshold; }
     public boolean isActive() { return active; }
 }

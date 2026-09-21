@@ -3,9 +3,10 @@ import api, { errorMessage } from '../api/client'
 import Modal from '../components/Modal'
 import Pager from '../components/Pager'
 import useDebounce from '../hooks/useDebounce'
+import { Link } from 'react-router-dom'
 import { money } from '../utils/format'
 
-const EMPTY = { name: '', sku: '', category: '', costPrice: '', sellingPrice: '', stockQty: '' }
+const EMPTY = { name: '', sku: '', category: '', costPrice: '', sellingPrice: '', stockQty: '', lowStockThreshold: '' }
 
 function ProductForm({ product, categories, onSaved, onCancel }) {
   const [form, setForm] = useState(
@@ -26,6 +27,7 @@ function ProductForm({ product, categories, onSaved, onCancel }) {
       costPrice: form.costPrice,
       sellingPrice: form.sellingPrice,
       stockQty: form.stockQty === '' ? null : Number(form.stockQty),
+      lowStockThreshold: form.lowStockThreshold === '' ? null : Number(form.lowStockThreshold),
     }
     try {
       if (product) await api.put(`/products/${product.id}`, body)
@@ -61,7 +63,16 @@ function ProductForm({ product, categories, onSaved, onCancel }) {
           Stock (optional)
           <input type="number" min="0" step="1" value={form.stockQty} onChange={set('stockQty')} />
         </label>
+        <label>
+          Alert at or below
+          <input type="number" min="0" step="1" value={form.lowStockThreshold} onChange={set('lowStockThreshold')}
+                 disabled={form.stockQty === ''} placeholder="optional" />
+        </label>
       </div>
+      <p className="hint">
+        Stock drops automatically when a sale is recorded and returns if the order is returned or cancelled.
+        Use Stock log for restocks and damage; a quantity typed here is logged as a correction.
+      </p>
       {error && <p className="error" role="alert">{error}</p>}
       <div className="actions">
         <button type="button" className="btn secondary" onClick={onCancel}>Cancel</button>
@@ -146,7 +157,14 @@ export default function Products() {
                   <td className="num">{money(p.costPrice)}</td>
                   <td className="num">{money(p.sellingPrice)}</td>
                   <td className={`num ${margin < 0 ? 'neg' : 'pos'}`}>{money(margin)}</td>
-                  <td className="num">{p.stockQty ?? '—'}</td>
+                  <td className="num">
+                    {p.stockQty == null ? '—' : (
+                      <Link to={`/stock?productId=${p.id}`} title="View stock history">{p.stockQty}</Link>
+                    )}
+                    {p.stockQty != null && p.lowStockThreshold != null && p.stockQty <= p.lowStockThreshold && (
+                      <span className="badge low">Low</span>
+                    )}
+                  </td>
                   <td className="row-actions">
                     <button className="link" onClick={() => setEditing(p)}>Edit</button>
                     <button className="link danger" onClick={() => remove(p)}>Delete</button>

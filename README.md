@@ -80,6 +80,21 @@ Open http://localhost:5173, register a business, and you land on the dashboard.
     (before this feature) have a 0% snapshot, so no commission is added retroactively.
 - `GET /api/orders/{id}` now includes `commissionPct` and the order's `expenses`.
 
+## Inventory API (Phase 4b)
+- Stock is tracked only for products that have a stock quantity; a product without one is ignored everywhere.
+- **Sales move stock automatically.** A `PAID` or `PENDING` order holds its quantities; `RETURNED`, `CANCELLED` or deleting
+  the order gives them back. Editing an order moves only the difference, and re-saving never double counts. Selling past
+  zero is allowed (the sale already happened), so stock can show negative as a shortfall.
+- Products take a `lowStockThreshold`. `GET /api/dashboard` returns `lowStock` (products at or below their own threshold,
+  lowest first, max 20) and the dashboard shows it as an alert; the Products list shows a *Low* badge.
+- `GET /api/stock/adjustments` (`productId`, `reason`, `page`, `size`; newest first) is the audit log. Each row has the signed
+  `change`, `stockAfter`, a note and, for automatic rows, the `orderId`.
+- `POST /api/stock/adjustments` - `{productId, change, reason, note}`; `RESTOCK` must add, `DAMAGE` must remove, `CORRECTION`
+  either. Manual adjustments cannot take stock below zero.
+- A stock quantity typed into the product form is logged too (`INITIAL` when tracking starts, otherwise `CORRECTION`).
+- Orders recorded before a product started tracking stock have no log rows, so the first time such an order is edited or
+  its status changes it will take stock as if it were new.
+
 ## Tests
 ```bash
 cd backend && mvn test      # integration tests start a throwaway MySQL via Testcontainers, so Docker must be running

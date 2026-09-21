@@ -17,7 +17,7 @@ export default function Dashboard() {
   if (error) return <p className="error" role="alert">{error}</p>
   if (!data) return <p className="center-note">Loading…</p>
 
-  const { realized, pending, returnedOrders, cancelledOrders, recentOrders } = data
+  const { realized, pending, returnedOrders, cancelledOrders, recentOrders, lowStock } = data
   const tone = (n) => (n < 0 ? 'neg' : 'pos')
   const noOrders = recentOrders.length === 0
 
@@ -47,6 +47,20 @@ export default function Dashboard() {
         <Stat label="Returned / refunded" value={returnedOrders} hint="excluded from totals" />
         <Stat label="Cancelled" value={cancelledOrders} hint="excluded from totals" />
       </div>
+
+      {lowStock.length > 0 && (
+        <div className="alert-card" role="alert">
+          <h2>Low stock · {lowStock.length} product{lowStock.length === 1 ? '' : 's'}</h2>
+          <ul>
+            {lowStock.map((p) => (
+              <li key={p.productId}>
+                <Link to={`/stock?productId=${p.productId}`}>{p.name}</Link>
+                <span>{p.stockQty} left (alert at {p.threshold})</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       <div className="page-head">
         <h2 className="section-title">Recent orders</h2>

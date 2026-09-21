@@ -23,3 +23,12 @@ export const EXPENSE_LABEL = {
   PLATFORM_COMMISSION: 'Platform commission',
   MISC: 'Miscellaneous',
 }
+
+export const STOCK_REASONS = ['INITIAL', 'RESTOCK', 'DAMAGE', 'CORRECTION', 'ORDER']
+export const STOCK_REASON_LABEL = {
+  INITIAL: 'Opening stock',
+  RESTOCK: 'Restock',
+  DAMAGE: 'Damaged',
+  CORRECTION: 'Correction',
+  ORDER: 'Order',
+}

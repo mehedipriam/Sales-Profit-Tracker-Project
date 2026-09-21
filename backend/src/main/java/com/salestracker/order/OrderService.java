@@ -12,6 +12,7 @@ import com.salestracker.platform.Platform;
 import com.salestracker.platform.PlatformRepository;
 import com.salestracker.product.Product;
 import com.salestracker.product.ProductRepository;
+import com.salestracker.stock.StockService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -34,14 +35,17 @@ public class OrderService {
     private final CustomerRepository customers;
     private final ProductRepository products;
     private final ExpenseService expenses;
+    private final StockService stock;
 
     public OrderService(SaleOrderRepository orders, PlatformRepository platforms,
-                        CustomerRepository customers, ProductRepository products, ExpenseService expenses) {
+                        CustomerRepository customers, ProductRepository products, ExpenseService expenses,
+                        StockService stock) {
         this.orders = orders;
         this.platforms = platforms;
         this.customers = customers;
         this.products = products;
         this.expenses = expenses;
+        this.stock = stock;
     }
 
     @Transactional(readOnly = true)
@@ -86,14 +90,17 @@ public class OrderService {
         return saved(order);
     }
 
-    /** Every write path ends here so the automatic commission expense can never drift from the order. */
+    /** Every write path ends here so the automatic commission expense and the stock can never drift from the order. */
     private OrderDetail saved(SaleOrder order) {
         expenses.syncCommission(order);
+        stock.syncOrder(order);
         return detail(order);
     }
 
     public void delete(Long tenantId, Long id) {
-        orders.delete(find(tenantId, id));
+        SaleOrder order = find(tenantId, id);
+        stock.releaseOrder(order);
+        orders.delete(order);
     }
 
     // ---- internals ----

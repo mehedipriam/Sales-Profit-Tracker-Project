@@ -13,13 +13,15 @@ public final class ProductDtos {
             @Size(max = 100) String category,
             @NotNull @DecimalMin("0.00") @Digits(integer = 10, fraction = 2) BigDecimal costPrice,
             @NotNull @DecimalMin("0.00") @Digits(integer = 10, fraction = 2) BigDecimal sellingPrice,
-            @Min(0) Integer stockQty) {}
+            @Min(0) Integer stockQty,
+            @Min(0) Integer lowStockThreshold) {}
 
     public record ProductResponse(Long id, String name, String sku, String category,
-                                  BigDecimal costPrice, BigDecimal sellingPrice, Integer stockQty) {
+                                  BigDecimal costPrice, BigDecimal sellingPrice, Integer stockQty,
+                                  Integer lowStockThreshold) {
         static ProductResponse of(Product p) {
             return new ProductResponse(p.getId(), p.getName(), p.getSku(), p.getCategory(),
-                    p.getCostPrice(), p.getSellingPrice(), p.getStockQty());
+                    p.getCostPrice(), p.getSellingPrice(), p.getStockQty(), p.getLowStockThreshold());
         }
     }
 }

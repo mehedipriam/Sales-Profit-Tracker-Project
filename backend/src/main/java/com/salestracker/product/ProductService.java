@@ -5,6 +5,7 @@ import com.salestracker.common.PageResponse;
 import com.salestracker.common.Search;
 import com.salestracker.product.ProductDtos.ProductRequest;
 import com.salestracker.product.ProductDtos.ProductResponse;
+import com.salestracker.stock.StockService;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -15,9 +16,11 @@ import java.util.List;
 @Transactional
 public class ProductService {
     private final ProductRepository products;
+    private final StockService stock;
 
-    public ProductService(ProductRepository products) {
+    public ProductService(ProductRepository products, StockService stock) {
         this.products = products;
+        this.stock = stock;
     }
 
     @Transactional(readOnly = true)
@@ -59,8 +62,11 @@ public class ProductService {
                     .filter(other -> !other.getId().equals(p.getId()))
                     .ifPresent(other -> { throw new ApiException(HttpStatus.CONFLICT, "SKU already in use"); });
         }
+        Integer stockBefore = p.getStockQty();
         p.apply(req.name().trim(), sku, Search.blankToNull(req.category()),
-                req.costPrice(), req.sellingPrice(), req.stockQty());
-        return ProductResponse.of(products.save(p));
+                req.costPrice(), req.sellingPrice(), req.stockQty(), req.lowStockThreshold());
+        Product saved = products.save(p);
+        stock.recordProductEdit(saved, stockBefore);
+        return ProductResponse.of(saved);
     }
 }
