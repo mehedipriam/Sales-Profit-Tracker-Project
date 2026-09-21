@@ -51,7 +51,13 @@ Open http://localhost:5173, register a business, and you land on the dashboard.
 - `GET /api/reports/summary?from=yyyy-MM-dd&to=yyyy-MM-dd&platformId=` - all params optional; `from`/`to` are inclusive
   local dates (omit either for an open-ended range). Returns `realized` (PAID), `pending`, returned/cancelled counts
   and a `byPlatform` breakdown of paid orders, all aggregated in SQL.
+- `GET /api/reports/trend` (same params) - paid revenue/cost/profit per day for ranges up to 62 days, per month
+  beyond that, zero-filled so quiet periods show as flat rather than missing. Returns `granularity` (`day`/`month`).
+- `GET /api/reports/products` (same params) - `topSellers` (by units) and `lowestMargin` (loss-making first), 10 each,
+  over paid orders. `marginPct` is null for a product that earned no revenue.
 - `GET /api/orders` accepts the same `from`/`to` filters.
+- The Reports page charts these (Recharts is lazy-loaded with the page). Chart colors live in
+  `frontend/src/components/charts/tokens.js`; every chart has a table view or is itself a table.
 - The frontend computes the presets (this month, last month, this year, all time, custom) in the user's local time.
 
 ## Tests

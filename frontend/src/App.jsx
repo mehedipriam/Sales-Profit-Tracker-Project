@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react'
 import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import { AuthProvider } from './auth/AuthContext'
 import ProtectedRoute from './auth/ProtectedRoute'
@@ -9,7 +10,9 @@ import OrderForm from './pages/OrderForm'
 import Orders from './pages/Orders'
 import Platforms from './pages/Platforms'
 import Products from './pages/Products'
-import Reports from './pages/Reports'
+
+// The charting library is the heaviest dependency; load it only when Reports is opened.
+const Reports = lazy(() => import('./pages/Reports'))
 
 export default function App() {
   return (
@@ -27,7 +30,7 @@ export default function App() {
               <Route path="/orders/new" element={<OrderForm />} />
               <Route path="/orders/:id" element={<OrderForm />} />
               <Route path="/platforms" element={<Platforms />} />
-              <Route path="/reports" element={<Reports />} />
+              <Route path="/reports" element={<Suspense fallback={<p className="center-note">Loading…</p>}><Reports /></Suspense>} />
             </Route>
           </Route>
         </Routes>
