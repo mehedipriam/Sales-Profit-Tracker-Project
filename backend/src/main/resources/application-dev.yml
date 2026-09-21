@@ -1,0 +1,5 @@
+spring:
+  datasource:
+    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${MYSQL_DATABASE:sales_tracker}
+    username: ${MYSQL_USER:tracker}
+    password: ${MYSQL_PASSWORD}
