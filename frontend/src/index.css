@@ -207,3 +207,15 @@ select.status.RETURNED, select.status.CANCELLED { color: var(--danger); }
   .statement { border: 0; box-shadow: none; padding: 0; max-width: none; margin: 0; }
   .viz-grid { grid-template-columns: 1fr; }
 }
+
+/* ---- expenses ---- */
+.hint { font-size: 0.8rem; color: var(--muted); }
+.commission-note { margin: 0; text-align: right; }
+.badge.auto { margin-left: 0.4rem; background: #e6ecf8; color: #1c5cab; }
+.expense-list { list-style: none; margin: 0; padding: 0; }
+.expense-list li { display: flex; justify-content: space-between; gap: 1rem; padding: 0.35rem 0; border-bottom: 1px solid var(--border); font-size: 0.92rem; }
+.expense-list .expense-total { border-bottom: 0; font-weight: 600; }
+.table-wrap.spaced { margin-top: 1rem; }
+
+.table-wrap a:not(.link):not(.btn) { color: var(--primary); text-decoration: none; }
+.table-wrap a:not(.link):not(.btn):hover { text-decoration: underline; }

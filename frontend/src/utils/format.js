@@ -14,3 +14,12 @@ export const toLocalInput = (d = new Date()) => {
 
 export const STATUSES = ['PAID', 'PENDING', 'RETURNED', 'CANCELLED']
 export const STATUS_LABEL = { PAID: 'Paid', PENDING: 'Pending', RETURNED: 'Returned / Refunded', CANCELLED: 'Cancelled' }
+
+export const EXPENSE_TYPES = ['DELIVERY', 'PACKAGING', 'ADS', 'PLATFORM_COMMISSION', 'MISC']
+export const EXPENSE_LABEL = {
+  DELIVERY: 'Delivery',
+  PACKAGING: 'Packaging',
+  ADS: 'Ads / boost',
+  PLATFORM_COMMISSION: 'Platform commission',
+  MISC: 'Miscellaneous',
+}

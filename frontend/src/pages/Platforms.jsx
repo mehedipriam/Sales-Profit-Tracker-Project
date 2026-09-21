@@ -30,6 +30,10 @@ function PlatformForm({ platform, onSaved, onCancel }) {
         Commission % (optional)
         <input type="number" min="0" max="100" step="0.01" value={commissionPct}
                onChange={(e) => setCommissionPct(e.target.value)} />
+        <span className="hint">
+          Charged automatically as an expense on every new order on this platform (while it is paid or pending).
+          Changing it later affects new orders only.
+        </span>
       </label>
       {error && <p className="error" role="alert">{error}</p>}
       <div className="actions">

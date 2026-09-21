@@ -1,5 +1,6 @@
 package com.salestracker.order;
 
+import com.salestracker.expense.ExpenseDtos.ExpenseLine;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.*;
 
@@ -35,8 +36,9 @@ public final class OrderDtos {
 
     public record OrderDetail(Long id, LocalDateTime orderedAt, Long platformId, String platformName,
                               Long customerId, String customerName, String customerPhone, OrderStatus status,
-                              String notes, List<ItemResponse> items,
-                              BigDecimal revenue, BigDecimal cost, BigDecimal profit) {}
+                              BigDecimal commissionPct, String notes, List<ItemResponse> items,
+                              BigDecimal revenue, BigDecimal cost, BigDecimal profit,
+                              List<ExpenseLine> expenses) {}
 
     public record OrderSummary(Long id, LocalDateTime orderedAt, String platformName, String customerName,
                                OrderStatus status, int itemCount,

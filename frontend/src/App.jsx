@@ -6,6 +6,7 @@ import Layout from './layout/Layout'
 import AuthForm from './pages/AuthForm'
 import Customers from './pages/Customers'
 import Dashboard from './pages/Dashboard'
+import Expenses from './pages/Expenses'
 import OrderForm from './pages/OrderForm'
 import Orders from './pages/Orders'
 import Platforms from './pages/Platforms'
@@ -31,6 +32,7 @@ export default function App() {
               <Route path="/orders/new" element={<OrderForm />} />
               <Route path="/orders/:id" element={<OrderForm />} />
               <Route path="/platforms" element={<Platforms />} />
+              <Route path="/expenses" element={<Expenses />} />
               <Route path="/statement" element={<Statement />} />
               <Route path="/reports" element={<Suspense fallback={<p className="center-note">Loading…</p>}><Reports /></Suspense>} />
             </Route>

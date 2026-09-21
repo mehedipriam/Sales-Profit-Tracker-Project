@@ -5,6 +5,7 @@ import com.salestracker.common.DateRange;
 import com.salestracker.common.PageResponse;
 import com.salestracker.common.Search;
 import com.salestracker.customer.Customer;
+import com.salestracker.expense.ExpenseService;
 import com.salestracker.customer.CustomerRepository;
 import com.salestracker.order.OrderDtos.*;
 import com.salestracker.platform.Platform;
@@ -32,13 +33,15 @@ public class OrderService {
     private final PlatformRepository platforms;
     private final CustomerRepository customers;
     private final ProductRepository products;
+    private final ExpenseService expenses;
 
     public OrderService(SaleOrderRepository orders, PlatformRepository platforms,
-                        CustomerRepository customers, ProductRepository products) {
+                        CustomerRepository customers, ProductRepository products, ExpenseService expenses) {
         this.orders = orders;
         this.platforms = platforms;
         this.customers = customers;
         this.products = products;
+        this.expenses = expenses;
     }
 
     @Transactional(readOnly = true)
@@ -70,16 +73,22 @@ public class OrderService {
     }
 
     public OrderDetail create(Long tenantId, OrderRequest req) {
-        return detail(orders.save(fill(new SaleOrder(tenantId), req)));
+        return saved(orders.save(fill(new SaleOrder(tenantId), req)));
     }
 
     public OrderDetail update(Long tenantId, Long id, OrderRequest req) {
-        return detail(orders.save(fill(find(tenantId, id), req)));
+        return saved(orders.save(fill(find(tenantId, id), req)));
     }
 
     public OrderDetail changeStatus(Long tenantId, Long id, OrderStatus status) {
         SaleOrder order = find(tenantId, id);
         order.setStatus(status);
+        return saved(order);
+    }
+
+    /** Every write path ends here so the automatic commission expense can never drift from the order. */
+    private OrderDetail saved(SaleOrder order) {
+        expenses.syncCommission(order);
         return detail(order);
     }
 
@@ -129,7 +138,12 @@ public class OrderService {
             newItems.add(new OrderItem(order, tenantId, product.getId(), item.quantity(), cost, item.soldPrice()));
         }
 
-        order.apply(platform.getId(), customerId, req.status(),
+        // Same platform on an edit keeps the rate the sale was recorded at; a new order or a platform change takes
+        // the platform's current rate. Existing orders (rate 0) therefore never pick up a retroactive commission.
+        BigDecimal commissionPct = !isNew && platform.getId().equals(order.getPlatformId())
+                ? order.getCommissionPct() : platform.getCommissionPct();
+
+        order.apply(platform.getId(), customerId, req.status(), commissionPct,
                 req.orderedAt() != null ? req.orderedAt() : LocalDateTime.now().withNano(0),
                 Search.blankToNull(req.notes()));
         order.getItems().clear();
@@ -163,8 +177,10 @@ public class OrderService {
                 i.getCostPriceSnapshot(), i.getSoldPrice(), i.lineRevenue(), i.lineCost(), i.lineProfit())).toList();
 
         return new OrderDetail(o.getId(), o.getOrderedAt(), platform.getId(), platform.getName(),
-                customer.getId(), customer.getName(), customer.getPhone(), o.getStatus(), o.getNotes(), items,
-                sum(o, OrderItem::lineRevenue), sum(o, OrderItem::lineCost), sum(o, OrderItem::lineProfit));
+                customer.getId(), customer.getName(), customer.getPhone(), o.getStatus(), o.getCommissionPct(),
+                o.getNotes(), items,
+                sum(o, OrderItem::lineRevenue), sum(o, OrderItem::lineCost), sum(o, OrderItem::lineProfit),
+                o.getId() == null ? List.of() : expenses.linesFor(o.getTenantId(), o.getId()));
     }
 
     private static BigDecimal sum(SaleOrder o, Function<OrderItem, BigDecimal> f) {

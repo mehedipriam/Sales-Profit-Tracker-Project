@@ -3,6 +3,7 @@ package com.salestracker.order;
 import jakarta.persistence.*;
 import org.hibernate.annotations.BatchSize;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -28,6 +29,10 @@ public class SaleOrder {
     @Column(nullable = false)
     private OrderStatus status;
 
+    /** The platform's commission rate when the sale was recorded; later rate changes don't touch this order. */
+    @Column(name = "commission_pct", nullable = false)
+    private BigDecimal commissionPct = BigDecimal.ZERO;
+
     @Column(name = "ordered_at", nullable = false)
     private LocalDateTime orderedAt;
 
@@ -44,10 +49,12 @@ public class SaleOrder {
         this.tenantId = tenantId;
     }
 
-    public void apply(Long platformId, Long customerId, OrderStatus status, LocalDateTime orderedAt, String notes) {
+    public void apply(Long platformId, Long customerId, OrderStatus status, BigDecimal commissionPct,
+                      LocalDateTime orderedAt, String notes) {
         this.platformId = platformId;
         this.customerId = customerId;
         this.status = status;
+        this.commissionPct = commissionPct;
         this.orderedAt = orderedAt;
         this.notes = notes;
     }
@@ -59,6 +66,7 @@ public class SaleOrder {
     public Long getPlatformId() { return platformId; }
     public Long getCustomerId() { return customerId; }
     public OrderStatus getStatus() { return status; }
+    public BigDecimal getCommissionPct() { return commissionPct; }
     public LocalDateTime getOrderedAt() { return orderedAt; }
     public String getNotes() { return notes; }
     public List<OrderItem> getItems() { return items; }

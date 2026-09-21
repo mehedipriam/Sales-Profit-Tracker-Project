@@ -61,6 +61,20 @@ public abstract class AbstractIntegrationTest {
                 .contentType(MediaType.APPLICATION_JSON).content(body), expectedStatus);
     }
 
+    protected JsonNode put(Tenant t, String url, String body, int expectedStatus) throws Exception {
+        return call(MockMvcRequestBuilders.put(url).header("Authorization", t.bearer())
+                .contentType(MediaType.APPLICATION_JSON).content(body), expectedStatus);
+    }
+
+    protected JsonNode patch(Tenant t, String url, String body, int expectedStatus) throws Exception {
+        return call(MockMvcRequestBuilders.patch(url).header("Authorization", t.bearer())
+                .contentType(MediaType.APPLICATION_JSON).content(body), expectedStatus);
+    }
+
+    protected JsonNode delete(Tenant t, String url, int expectedStatus) throws Exception {
+        return call(MockMvcRequestBuilders.delete(url).header("Authorization", t.bearer()), expectedStatus);
+    }
+
     /** POST without credentials, for the public register/login endpoints. */
     protected JsonNode postAnonymous(String url, String body, int expectedStatus) throws Exception {
         return call(MockMvcRequestBuilders.post(url).contentType(MediaType.APPLICATION_JSON).content(body), expectedStatus);
