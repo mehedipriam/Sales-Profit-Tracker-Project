@@ -1,0 +1,43 @@
+# Full stack: MySQL + Spring Boot backend + nginx-served React frontend.
+#   cp .env.example .env   (then edit the secrets)
+#   docker compose up -d --build
+# Open http://localhost:${WEB_PORT:-80}. For local development use docker-compose.dev.yml instead (MySQL only).
+services:
+  mysql:
+    image: mysql:8.4
+    restart: unless-stopped
+    # No published port: only the backend, on the compose network, can reach the database.
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?set MYSQL_ROOT_PASSWORD in .env}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-sales_tracker}
+      MYSQL_USER: ${MYSQL_USER:-tracker}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?set MYSQL_PASSWORD in .env}
+    volumes: [mysql_data:/var/lib/mysql]   # named volume: data survives `docker compose down`
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -p$$MYSQL_ROOT_PASSWORD"]
+      interval: 5s
+      retries: 20
+
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    depends_on:
+      mysql: { condition: service_healthy }
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      DB_HOST: mysql
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-sales_tracker}
+      MYSQL_USER: ${MYSQL_USER:-tracker}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?set MYSQL_PASSWORD in .env}
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in .env (32+ characters)}
+    # Not published: the browser reaches the API through the frontend container's /api proxy.
+
+  frontend:
+    build: ./frontend
+    restart: unless-stopped
+    depends_on:
+      backend: { condition: service_healthy }
+    ports: ["${WEB_PORT:-80}:80"]
+
+volumes:
+  mysql_data:

@@ -1,4 +1,4 @@
-# Dev-only: MySQL for local development. The full-stack compose file comes in Phase 5.
+# Dev-only: MySQL for local development. The full stack is docker-compose.yml.
 services:
   mysql:
     image: mysql:8.4

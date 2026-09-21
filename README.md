@@ -111,6 +111,26 @@ Open http://localhost:5173, register a business, and you land on the dashboard.
   - a platform with expenses but no paid orders still gets a row (zero revenue, negative net).
 - The CSV export is unchanged: it lists order lines with gross figures. Expenses are on the Expenses page.
 
+## Run with Docker (Phase 5a)
+```bash
+cp .env.example .env            # then edit the secrets
+docker compose up -d --build    # MySQL + backend + frontend
+```
+Open http://localhost (set `WEB_PORT` in `.env` to use another port). `docker compose down` stops it; the database lives in the
+named volume `mysql_data` and survives that. Only `docker compose down -v` deletes it.
+- **backend** (`backend/Dockerfile`): multi-stage. A Maven + JDK 17 stage builds the jar, and the final image is a JRE-only
+  Alpine image (about 365 MB) running as a non-root user with Spring's layered jar, so a code-only rebuild reuses the
+  dependency layers. Tests are skipped in the image build (they need Docker) and belong in CI (Phase 5b). It runs the `prod`
+  profile and reports health at `/actuator/health`.
+- **frontend** (`frontend/Dockerfile`): a Node stage runs `npm ci && npm run build`; the final image is nginx serving the
+  static files (about 75 MB), falling back to `index.html` for client-side routes and forwarding `/api` to the backend, so the
+  browser sees a single origin. Phase 6 turns this nginx into the hardened public proxy with TLS.
+- **mysql**: `mysql:8.4` with no published port; only the backend can reach it. The backend is not published either.
+- Startup is ordered by healthchecks: MySQL healthy, then backend healthy (Flyway has run), then frontend.
+- Missing `MYSQL_ROOT_PASSWORD`, `MYSQL_PASSWORD` or `JWT_SECRET` stops compose with a clear message rather than starting with
+  a blank secret. Secrets are only read from `.env` / the environment, never baked into an image.
+- `docker-compose.dev.yml` is unchanged: MySQL only, for running the backend and frontend from your IDE.
+
 ## Tests
 ```bash
 cd backend && mvn test      # integration tests start a throwaway MySQL via Testcontainers, so Docker must be running
