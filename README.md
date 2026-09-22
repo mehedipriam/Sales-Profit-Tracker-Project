@@ -285,6 +285,27 @@ OWNER user, and seeds Facebook Page/Daraz). This phase is the Owner/Staff split 
   gone, full Staff CRUD access, the commission-rate boundary, and the cost-price-optional fix) - 69 backend tests
   pass in total, zero regressions from before this phase.
 
+## Backups & recovery (Phase 8a)
+```bash
+# .env needs BACKUP_S3_BUCKET, BACKUP_S3_ENDPOINT, BACKUP_S3_ACCESS_KEY, BACKUP_S3_SECRET_KEY - any
+# S3-compatible bucket works (AWS S3, Backblaze B2, DigitalOcean Spaces, MinIO, ...), already created.
+./scripts/backup-db.sh                    # mysqldump | gzip, streamed straight to the bucket, no temp file
+./scripts/restore-db.sh <backup-filename>  # streamed straight back in - destructive, asks for confirmation first
+```
+- Both scripts stream through the pipe end to end (`mysqldump | gzip | aws s3 cp -` and the reverse) - no temp
+  file ever touches disk, so there's nothing to clean up and no extra disk space needed for a large database.
+  They use the `amazon/aws-cli` Docker image rather than requiring `awscli` installed on the host, consistent
+  with the rest of this repo.
+- Pruning old backups is a lifecycle/expiration rule on the bucket itself (every S3-compatible provider has
+  one) rather than scripted deletion here - a bug in a delete script is a much worse day than a bigger
+  storage bill.
+- **"A backup you've never restored from is not a backup"**: this was verified for real, not just written and
+  trusted - ran `backup-db.sh` against a real database, inserted a marker row afterward, ran `restore-db.sh`,
+  and confirmed the marker was gone and every real row was back (a genuine round trip, not just "the command
+  didn't error"). Worth repeating periodically against the real production bucket once this is actually
+  deployed, so a restore never has to be figured out for the first time during an incident - an operational
+  runbook covering that, deploys and rollbacks is Phase 8c.
+
 ## Tests
 ```bash
 cd backend && mvn test      # integration tests start a throwaway MySQL via Testcontainers, so Docker must be running
