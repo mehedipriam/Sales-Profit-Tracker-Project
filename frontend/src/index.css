@@ -27,7 +27,8 @@ a:hover { filter: brightness(0.85); }
   padding: 0.6rem 1.5rem; background: var(--surface); border-bottom: 1px solid var(--border);
   position: sticky; top: 0; z-index: 10; box-shadow: 0 1px 3px rgba(16, 24, 40, 0.04);
 }
-.topbar .brand { justify-self: start; font-size: 1.05rem; white-space: nowrap; }
+.topbar .brand { justify-self: start; font-size: 1.05rem; white-space: nowrap; display: flex; align-items: center; gap: 0.55rem; }
+.topbar .brand img { width: 30px; height: 30px; }
 .topbar nav { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.15rem; }
 .topbar nav a {
   color: var(--muted); padding: 0.35rem 0.6rem; border-radius: 999px; font-size: 0.9rem; white-space: nowrap;
@@ -58,6 +59,8 @@ a:hover { filter: brightness(0.85); }
 .content { max-width: 1100px; margin: 0 auto; padding: 1.5rem; }
 
 .auth-page { display: grid; place-items: center; min-height: 100vh; padding: 1rem; }
+.auth-brand { display: flex; flex-direction: column; align-items: center; gap: 0.5rem; font-weight: 700; font-size: 1.1rem; }
+.auth-brand img { width: 56px; height: 56px; }
 .card {
   width: 100%; max-width: 380px; display: flex; flex-direction: column; gap: 1rem;
   background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 1.75rem;

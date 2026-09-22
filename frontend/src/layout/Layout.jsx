@@ -16,7 +16,7 @@ export default function Layout() {
   return (
     <div className="shell">
       <header className="topbar">
-        <strong className="brand">Sales &amp; Profit Tracker</strong>
+        <strong className="brand"><img src="/favicon.svg" alt="" />Sales &amp; Profit Tracker</strong>
         <nav>
           {/* Dashboard, Expenses, Reports and Statement are financial detail - Owner only (Phase 7b). */}
           {isOwner && <NavLink to="/" end>Dashboard</NavLink>}

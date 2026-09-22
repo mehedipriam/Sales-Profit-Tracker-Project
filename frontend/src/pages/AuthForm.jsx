@@ -45,6 +45,7 @@ export default function AuthForm({ mode }) {
   return (
     <div className="auth-page">
       <form className="card" onSubmit={onSubmit}>
+        <div className="auth-brand"><img src="/favicon.svg" alt="" />Sales &amp; Profit Tracker</div>
         <h1>{isLogin ? 'Log in' : 'Create your workspace'}</h1>
         {FIELDS[mode].map((f) => (
           <label key={f.name}>
