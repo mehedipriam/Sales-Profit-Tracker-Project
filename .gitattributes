@@ -1,0 +1,3 @@
+# nginx/init-letsencrypt.sh runs as bash on the Linux server; a CRLF-mangled shebang breaks it,
+# so force LF regardless of a checkout's core.autocrlf.
+*.sh text eol=lf

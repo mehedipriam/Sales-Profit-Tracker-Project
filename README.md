@@ -152,6 +152,30 @@ Built in from Phase 1b/5a and confirmed here rather than deferred:
   `application-prod.yml` (no defaults - every value must be supplied explicitly, `logging.level.root: INFO`). Docker
   Compose sets `SPRING_PROFILES_ACTIVE: prod`; the default profile for a bare `mvn spring-boot:run` is `dev`.
 
+## Production TLS (Phase 6a)
+The `frontend` container (Phase 5a) already is the reverse proxy - it serves the built React app and forwards `/api` to
+the backend. This phase adds Let's Encrypt TLS in front of it, as an *overlay* on top of the normal compose file so
+plain local `docker compose up` (no domain needed) is untouched:
+```bash
+# On the server (Linux, Docker installed, this repo checked out, DOMAIN's DNS A record already pointing here):
+cp .env.example .env                    # then edit the secrets, plus DOMAIN and CERTBOT_EMAIL
+./nginx/init-letsencrypt.sh             # one-time: issues the certificate
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+```
+- `nginx/prod.conf.template` is the TLS server config (HTTP on 80 redirects to HTTPS; HTTPS on 443 serves the app and
+  proxies `/api`, same as `frontend/nginx.conf`). `init-letsencrypt.sh` renders it to the gitignored `nginx/prod.conf`
+  with the real domain, then bootstraps the certificate: a dummy self-signed cert so nginx can start at all, nginx up
+  and answering the ACME HTTP-01 challenge, the real certificate requested via `certbot` against that, then a reload.
+  Set `CERTBOT_STAGING=1` in `.env` to rehearse the whole flow against Let's Encrypt's staging endpoint first (an
+  untrusted cert, but no real rate limit) before running it for real.
+- `docker-compose.prod.yml` adds the `certbot` service (renews twice daily; a no-op until a cert is within 30 days of
+  expiry) and publishes 443 / mounts the rendered config and cert volumes into `frontend`. **A renewal only replaces
+  the files on disk** - nginx keeps the old certificate loaded in memory until reloaded, so reload it after a renewal
+  actually happens (`docker compose exec frontend nginx -s reload`), e.g. from a host cron job; that lands properly
+  with Phase 8's operational runbook rather than being half-built here.
+- Load balancing across multiple backend containers is Phase 6b; security headers (CSP, HSTS, X-Frame-Options) are
+  Phase 6c - `nginx/prod.conf.template` deliberately doesn't have either yet.
+
 ## Tests
 ```bash
 cd backend && mvn test      # integration tests start a throwaway MySQL via Testcontainers, so Docker must be running

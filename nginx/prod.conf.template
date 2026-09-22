@@ -1,0 +1,58 @@
+# TLS-terminating reverse proxy for production (Phase 6a): serves the built React app and proxies
+# /api to the backend, same as frontend/nginx.conf, plus HTTPS and an HTTP -> HTTPS redirect.
+# Rendered to nginx/prod.conf by nginx/init-letsencrypt.sh, which replaces __DOMAIN__ with the real
+# domain from .env. Load balancing across multiple backend instances is Phase 6b; security headers
+# (CSP, HSTS, X-Frame-Options) are Phase 6c - deliberately not in this file yet.
+
+server {
+    listen 80;
+    server_name __DOMAIN__;
+
+    # Let's Encrypt validates domain ownership by fetching a token from here.
+    location /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+    }
+
+    # Everything else: force HTTPS.
+    location / {
+        return 301 https://$host$request_uri;
+    }
+}
+
+server {
+    listen 443 ssl;
+    http2 on;
+    server_name __DOMAIN__;
+
+    ssl_certificate     /etc/letsencrypt/live/__DOMAIN__/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/__DOMAIN__/privkey.pem;
+    include /etc/letsencrypt/options-ssl-nginx.conf;
+    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
+
+    root /usr/share/nginx/html;
+    index index.html;
+
+    gzip on;
+    gzip_types text/css application/javascript application/json image/svg+xml;
+
+    location /api/ {
+        proxy_pass http://backend:8080;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    # Vite fingerprints everything in /assets, so it can be cached forever.
+    location /assets/ {
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+        try_files $uri =404;
+    }
+
+    # Client-side routes (/orders, /reports ...) must fall back to index.html; never cache it so a deploy shows up.
+    location / {
+        add_header Cache-Control "no-cache";
+        try_files $uri /index.html;
+    }
+}

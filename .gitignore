@@ -5,3 +5,7 @@ dist/
 *.log
 .idea/
 .vscode/
+
+# Phase 6a: generated from nginx/prod.conf.template, and the cert/challenge data init-letsencrypt.sh manages
+nginx/prod.conf
+certbot/
