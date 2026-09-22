@@ -131,6 +131,17 @@ named volume `mysql_data` and survives that. Only `docker compose down -v` delet
   a blank secret. Secrets are only read from `.env` / the environment, never baked into an image.
 - `docker-compose.dev.yml` is unchanged: MySQL only, for running the backend and frontend from your IDE.
 
+## CI/CD (Phase 5b)
+GitHub Actions workflow at `.github/workflows/ci.yml`, on every push/PR to `main`:
+- **Backend tests** - `mvn test` (Testcontainers starts its own throwaway MySQL; the JWT secret is inlined for the test
+  profile, so the job needs no secrets - GitHub's `ubuntu-latest` runners already have Docker).
+- **Frontend build & lint** - `npm ci`, `npm run lint` (oxlint), `npm run build`.
+- **Image publish** (push to `main` only, after both jobs above pass) - builds the backend and frontend Dockerfiles and
+  pushes them to GHCR as `ghcr.io/<owner>/<repo>-backend` / `-frontend`, tagged `latest` and the commit SHA. Uses the
+  workflow's automatic `GITHUB_TOKEN` (`packages: write`) - no registry secret to configure.
+- Actually deploying those images (SSH/webhook step, staging branch/environment) is deferred until a real server
+  exists - that lands with Phase 6's Nginx/production setup rather than being stubbed out speculatively here.
+
 ## Tests
 ```bash
 cd backend && mvn test      # integration tests start a throwaway MySQL via Testcontainers, so Docker must be running
