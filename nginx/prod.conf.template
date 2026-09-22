@@ -1,8 +1,20 @@
 # TLS-terminating reverse proxy for production (Phase 6a): serves the built React app and proxies
 # /api to the backend, same as frontend/nginx.conf, plus HTTPS and an HTTP -> HTTPS redirect.
 # Rendered to nginx/prod.conf by nginx/init-letsencrypt.sh, which replaces __DOMAIN__ with the real
-# domain from .env. Load balancing across multiple backend instances is Phase 6b; security headers
-# (CSP, HSTS, X-Frame-Options) are Phase 6c - deliberately not in this file yet.
+# domain from .env. Security headers (CSP, HSTS, X-Frame-Options) are Phase 6c - deliberately not in
+# this file yet.
+
+# Load balancing (Phase 6b): round-robin (nginx's default - no directive needed) across both backend
+# containers. This is open-source nginx, so there is no active health polling of /actuator/health from
+# here; the check is passive - max_fails failed proxy attempts within fail_timeout mark a backend down
+# for that same window, so live traffic stops going to a dead instance without an operator doing
+# anything. (Docker Compose's own healthcheck, already on the backend image and already used for
+# `depends_on: condition: service_healthy`, is what decides whether a container is fit to receive
+# traffic in the first place and restarts it if not - the two checks are complementary.)
+upstream backend_pool {
+    server backend:8080 max_fails=3 fail_timeout=10s;
+    server backend2:8080 max_fails=3 fail_timeout=10s;
+}
 
 server {
     listen 80;
@@ -36,7 +48,7 @@ server {
     gzip_types text/css application/javascript application/json image/svg+xml;
 
     location /api/ {
-        proxy_pass http://backend:8080;
+        proxy_pass http://backend_pool;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;

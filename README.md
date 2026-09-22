@@ -176,6 +176,27 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
 - Load balancing across multiple backend containers is Phase 6b; security headers (CSP, HSTS, X-Frame-Options) are
   Phase 6c - `nginx/prod.conf.template` deliberately doesn't have either yet.
 
+## Load balancing (Phase 6b)
+`docker-compose.prod.yml` also runs a second backend instance, `backend2` - identical image and env vars to `backend`,
+including `JWT_SECRET`. That last part matters: auth is stateless JWT with no server-side session, so a token issued
+by one instance must validate on the other, or a request round-robined to the second instance would wrongly look
+unauthenticated. Both are covered by the same `depends_on: condition: service_healthy` used since Phase 5a (Spring
+Boot Actuator's `/actuator/health`, already baked into `backend/Dockerfile`'s `HEALTHCHECK`) - `frontend` doesn't
+start until both backends report healthy.
+
+`nginx/prod.conf.template`'s `upstream backend_pool { server backend:8080 ...; server backend2:8080 ...; }` load-balances
+between them - round-robin, nginx's default, no directive needed. This is open-source nginx, so there's no active
+polling of `/actuator/health` from nginx itself (that's an nginx-plus feature); detection is passive, via each
+server's `max_fails=3 fail_timeout=10s` - three failed proxy attempts within 10s mark that backend down for the same
+10s, so live traffic stops going to it without anyone doing anything. Verified directly (round-robin distribution
+across both instances, and 100% failover to the survivor with no errors reaching the client, immediately after
+killing one) rather than just trusting the config on paper.
+- **Caveat worth knowing**: nginx resolves `backend`/`backend2` to IPs once, when it starts or is reloaded - not on
+  every request. If a backend container is later *recreated* (a redeploy, not just a restart) it can come back with a
+  new internal IP that nginx won't discover until it's reloaded. The startup ordering above avoids this on a fresh
+  `up`; for a rolling redeploy later, reload nginx afterwards - another item for Phase 8's runbook rather than solved
+  here with heavier tooling (nginx-plus or a Lua resolver) this project doesn't otherwise need.
+
 ## Tests
 ```bash
 cd backend && mvn test      # integration tests start a throwaway MySQL via Testcontainers, so Docker must be running
