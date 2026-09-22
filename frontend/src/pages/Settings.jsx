@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import api, { errorMessage } from '../api/client'
 import { useAuth } from '../auth/AuthContext'
+import { CURRENCIES, money } from '../utils/format'
 
 /** A settings card: its own error/success message and busy state around one save. */
 function useSave() {
@@ -38,16 +39,29 @@ function Feedback({ save }) {
 
 function BusinessCard({ user, setSession }) {
   const [name, setName] = useState(user.businessName)
+  const [currency, setCurrencyCode] = useState(user.currency ?? 'BDT')
+  const known = CURRENCIES.some(([code]) => code === currency)
   const save = useSave()
   const submit = (e) => save.run(e, async () => {
-    const { data } = await api.put('/account/business', { name })
+    const { data } = await api.put('/account/business', { name, currency })
     setSession({ user: data })
-  }, 'Store name saved.')
+  }, 'Store settings saved.')
 
   return (
     <form className="card" onSubmit={submit}>
       <h2>Store</h2>
       <label>Store name<input required maxLength={150} value={name} onChange={(e) => setName(e.target.value)} /></label>
+      <label>
+        Currency
+        <select value={currency} onChange={(e) => setCurrencyCode(e.target.value)}>
+          {!known && <option value={currency}>{currency}</option>}
+          {CURRENCIES.map(([code, label]) => <option key={code} value={code}>{code} · {label}</option>)}
+        </select>
+        <span className="hint">
+          Every amount in the app is shown in this currency, e.g. {money(1440)} after saving. Amounts already recorded
+          are not converted - only the symbol changes.
+        </span>
+      </label>
       <Feedback save={save} />
       <div className="actions"><button className="btn" disabled={save.busy}>{save.busy ? 'Saving…' : 'Save'}</button></div>
     </form>

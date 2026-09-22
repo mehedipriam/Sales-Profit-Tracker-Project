@@ -1,7 +1,30 @@
-export const money = (n) => {
-  const v = Number(n ?? 0)
-  return (v < 0 ? '-' : '') + '৳' + Math.abs(v).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+/** Currencies offered in Settings; any ISO 4217 code the store is set to still formats correctly. */
+export const CURRENCIES = [
+  ['BDT', 'Bangladeshi taka'], ['USD', 'US dollar'], ['EUR', 'Euro'], ['GBP', 'British pound'],
+  ['INR', 'Indian rupee'], ['PKR', 'Pakistani rupee'], ['NPR', 'Nepalese rupee'], ['LKR', 'Sri Lankan rupee'],
+  ['AED', 'UAE dirham'], ['SAR', 'Saudi riyal'], ['QAR', 'Qatari riyal'], ['KWD', 'Kuwaiti dinar'],
+  ['MYR', 'Malaysian ringgit'], ['SGD', 'Singapore dollar'], ['IDR', 'Indonesian rupiah'], ['THB', 'Thai baht'],
+  ['PHP', 'Philippine peso'], ['CNY', 'Chinese yuan'], ['JPY', 'Japanese yen'], ['KRW', 'South Korean won'],
+  ['CAD', 'Canadian dollar'], ['AUD', 'Australian dollar'], ['NZD', 'New Zealand dollar'], ['TRY', 'Turkish lira'],
+  ['ZAR', 'South African rand'], ['NGN', 'Nigerian naira'], ['BRL', 'Brazilian real'], ['MXN', 'Mexican peso'],
+]
+
+// The store's currency, set from the signed-in user (AuthContext) so every money() call follows it.
+let formatter = null
+export const setCurrency = (code) => {
+  try {
+    formatter = new Intl.NumberFormat('en-US', { style: 'currency', currency: code || 'BDT', currencyDisplay: 'narrowSymbol' })
+  } catch {
+    formatter = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'BDT', currencyDisplay: 'narrowSymbol' })
+  }
 }
+setCurrency('BDT')
+
+/** Symbol and decimals come from the currency: ৳1,440.00, $1,440.00, ¥1,440. */
+export const money = (n) => formatter.format(Number(n ?? 0))
+
+/** The current currency's symbol, e.g. ৳, $, €; for the logo. */
+export const currencySymbol = () => formatter.formatToParts(0).find((p) => p.type === 'currency')?.value ?? '৳'
 
 export const dateTime = (iso) =>
   new Date(iso).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })

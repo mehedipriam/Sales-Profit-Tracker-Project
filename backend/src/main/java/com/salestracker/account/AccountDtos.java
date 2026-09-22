@@ -2,6 +2,7 @@ package com.salestracker.account;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 public final class AccountDtos {
@@ -15,5 +16,7 @@ public final class AccountDtos {
     public record PasswordRequest(@NotBlank String currentPassword,
                                   @NotBlank @Size(min = 8, max = 72) String newPassword) {}
 
-    public record BusinessRequest(@NotBlank @Size(max = 150) String name) {}
+    /** currency is an ISO 4217 code such as BDT, USD or EUR. */
+    public record BusinessRequest(@NotBlank @Size(max = 150) String name,
+                                  @NotBlank @Pattern(regexp = "[A-Za-z]{3}") String currency) {}
 }

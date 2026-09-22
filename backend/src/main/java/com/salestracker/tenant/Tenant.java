@@ -12,6 +12,10 @@ public class Tenant {
     @Column(nullable = false)
     private String name;
 
+    /** ISO 4217 code; only affects how amounts are displayed. */
+    @Column(nullable = false, length = 3)
+    private String currency = "BDT";
+
     protected Tenant() {}
 
     public Tenant(String name) {
@@ -19,7 +23,9 @@ public class Tenant {
     }
 
     public void rename(String name) { this.name = name; }
+    public void changeCurrency(String currency) { this.currency = currency; }
 
     public Long getId() { return id; }
     public String getName() { return name; }
+    public String getCurrency() { return currency; }
 }

@@ -1,10 +1,18 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import api, { tokenStore } from '../api/client'
+import { applyLogo } from '../components/logo'
+import { currencySymbol, setCurrency } from '../utils/format'
 
 const AuthContext = createContext(null)
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null)
+  const [user, setUserState] = useState(null)
+  // Amounts everywhere are formatted in the store's currency, so it is applied the moment the user is known.
+  const setUser = useCallback((next) => {
+    setCurrency(next?.currency)
+    applyLogo(next ? currencySymbol() : null)
+    setUserState(next)
+  }, [])
   const [loading, setLoading] = useState(() => Boolean(tokenStore.get()))
 
   // Restore the session from a stored token.

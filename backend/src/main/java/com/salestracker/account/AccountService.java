@@ -17,7 +17,12 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/** The signed-in user's own account: their name, login email and password, and (Owner only) the business name. */
+import java.util.Currency;
+
+/**
+ * The signed-in user's own account: their name, login email and password, and (Owner only) the business name and the
+ * currency its amounts are shown in.
+ */
 @Service
 @Transactional
 public class AccountService {
@@ -57,7 +62,14 @@ public class AccountService {
 
     public UserInfo renameBusiness(AuthUser principal, BusinessRequest req) {
         Tenant tenant = tenants.findById(principal.tenantId()).orElseThrow();
+        String currency = req.currency().toUpperCase();
+        try {
+            Currency.getInstance(currency);
+        } catch (IllegalArgumentException e) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "Unknown currency: " + currency);
+        }
         tenant.rename(req.name().trim());
+        tenant.changeCurrency(currency);
         return auth.toInfo(current(principal));
     }
 

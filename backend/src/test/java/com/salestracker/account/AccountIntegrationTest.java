@@ -75,8 +75,10 @@ class AccountIntegrationTest extends AbstractIntegrationTest {
 
     @Test
     void theOwnerRenamesTheBusinessButStaffCannot() throws Exception {
-        JsonNode info = put(owner, "/api/account/business", "{\"name\":\" Rina's Store \"}", 200);
+        assertEquals("BDT", get(owner, "/api/auth/me", 200).get("currency").asText()); // the default
+        JsonNode info = put(owner, "/api/account/business", "{\"name\":\" Rina's Store \",\"currency\":\"usd\"}", 200);
         assertEquals("Rina's Store", info.get("businessName").asText());
+        assertEquals("USD", info.get("currency").asText());
         assertEquals("Rina's Store", get(owner, "/api/auth/me", 200).get("businessName").asText());
 
         String staffEmail = unique("staff");
@@ -85,11 +87,19 @@ class AccountIntegrationTest extends AbstractIntegrationTest {
         JsonNode staffLogin = login(staffEmail, "password123", 200);
         Tenant staff = new Tenant(staffLogin.at("/user/tenantId").asLong(), "Bearer " + staffLogin.get("token").asText());
 
-        put(staff, "/api/account/business", "{\"name\":\"Hijacked\"}", 403);
+        put(staff, "/api/account/business", "{\"name\":\"Hijacked\",\"currency\":\"EUR\"}", 403);
+        assertEquals("USD", get(staff, "/api/auth/me", 200).get("currency").asText()); // staff see the store's currency
         // Staff still manage their own profile and password.
         put(staff, "/api/account/profile", "{\"fullName\":\"Rina\",\"email\":\"%s\"}".formatted(staffEmail), 200);
         put(staff, "/api/account/password",
                 "{\"currentPassword\":\"password123\",\"newPassword\":\"staff-new-pass\"}", 204);
+    }
+
+    @Test
+    void anUnknownCurrencyIsRejected() throws Exception {
+        put(owner, "/api/account/business", "{\"name\":\"Shop\",\"currency\":\"ABC\"}", 400);
+        put(owner, "/api/account/business", "{\"name\":\"Shop\",\"currency\":\"DOLLARS\"}", 400);
+        assertEquals("BDT", get(owner, "/api/auth/me", 200).get("currency").asText());
     }
 
     @Test

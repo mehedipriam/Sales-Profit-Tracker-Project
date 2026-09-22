@@ -297,7 +297,11 @@ The **Settings** page (the top-bar link, or click your name) lets the signed-in 
   (the login) requires `currentPassword`, rejects an email already in use (`409`), and returns a fresh token plus user,
   since the token carries the email.
 - `PUT /api/account/password` - `{currentPassword, newPassword}` (8-72 characters); `204` on success.
-- `PUT /api/account/business` - `{name}`, **Owner only**: renames the store (tenant) for everyone on the team.
+- `PUT /api/account/business` - `{name, currency}`, **Owner only**: renames the store (tenant) and sets its currency
+  (any ISO 4217 code, e.g. `BDT`, `USD`, `EUR`; unknown codes are a `400`) for everyone on the team. The currency
+  (V7 migration, default `BDT`) comes back on `/api/auth/me` as `currency` and only changes how amounts are displayed -
+  money is stored as plain numbers, so nothing is converted. The frontend formats with `Intl.NumberFormat`, so each
+  currency gets its own symbol and decimals (৳1,440.00, $1,440.00, ¥1,440).
 - A wrong current password is a `400`, not a `401`, so the frontend shows the error instead of logging the user out.
   Covered by `AccountIntegrationTest`.
 

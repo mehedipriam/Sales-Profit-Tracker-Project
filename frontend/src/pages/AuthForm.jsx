@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { errorMessage } from '../api/client'
+import { lastSymbol, logoUrl } from '../components/logo'
 import { useAuth } from '../auth/AuthContext'
 
 const FIELDS = {
@@ -45,7 +46,7 @@ export default function AuthForm({ mode }) {
   return (
     <div className="auth-page">
       <form className="card" onSubmit={onSubmit}>
-        <div className="auth-brand"><img src="/favicon.svg" alt="" />Sales &amp; Profit Tracker</div>
+        <div className="auth-brand"><img src={logoUrl(lastSymbol())} alt="" />Sales &amp; Profit Tracker</div>
         <h1>{isLogin ? 'Log in' : 'Create your workspace'}</h1>
         {FIELDS[mode].map((f) => (
           <label key={f.name}>

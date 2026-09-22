@@ -1,6 +1,8 @@
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 import ErrorBoundary from '../components/ErrorBoundary'
+import { logoUrl } from '../components/logo'
+import { currencySymbol } from '../utils/format'
 
 export default function Layout() {
   const { user, logout } = useAuth()
@@ -16,7 +18,7 @@ export default function Layout() {
   return (
     <div className="shell">
       <header className="topbar">
-        <strong className="brand"><img src="/favicon.svg" alt="" />Sales &amp; Profit Tracker</strong>
+        <strong className="brand"><img src={logoUrl(currencySymbol())} alt="" />Sales &amp; Profit Tracker</strong>
         <nav>
           {/* Dashboard, Expenses, Reports and Statement are financial detail - Owner only (Phase 7b). */}
           {isOwner && <NavLink to="/" end>Dashboard</NavLink>}
