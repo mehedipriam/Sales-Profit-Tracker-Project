@@ -48,8 +48,10 @@ public class AuthService {
 
     @Transactional(readOnly = true)
     public AuthResponse login(LoginRequest req) {
+        // Same message either way - a deactivated account shouldn't be distinguishable from a wrong password.
         User user = users.findByEmail(req.email().trim().toLowerCase())
                 .filter(u -> encoder.matches(req.password(), u.getPasswordHash()))
+                .filter(User::isActive)
                 .orElseThrow(() -> new ApiException(HttpStatus.UNAUTHORIZED, "Invalid email or password"));
         return toResponse(user);
     }

@@ -2,6 +2,7 @@ package com.salestracker.platform;
 
 import com.salestracker.auth.ApiException;
 import com.salestracker.auth.AuthUser;
+import com.salestracker.user.Role;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
@@ -46,13 +47,13 @@ public class PlatformController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public PlatformResponse create(@AuthenticationPrincipal AuthUser user, @Valid @RequestBody PlatformRequest req) {
-        return save(new Platform(user.tenantId(), req.name().trim()), req);
+        return save(user, new Platform(user.tenantId(), req.name().trim()), req);
     }
 
     @PutMapping("/{id}")
     public PlatformResponse update(@AuthenticationPrincipal AuthUser user, @PathVariable Long id,
                                    @Valid @RequestBody PlatformRequest req) {
-        return save(find(user, id), req);
+        return save(user, find(user, id), req);
     }
 
     /** Deactivate rather than delete: existing orders keep pointing at the platform. */
@@ -68,12 +69,25 @@ public class PlatformController {
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Platform not found"));
     }
 
-    private PlatformResponse save(Platform p, PlatformRequest req) {
+    /** Staff (Phase 7b) get full platform management except the commission rate, which stays Owner-only. */
+    private PlatformResponse save(AuthUser user, Platform p, PlatformRequest req) {
         String name = req.name().trim();
         platforms.findByTenantIdAndName(p.getTenantId(), name)
                 .filter(other -> !other.getId().equals(p.getId()))
                 .ifPresent(other -> { throw new ApiException(HttpStatus.CONFLICT, "Platform name already in use"); });
-        p.apply(name, req.commissionPct() == null ? BigDecimal.ZERO : req.commissionPct());
+
+        BigDecimal requested = req.commissionPct() == null ? BigDecimal.ZERO : req.commissionPct();
+        BigDecimal commissionPct;
+        if (user.role() == Role.OWNER) {
+            commissionPct = requested;
+        } else if (p.getId() == null) {
+            commissionPct = BigDecimal.ZERO; // a Staff-created platform starts at 0%; an Owner sets the real rate later
+        } else if (requested.compareTo(p.getCommissionPct()) != 0) {
+            throw new ApiException(HttpStatus.FORBIDDEN, "Only an owner can change the commission rate");
+        } else {
+            commissionPct = p.getCommissionPct();
+        }
+        p.apply(name, commissionPct);
         return PlatformResponse.of(platforms.save(p));
     }
 }

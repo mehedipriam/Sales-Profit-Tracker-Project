@@ -6,6 +6,7 @@ import com.salestracker.report.ReportService.SummaryResponse;
 import com.salestracker.report.ReportService.TrendResponse;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -15,8 +16,10 @@ import org.springframework.web.bind.annotation.RestController;
 import java.io.IOException;
 import java.time.LocalDate;
 
+/** Owner only (Phase 7b): reports, the CSV export and the monthly statement all read through here. */
 @RestController
 @RequestMapping("/api/reports")
+@PreAuthorize("hasRole('OWNER')")
 public class ReportController {
     private final ReportService service;
     private final ReportExportService exportService;

@@ -32,15 +32,31 @@ public final class OrderDtos {
 
     public record ItemResponse(Long productId, String productName, int quantity, BigDecimal costPrice,
                                BigDecimal soldPrice, BigDecimal lineRevenue, BigDecimal lineCost,
-                               BigDecimal lineProfit) {}
+                               BigDecimal lineProfit) {
+        /** Phase 7b: Staff sees what was sold and for how much, not the cost/profit behind it. */
+        ItemResponse hideFinancials() {
+            return new ItemResponse(productId, productName, quantity, null, soldPrice, lineRevenue, null, null);
+        }
+    }
 
     public record OrderDetail(Long id, LocalDateTime orderedAt, Long platformId, String platformName,
                               Long customerId, String customerName, String customerPhone, OrderStatus status,
                               BigDecimal commissionPct, String notes, List<ItemResponse> items,
                               BigDecimal revenue, BigDecimal cost, BigDecimal profit,
-                              List<ExpenseLine> expenses) {}
+                              List<ExpenseLine> expenses) {
+        /** Phase 7b: same boundary as the dashboard/reports - Staff records the sale, not its margin. */
+        public OrderDetail hideFinancials() {
+            return new OrderDetail(id, orderedAt, platformId, platformName, customerId, customerName, customerPhone,
+                    status, null, notes, items.stream().map(ItemResponse::hideFinancials).toList(),
+                    revenue, null, null, List.of());
+        }
+    }
 
     public record OrderSummary(Long id, LocalDateTime orderedAt, String platformName, String customerName,
                                OrderStatus status, int itemCount,
-                               BigDecimal revenue, BigDecimal cost, BigDecimal profit) {}
+                               BigDecimal revenue, BigDecimal cost, BigDecimal profit) {
+        public OrderSummary hideFinancials() {
+            return new OrderSummary(id, orderedAt, platformName, customerName, status, itemCount, revenue, null, null);
+        }
+    }
 }

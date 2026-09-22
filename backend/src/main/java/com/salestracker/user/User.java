@@ -26,6 +26,9 @@ public class User implements TenantOwned {
     @Column(nullable = false)
     private Role role;
 
+    @Column(nullable = false)
+    private boolean active = true;
+
     protected User() {}
 
     public User(Long tenantId, String email, String passwordHash, String fullName, Role role) {
@@ -36,10 +39,15 @@ public class User implements TenantOwned {
         this.role = role;
     }
 
+    public void rename(String fullName) { this.fullName = fullName; }
+    public void changePassword(String passwordHash) { this.passwordHash = passwordHash; }
+    public void deactivate() { this.active = false; }
+
     public Long getId() { return id; }
-    public Long getTenantId() { return tenantId; }
+    @Override public Long getTenantId() { return tenantId; }
     public String getEmail() { return email; }
     public String getPasswordHash() { return passwordHash; }
     public String getFullName() { return fullName; }
     public Role getRole() { return role; }
+    public boolean isActive() { return active; }
 }

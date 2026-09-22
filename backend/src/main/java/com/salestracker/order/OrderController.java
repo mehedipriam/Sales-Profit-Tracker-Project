@@ -4,6 +4,7 @@ import com.salestracker.auth.AuthUser;
 import com.salestracker.common.DateRange;
 import com.salestracker.common.PageResponse;
 import com.salestracker.order.OrderDtos.*;
+import com.salestracker.user.Role;
 import jakarta.validation.Valid;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
@@ -29,35 +30,45 @@ public class OrderController {
                                            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
                                            @RequestParam(defaultValue = "0") int page,
                                            @RequestParam(defaultValue = "20") int size) {
-        return service.list(user.tenantId(), platformId, status, DateRange.of(from, to), page, size);
+        PageResponse<OrderSummary> result = service.list(user.tenantId(), platformId, status, DateRange.of(from, to), page, size);
+        return isOwner(user) ? result : result.map(OrderSummary::hideFinancials);
     }
 
     @GetMapping("/{id}")
     public OrderDetail get(@AuthenticationPrincipal AuthUser user, @PathVariable Long id) {
-        return service.get(user.tenantId(), id);
+        OrderDetail result = service.get(user.tenantId(), id);
+        return isOwner(user) ? result : result.hideFinancials();
     }
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public OrderDetail create(@AuthenticationPrincipal AuthUser user, @Valid @RequestBody OrderRequest req) {
-        return service.create(user.tenantId(), req);
+        OrderDetail result = service.create(user.tenantId(), req);
+        return isOwner(user) ? result : result.hideFinancials();
     }
 
     @PutMapping("/{id}")
     public OrderDetail update(@AuthenticationPrincipal AuthUser user, @PathVariable Long id,
                               @Valid @RequestBody OrderRequest req) {
-        return service.update(user.tenantId(), id, req);
+        OrderDetail result = service.update(user.tenantId(), id, req);
+        return isOwner(user) ? result : result.hideFinancials();
     }
 
     @PatchMapping("/{id}/status")
     public OrderDetail changeStatus(@AuthenticationPrincipal AuthUser user, @PathVariable Long id,
                                     @Valid @RequestBody StatusRequest req) {
-        return service.changeStatus(user.tenantId(), id, req.status());
+        OrderDetail result = service.changeStatus(user.tenantId(), id, req.status());
+        return isOwner(user) ? result : result.hideFinancials();
     }
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(@AuthenticationPrincipal AuthUser user, @PathVariable Long id) {
         service.delete(user.tenantId(), id);
+    }
+
+    /** Phase 7b: cost/profit figures are Owner-only; Staff still records and manages the sale itself. */
+    private static boolean isOwner(AuthUser user) {
+        return user.role() == Role.OWNER;
     }
 }

@@ -10,4 +10,9 @@ public record PageResponse<T>(List<T> content, int page, int totalPages, long to
         return new PageResponse<>(page.getContent().stream().map(mapper).toList(),
                 page.getNumber(), page.getTotalPages(), page.getTotalElements());
     }
+
+    /** Same page, contents transformed - e.g. redacting fields a Staff caller shouldn't see (Phase 7b). */
+    public <R> PageResponse<R> map(Function<T, R> mapper) {
+        return new PageResponse<>(content.stream().map(mapper).toList(), page, totalPages, totalElements);
+    }
 }

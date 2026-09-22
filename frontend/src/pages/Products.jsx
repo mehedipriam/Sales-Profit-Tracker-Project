@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import api, { errorMessage } from '../api/client'
+import { useAuth } from '../auth/AuthContext'
 import Modal from '../components/Modal'
 import Pager from '../components/Pager'
 import useDebounce from '../hooks/useDebounce'
@@ -8,7 +9,7 @@ import { money } from '../utils/format'
 
 const EMPTY = { name: '', sku: '', category: '', costPrice: '', sellingPrice: '', stockQty: '', lowStockThreshold: '' }
 
-function ProductForm({ product, categories, onSaved, onCancel }) {
+function ProductForm({ product, categories, isOwner, onSaved, onCancel }) {
   const [form, setForm] = useState(
     product ? { ...EMPTY, ...Object.fromEntries(Object.entries(product).map(([k, v]) => [k, v ?? ''])) } : EMPTY,
   )
@@ -24,7 +25,9 @@ function ProductForm({ product, categories, onSaved, onCancel }) {
       name: form.name,
       sku: form.sku,
       category: form.category,
-      costPrice: form.costPrice,
+      // Staff never sees a cost price to resubmit - omit it and the backend leaves the real one untouched
+      // (or starts a brand new product at 0, for an owner to price properly later).
+      costPrice: isOwner ? form.costPrice : undefined,
       sellingPrice: form.sellingPrice,
       stockQty: form.stockQty === '' ? null : Number(form.stockQty),
       lowStockThreshold: form.lowStockThreshold === '' ? null : Number(form.lowStockThreshold),
@@ -51,10 +54,12 @@ function ProductForm({ product, categories, onSaved, onCancel }) {
         </label>
       </div>
       <div className="row">
-        <label>
-          Cost price
-          <input required type="number" min="0" step="0.01" value={form.costPrice} onChange={set('costPrice')} />
-        </label>
+        {isOwner && (
+          <label>
+            Cost price
+            <input required type="number" min="0" step="0.01" value={form.costPrice} onChange={set('costPrice')} />
+          </label>
+        )}
         <label>
           Selling price
           <input required type="number" min="0" step="0.01" value={form.sellingPrice} onChange={set('sellingPrice')} />
@@ -83,6 +88,8 @@ function ProductForm({ product, categories, onSaved, onCancel }) {
 }
 
 export default function Products() {
+  const { user } = useAuth()
+  const isOwner = user?.role === 'OWNER'
   const [q, setQ] = useState('')
   const [category, setCategory] = useState('')
   const [page, setPage] = useState(0)
@@ -142,7 +149,9 @@ export default function Products() {
           <thead>
             <tr>
               <th>Name</th><th>SKU</th><th>Category</th>
-              <th className="num">Cost</th><th className="num">Price</th><th className="num">Margin</th>
+              {isOwner && <th className="num">Cost</th>}
+              <th className="num">Price</th>
+              {isOwner && <th className="num">Margin</th>}
               <th className="num">Stock</th><th />
             </tr>
           </thead>
@@ -154,9 +163,9 @@ export default function Products() {
                   <td>{p.name}</td>
                   <td>{p.sku || '—'}</td>
                   <td>{p.category || '—'}</td>
-                  <td className="num">{money(p.costPrice)}</td>
+                  {isOwner && <td className="num">{money(p.costPrice)}</td>}
                   <td className="num">{money(p.sellingPrice)}</td>
-                  <td className={`num ${margin < 0 ? 'neg' : 'pos'}`}>{money(margin)}</td>
+                  {isOwner && <td className={`num ${margin < 0 ? 'neg' : 'pos'}`}>{money(margin)}</td>}
                   <td className="num">
                     {p.stockQty == null ? '—' : (
                       <Link to={`/stock?productId=${p.id}`} title="View stock history">{p.stockQty}</Link>
@@ -173,7 +182,7 @@ export default function Products() {
               )
             })}
             {data && data.content.length === 0 && (
-              <tr><td colSpan={8} className="empty">No products found.</td></tr>
+              <tr><td colSpan={isOwner ? 8 : 6} className="empty">No products found.</td></tr>
             )}
           </tbody>
         </table>
@@ -185,6 +194,7 @@ export default function Products() {
           <ProductForm
             product={editing.id ? editing : null}
             categories={categories}
+            isOwner={isOwner}
             onSaved={onSaved}
             onCancel={() => setEditing(null)}
           />

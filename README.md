@@ -251,6 +251,40 @@ Every table has carried a `tenant_id` since Phase 1a; this phase is the audit an
   refuses to hand back the other tenant's row.
 - Roles (Owner/Staff) and self-service onboarding are Phase 7b; free/paid tiers and a payment gateway are Phase 7c.
 
+## Onboarding & roles (Phase 7b)
+Self-service sign-up was already there since Phase 1b (`POST /api/auth/register` creates an isolated tenant, its
+OWNER user, and seeds Facebook Page/Daraz). This phase is the Owner/Staff split and the first-run guidance:
+- **Team management** (`/api/users`, Owner only) - an Owner adds a Staff account (`POST`), edits its name or resets
+  its password (`PUT`), or revokes access (`DELETE`, a soft deactivation - the account and its history stay, it just
+  can't log in). The Owner account itself can't be deactivated through this endpoint. A new `active` column
+  (`V5__staff_accounts.sql`) backs it.
+- **Revocation is immediate, not eventual**: a JWT normally lives 8 hours (`app.jwt.expiration-minutes`). Rather than
+  only checking `active` at login, `JwtAuthFilter` re-checks it on every request, so deactivating someone invalidates
+  an already-issued token right away instead of whenever it happens to expire. Verified directly: log in as Staff,
+  deactivate them, confirm their existing token now gets `401` on the very next call.
+- **The permission model** (settled by asking rather than guessing, since the spec only says "limited access to
+  settings/reports"): Staff gets full day-to-day access - Products, Customers, Platforms, Orders, Stock, all of it,
+  create/edit/delete. What's Owner-only is financial visibility: Dashboard, Reports, Statement and Expenses are
+  `@PreAuthorize("hasRole('OWNER')")` at the controller level (`403` via a dedicated `AccessDeniedException` handler,
+  same `{"message": ...}` shape as every other error); a product's cost price and an order's cost/profit/commission/
+  expenses are stripped from the JSON at the controller boundary for a Staff caller (the service layer still computes
+  real numbers - Dashboard and other owner-only features that legitimately need them are unaffected); and a
+  Platform's commission rate can't be set or changed by Staff (creating one just forces it to 0%; editing one rejects
+  the request with `403` if the rate actually changed, but allows the update if it didn't - a Staff member can still
+  rename a platform).
+  - **A real coherence bug this surfaced and fixed**: `costPrice` was a required field on every product create/edit.
+    Once Staff can't see it, requiring them to blindly resubmit it on every edit just to rename a product would have
+    either broken the flow or silently corrupted real cost data. Fixed by making it optional - omitted means "leave
+    the existing cost alone" on an edit, or "0, pending the Owner" on a brand new product - not by leaving the
+    mismatch in place.
+- **Guided first-run flow**: the Dashboard checks for zero products (platforms already exist - they're seeded at
+  registration) and shows a two-step "get your workspace ready" card linking to Platforms and Products, so a brand
+  new Owner isn't left guessing why their first sale attempt turns up no products to pick from.
+- Verified with a dedicated `RoleAccessIntegrationTest` (Owner-only team management, immediate revocation, hidden
+  financials on both products and orders with the Owner's view of the identical rows proving the data isn't actually
+  gone, full Staff CRUD access, the commission-rate boundary, and the cost-price-optional fix) - 69 backend tests
+  pass in total, zero regressions from before this phase.
+
 ## Tests
 ```bash
 cd backend && mvn test      # integration tests start a throwaway MySQL via Testcontainers, so Docker must be running

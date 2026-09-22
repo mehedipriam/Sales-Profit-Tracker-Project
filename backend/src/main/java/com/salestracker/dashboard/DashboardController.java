@@ -2,13 +2,16 @@ package com.salestracker.dashboard;
 
 import com.salestracker.auth.AuthUser;
 import com.salestracker.dashboard.DashboardService.DashboardResponse;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+/** Totals and profit figures - Owner only (Phase 7b: Staff's access is "limited on settings/reports"). */
 @RestController
 @RequestMapping("/api/dashboard")
+@PreAuthorize("hasRole('OWNER')")
 public class DashboardController {
     private final DashboardService service;
 

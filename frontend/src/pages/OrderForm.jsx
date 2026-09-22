@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import api, { errorMessage } from '../api/client'
+import { useAuth } from '../auth/AuthContext'
 import AsyncPicker from '../components/AsyncPicker'
 import { EXPENSE_LABEL, STATUSES, STATUS_LABEL, money, toLocalInput } from '../utils/format'
 
@@ -19,6 +20,8 @@ const newLine = (product, extra = {}) => ({
 })
 
 export default function OrderForm() {
+  const { user } = useAuth()
+  const isOwner = user?.role === 'OWNER'
   const { id } = useParams()
   const editing = Boolean(id)
   const navigate = useNavigate()
@@ -174,7 +177,7 @@ export default function OrderForm() {
               <table>
                 <thead>
                   <tr><th>Product</th><th className="num">Qty</th><th className="num">Sold price</th>
-                      <th className="num">Cost</th><th className="num">Line profit</th><th /></tr>
+                      {isOwner && <><th className="num">Cost</th><th className="num">Line profit</th></>}<th /></tr>
                 </thead>
                 <tbody>
                   {lines.map((l) => (
@@ -188,8 +191,10 @@ export default function OrderForm() {
                         <input className="small" type="number" min="0" step="0.01" required aria-label={`Sold price of ${l.name}`}
                                value={l.soldPrice} onChange={(e) => updateLine(l.key, { soldPrice: e.target.value })} />
                       </td>
-                      <td className="num">{money(l.cost)}</td>
-                      <td className={`num ${lineProfit(l) < 0 ? 'neg' : 'pos'}`}>{money(lineProfit(l))}</td>
+                      {isOwner && <>
+                        <td className="num">{money(l.cost)}</td>
+                        <td className={`num ${lineProfit(l) < 0 ? 'neg' : 'pos'}`}>{money(lineProfit(l))}</td>
+                      </>}
                       <td className="row-actions"><button type="button" className="link danger" onClick={() => removeLine(l.key)}>Remove</button></td>
                     </tr>
                   ))}
@@ -203,18 +208,20 @@ export default function OrderForm() {
 
         <div className="totals">
           <span>Revenue <b>{money(revenue)}</b></span>
-          <span>Cost <b>{money(cost)}</b></span>
-          <span>Profit <b className={revenue - cost < 0 ? 'neg' : 'pos'}>{money(revenue - cost)}</b></span>
+          {isOwner && <>
+            <span>Cost <b>{money(cost)}</b></span>
+            <span>Profit <b className={revenue - cost < 0 ? 'neg' : 'pos'}>{money(revenue - cost)}</b></span>
+          </>}
         </div>
 
-        {rate > 0 && (
+        {isOwner && rate > 0 && (
           <p className="hint commission-note">
             {platform?.name} commission {rate}%
             {accrues ? <> ≈ <b>{money(commission)}</b> will be added automatically as an expense.</> : ' is not charged while an order is returned or cancelled.'}
           </p>
         )}
 
-        {editing && original && (
+        {isOwner && editing && original && (
           <fieldset>
             <legend>Expenses on this order</legend>
             {original.expenses.length === 0 ? (

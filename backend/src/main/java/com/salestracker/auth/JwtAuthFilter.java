@@ -1,6 +1,7 @@
 package com.salestracker.auth;
 
 import com.salestracker.tenant.TenantContext;
+import com.salestracker.user.UserRepository;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -17,9 +18,11 @@ import java.util.List;
 @Component
 public class JwtAuthFilter extends OncePerRequestFilter {
     private final JwtService jwtService;
+    private final UserRepository users;
 
-    public JwtAuthFilter(JwtService jwtService) {
+    public JwtAuthFilter(JwtService jwtService, UserRepository users) {
         this.jwtService = jwtService;
+        this.users = users;
     }
 
     @Override
@@ -28,12 +31,17 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         try {
             String header = request.getHeader("Authorization");
             if (header != null && header.startsWith("Bearer ")) {
-                jwtService.parse(header.substring(7)).ifPresent(user -> {
-                    TenantContext.set(user.tenantId());
-                    var auth = new UsernamePasswordAuthenticationToken(
-                            user, null, List.of(new SimpleGrantedAuthority("ROLE_" + user.role().name())));
-                    SecurityContextHolder.getContext().setAuthentication(auth);
-                });
+                jwtService.parse(header.substring(7))
+                        // A JWT can outlive a deactivation (tokens last 8h - see app.jwt.expiration-minutes) -
+                        // re-checking active status here, not just at login, makes revoking Staff access immediate
+                        // rather than "eventually, once their token expires".
+                        .filter(user -> users.existsByIdAndActiveTrue(user.userId()))
+                        .ifPresent(user -> {
+                            TenantContext.set(user.tenantId());
+                            var auth = new UsernamePasswordAuthenticationToken(
+                                    user, null, List.of(new SimpleGrantedAuthority("ROLE_" + user.role().name())));
+                            SecurityContextHolder.getContext().setAuthentication(auth);
+                        });
             }
             chain.doFilter(request, response);
         } finally {

@@ -9,13 +9,16 @@ import com.salestracker.expense.ExpenseDtos.ExpenseSummary;
 import jakarta.validation.Valid;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
 
+/** Owner only (Phase 7b): expenses are financial detail, same bracket as Dashboard/Reports. */
 @RestController
 @RequestMapping("/api/expenses")
+@PreAuthorize("hasRole('OWNER')")
 public class ExpenseController {
     private final ExpenseService service;
 

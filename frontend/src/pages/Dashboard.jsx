@@ -9,9 +9,13 @@ export default function Dashboard() {
   const { user } = useAuth()
   const [data, setData] = useState(null)
   const [error, setError] = useState('')
+  // Guided first-run flow: platforms already exist (seeded at registration), so the one real gap for a
+  // brand new workspace is having no products yet to actually sell.
+  const [productCount, setProductCount] = useState(null)
 
   useEffect(() => {
     api.get('/dashboard').then((res) => setData(res.data)).catch((err) => setError(errorMessage(err)))
+    api.get('/products', { params: { size: 1 } }).then((res) => setProductCount(res.data.totalElements)).catch(() => {})
   }, [])
 
   if (error) return <p className="error" role="alert">{error}</p>
@@ -24,6 +28,16 @@ export default function Dashboard() {
   return (
     <section>
       <h1>Welcome, {user.fullName}</h1>
+
+      {productCount === 0 && (
+        <div className="alert-card getting-started">
+          <h2>Get your workspace ready</h2>
+          <ol>
+            <li>Platforms — Facebook Page and Daraz are already set up; <Link to="/platforms">add more or rename them</Link>.</li>
+            <li><Link to="/products">Add your first product</Link> so there's something to sell.</li>
+          </ol>
+        </div>
+      )}
 
       <h2 className="section-title">All-time results <span className="muted">(paid orders)</span></h2>
       <div className="stats">

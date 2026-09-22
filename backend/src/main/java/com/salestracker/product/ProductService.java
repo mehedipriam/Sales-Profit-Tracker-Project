@@ -62,9 +62,14 @@ public class ProductService {
                     .filter(other -> !other.getId().equals(p.getId()))
                     .ifPresent(other -> { throw new ApiException(HttpStatus.CONFLICT, "SKU already in use"); });
         }
+        boolean isNew = p.getId() == null;
+        // A Staff request never carries a real cost price (they can't see it to resubmit it) - keep the
+        // existing one on an edit, or 0 (pending the owner) on a brand new product.
+        java.math.BigDecimal costPrice = req.costPrice() != null ? req.costPrice()
+                : isNew ? java.math.BigDecimal.ZERO : p.getCostPrice();
         Integer stockBefore = p.getStockQty();
         p.apply(req.name().trim(), sku, Search.blankToNull(req.category()),
-                req.costPrice(), req.sellingPrice(), req.stockQty(), req.lowStockThreshold());
+                costPrice, req.sellingPrice(), req.stockQty(), req.lowStockThreshold());
         Product saved = products.save(p);
         stock.recordProductEdit(saved, stockBefore);
         return ProductResponse.of(saved);

@@ -1,12 +1,15 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import api, { errorMessage } from '../api/client'
+import { useAuth } from '../auth/AuthContext'
 import Pager from '../components/Pager'
 import RangePicker from '../components/RangePicker'
 import { resolveRange } from '../utils/dateRange'
 import { STATUSES, STATUS_LABEL, dateTime, money } from '../utils/format'
 
 export default function Orders() {
+  const { user } = useAuth()
+  const isOwner = user?.role === 'OWNER'
   const [platformId, setPlatformId] = useState('')
   const [status, setStatus] = useState('')
   const [range, setRange] = useState({ preset: 'all', from: '', to: '' })
@@ -79,7 +82,8 @@ export default function Orders() {
           <thead>
             <tr>
               <th>#</th><th>Date</th><th>Customer</th><th>Platform</th><th className="num">Items</th>
-              <th className="num">Revenue</th><th className="num">Cost</th><th className="num">Profit</th>
+              <th className="num">Revenue</th>
+              {isOwner && <><th className="num">Cost</th><th className="num">Profit</th></>}
               <th>Status</th><th />
             </tr>
           </thead>
@@ -92,8 +96,10 @@ export default function Orders() {
                 <td>{o.platformName}</td>
                 <td className="num">{o.itemCount}</td>
                 <td className="num">{money(o.revenue)}</td>
-                <td className="num">{money(o.cost)}</td>
-                <td className={`num ${o.profit < 0 ? 'neg' : 'pos'}`}>{money(o.profit)}</td>
+                {isOwner && <>
+                  <td className="num">{money(o.cost)}</td>
+                  <td className={`num ${o.profit < 0 ? 'neg' : 'pos'}`}>{money(o.profit)}</td>
+                </>}
                 <td>
                   <select className={`status ${o.status}`} value={o.status} aria-label={`Status of order ${o.id}`}
                           onChange={(e) => changeStatus(o, e.target.value)}>
@@ -102,13 +108,13 @@ export default function Orders() {
                 </td>
                 <td className="row-actions">
                   <Link className="link" to={`/orders/${o.id}`}>Edit</Link>
-                  <Link className="link" to={`/expenses?newFor=${o.id}`}>Expense</Link>
+                  {isOwner && <Link className="link" to={`/expenses?newFor=${o.id}`}>Expense</Link>}
                   <button className="link danger" onClick={() => remove(o)}>Delete</button>
                 </td>
               </tr>
             ))}
             {data && data.content.length === 0 && (
-              <tr><td colSpan={10} className="empty">No orders yet. Record your first sale.</td></tr>
+              <tr><td colSpan={isOwner ? 10 : 8} className="empty">No orders yet. Record your first sale.</td></tr>
             )}
           </tbody>
         </table>
