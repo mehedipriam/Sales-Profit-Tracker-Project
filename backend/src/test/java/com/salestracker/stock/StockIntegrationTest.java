@@ -210,4 +210,35 @@ class StockIntegrationTest extends AbstractIntegrationTest {
                 "{\"productId\":%d,\"change\":5,\"reason\":\"RESTOCK\"}".formatted(rice), 404);
         assertEquals(10, stockOf(rice));
     }
+
+    // ---- deleting log entries ----
+
+    @Test
+    void deletingAManualEntryReversesItButSaleAndOpeningRowsStay() throws Exception {
+        long rice = product("Rice", 10, null);
+        long correction = adjust(rice, -2, "CORRECTION", 201).get("id").asLong();
+        assertEquals(8, stockOf(rice));
+
+        delete(tenant, "/api/stock/adjustments/" + correction, 204);
+        assertEquals(10, stockOf(rice));
+        assertEquals(1, log(rice).size());                           // just the opening stock
+
+        order("PAID", rice, 3);
+        long sale = log(rice).get(0).get("id").asLong();
+        long opening = log(rice).get(1).get("id").asLong();
+        delete(tenant, "/api/stock/adjustments/" + sale, 409);      // change the order instead
+        delete(tenant, "/api/stock/adjustments/" + opening, 409);   // set on the product instead
+        assertEquals(7, stockOf(rice));
+
+        delete(registerTenant(), "/api/stock/adjustments/" + opening, 404);
+    }
+
+    @Test
+    void undoingARestockCannotTakeStockBelowZero() throws Exception {
+        long rice = product("Rice", 0, null);
+        long restock = adjust(rice, 5, "RESTOCK", 201).get("id").asLong();
+        order("PAID", rice, 4);                                      // 1 left
+        delete(tenant, "/api/stock/adjustments/" + restock, 409);
+        assertEquals(1, stockOf(rice));
+    }
 }

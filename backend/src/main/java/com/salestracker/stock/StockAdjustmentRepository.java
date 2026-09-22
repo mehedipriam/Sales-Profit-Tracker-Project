@@ -8,6 +8,7 @@ import org.springframework.data.repository.query.Param;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 
 public interface StockAdjustmentRepository extends JpaRepository<StockAdjustment, Long> {
 
@@ -28,4 +29,6 @@ public interface StockAdjustmentRepository extends JpaRepository<StockAdjustment
             group by a.productId
             """)
     List<Object[]> netByProductForOrder(@Param("tenantId") Long tenantId, @Param("orderId") Long orderId);
+
+    Optional<StockAdjustment> findByIdAndTenantId(Long id, Long tenantId);
 }

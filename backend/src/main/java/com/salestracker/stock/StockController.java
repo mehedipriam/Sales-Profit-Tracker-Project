@@ -33,4 +33,11 @@ public class StockController {
     public AdjustmentResponse adjust(@AuthenticationPrincipal AuthUser user, @Valid @RequestBody AdjustRequest req) {
         return service.adjust(user.tenantId(), req);
     }
+
+    /** Undoes a manual adjustment; sale rows follow their order and can't be deleted here. */
+    @DeleteMapping("/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void delete(@AuthenticationPrincipal AuthUser user, @PathVariable Long id) {
+        service.delete(user.tenantId(), id);
+    }
 }

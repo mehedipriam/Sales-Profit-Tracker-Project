@@ -49,7 +49,13 @@ public class StockService {
                 .stream().collect(Collectors.toMap(Product::getId, Function.identity()));
         return PageResponse.of(result, a -> new AdjustmentResponse(a.getId(), a.getCreatedAt(), a.getProductId(),
                 productById.get(a.getProductId()).getName(), a.getReason(), a.getQuantityChange(), a.getStockAfter(),
-                a.getNote(), a.getOrderId()));
+                a.getOrderId() != null ? orderNote(a.getQuantityChange(), a.getOrderId()) : a.getNote(),
+                a.getOrderId()));
+    }
+
+    /** Built from the order id when shown, not taken from the stored text, so it always names the order it links to. */
+    private static String orderNote(int change, Long orderId) {
+        return (change < 0 ? "Sold on order #" : "Returned from order #") + orderId;
     }
 
     /** A manual adjustment (restock, damaged goods, count correction). Stock can never be taken below zero. */
@@ -81,6 +87,33 @@ public class StockService {
                 p.getStockQty(), Search.blankToNull(req.note())));
         return new AdjustmentResponse(a.getId(), a.getCreatedAt(), p.getId(), p.getName(), a.getReason(),
                 a.getQuantityChange(), a.getStockAfter(), a.getNote(), null);
+    }
+
+    /**
+     * Deletes a manual adjustment (restock, damage, correction) and reverses its effect on the product's stock.
+     * Sale rows belong to their order - edit, return or cancel the order instead - and opening stock is set on the
+     * product. Later rows keep their "stock after" as it was at the time.
+     */
+    public void delete(Long tenantId, Long id) {
+        StockAdjustment a = adjustments.findByIdAndTenantId(id, tenantId)
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Stock log entry not found"));
+        switch (a.getReason()) {
+            case RESTOCK, DAMAGE, CORRECTION -> { }
+            case ORDER -> throw new ApiException(HttpStatus.CONFLICT,
+                    "This entry comes from an order. Edit, return or cancel the order to change it.");
+            default -> throw new ApiException(HttpStatus.CONFLICT,
+                    "Opening stock is set on the product. Edit the product's stock quantity instead.");
+        }
+        Product p = products.lockByIdAndTenantId(a.getProductId(), tenantId).orElse(null);
+        if (p != null && p.getStockQty() != null) {
+            int reverse = -a.getQuantityChange();
+            if ((long) p.getStockQty() + reverse < 0) {
+                throw new ApiException(HttpStatus.CONFLICT, "Only " + p.getStockQty()
+                        + " in stock; undoing this entry would take it below zero");
+            }
+            p.addStock(reverse);
+        }
+        adjustments.delete(a);
     }
 
     /**
@@ -133,7 +166,7 @@ public class StockService {
             // Selling past zero is allowed: the sale already happened, the log just shows the shortfall.
             p.addStock(change);
             adjustments.save(new StockAdjustment(tenantId, productId, order.getId(), StockReason.ORDER, change,
-                    p.getStockQty(), change < 0 ? "Sold on order #" + order.getId() : "Returned from order #" + order.getId()));
+                    p.getStockQty(), orderNote(change, order.getId())));
         }
     }
 }

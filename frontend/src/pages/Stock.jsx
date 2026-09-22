@@ -96,6 +96,18 @@ export default function Stock() {
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { loadProducts() }, [loadProducts])
 
+  const remove = async (a) => {
+    const undo = a.change > 0 ? `take ${a.change} back out of` : `put ${-a.change} back into`
+    if (!window.confirm(`Delete this ${STOCK_REASON_LABEL[a.reason].toLowerCase()}? It will ${undo} ${a.productName}'s stock.`)) return
+    try {
+      await api.delete(`/stock/adjustments/${a.id}`)
+      load()
+      loadProducts()
+    } catch (err) {
+      setError(errorMessage(err))
+    }
+  }
+
   return (
     <section>
       <div className="page-head">
@@ -120,7 +132,7 @@ export default function Stock() {
       <div className="table-wrap spaced">
         <table>
           <thead>
-            <tr><th>When</th><th>Product</th><th>Reason</th><th className="num">Change</th><th className="num">Stock after</th><th>Note</th></tr>
+            <tr><th>When</th><th>Product</th><th>Reason</th><th className="num">Change</th><th className="num">Stock after</th><th>Note</th><th /></tr>
           </thead>
           <tbody>
             {data?.content.map((a) => (
@@ -136,10 +148,15 @@ export default function Stock() {
                 <td className="notes">
                   {a.orderId ? <Link to={`/orders/${a.orderId}`}>{a.note || `Order #${a.orderId}`}</Link> : a.note || '—'}
                 </td>
+                <td className="row-actions">
+                  {MANUAL_REASONS.includes(a.reason) && (
+                    <button className="link danger" onClick={() => remove(a)}>Delete</button>
+                  )}
+                </td>
               </tr>
             ))}
             {data && data.content.length === 0 && (
-              <tr><td colSpan={6} className="empty">No stock movements yet.</td></tr>
+              <tr><td colSpan={7} className="empty">No stock movements yet.</td></tr>
             )}
           </tbody>
         </table>
