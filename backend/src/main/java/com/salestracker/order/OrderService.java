@@ -67,7 +67,8 @@ public class OrderService {
                 platformById.get(o.getPlatformId()).getName(),
                 customerById.get(o.getCustomerId()).getName(),
                 o.getStatus(), o.getItems().size(),
-                sum(o, OrderItem::lineRevenue), sum(o, OrderItem::lineCost), sum(o, OrderItem::lineProfit))).toList();
+                sum(o, OrderItem::lineRevenue), o.getDeliveryCharge(),
+                sum(o, OrderItem::lineCost), sum(o, OrderItem::lineProfit))).toList();
         return new PageResponse<>(content, result.getNumber(), result.getTotalPages(), result.getTotalElements());
     }
 
@@ -151,6 +152,7 @@ public class OrderService {
                 ? order.getCommissionPct() : platform.getCommissionPct();
 
         order.apply(platform.getId(), customerId, req.status(), commissionPct,
+                req.deliveryCharge() != null ? req.deliveryCharge() : BigDecimal.ZERO,
                 req.orderedAt() != null ? req.orderedAt() : LocalDateTime.now().withNano(0),
                 Search.blankToNull(req.notes()));
         order.getItems().clear();
@@ -185,7 +187,7 @@ public class OrderService {
 
         return new OrderDetail(o.getId(), o.getOrderedAt(), platform.getId(), platform.getName(),
                 customer.getId(), customer.getName(), customer.getPhone(), o.getStatus(), o.getCommissionPct(),
-                o.getNotes(), items,
+                o.getDeliveryCharge(), o.getNotes(), items,
                 sum(o, OrderItem::lineRevenue), sum(o, OrderItem::lineCost), sum(o, OrderItem::lineProfit),
                 o.getId() == null ? List.of() : expenses.linesFor(o.getTenantId(), o.getId()));
     }

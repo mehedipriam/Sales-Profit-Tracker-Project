@@ -49,12 +49,13 @@ export default function Dashboard() {
           tone={tone(realized.profit)}
           hint="revenue − cost"
         />
+        <Stat label="Delivery charged" value={money(realized.delivery)} hint="paid by customers" />
         <Stat label="Expenses" value={money(expenses)} hint="delivery, commission, ads…" />
         <Stat
           label={netProfit < 0 ? 'Net loss' : 'Net profit'}
           value={money(netProfit)}
           tone={tone(netProfit)}
-          hint="gross − expenses"
+          hint="gross + delivery charged − expenses"
         />
       </div>
 

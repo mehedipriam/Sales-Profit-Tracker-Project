@@ -28,6 +28,7 @@ function TrendTip({ active, payload, granularity }) {
           { color: PROFIT, label: 'Gross profit', value: money(p.profit) },
           { color: NET, label: 'Net profit', value: money(p.netProfit) },
           { color: MUTED, label: 'Cost of goods', value: money(p.cost) },
+          { color: MUTED, label: 'Delivery charged', value: money(p.delivery) },
           { color: MUTED, label: `Expenses · ${p.orders} paid orders`, value: money(p.expenses) },
         ]}
       />
@@ -70,7 +71,7 @@ export default function TrendChart({ trend }) {
       <div className="viz-head">
         <div>
           <h2 className="viz-title">{title}</h2>
-          <p className="muted viz-sub">Paid orders · net profit also subtracts expenses</p>
+          <p className="muted viz-sub">Paid orders · net profit adds delivery charged and subtracts expenses</p>
         </div>
         <div className="segmented" role="group" aria-label="Chart or table view">
           <button type="button" className={view === 'chart' ? 'on' : ''} aria-pressed={view === 'chart'} onClick={() => setView('chart')}>Chart</button>
@@ -122,7 +123,7 @@ export default function TrendChart({ trend }) {
             <thead>
               <tr><th>{granularity === 'month' ? 'Month' : 'Day'}</th><th className="num">Paid orders</th>
                 <th className="num">Revenue</th><th className="num">Cost</th><th className="num">Gross profit</th>
-                <th className="num">Expenses</th><th className="num">Net profit</th></tr>
+                <th className="num">Delivery charged</th><th className="num">Expenses</th><th className="num">Net profit</th></tr>
             </thead>
             <tbody>
               {points.map((p) => (
@@ -132,6 +133,7 @@ export default function TrendChart({ trend }) {
                   <td className="num">{money(p.revenue)}</td>
                   <td className="num">{money(p.cost)}</td>
                   <td className={`num ${p.profit < 0 ? 'neg' : 'pos'}`}>{money(p.profit)}</td>
+                  <td className="num">{money(p.delivery)}</td>
                   <td className="num">{money(p.expenses)}</td>
                   <td className={`num ${p.netProfit < 0 ? 'neg' : 'pos'}`}>{money(p.netProfit)}</td>
                 </tr>

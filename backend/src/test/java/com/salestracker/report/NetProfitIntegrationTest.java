@@ -208,4 +208,64 @@ class NetProfitIntegrationTest extends AbstractIntegrationTest {
         assertMoney("50", d.get("expenses"));
         assertMoney("50", d.get("netProfit"));
     }
+
+    // ---- delivery the customer pays ----
+
+    /** Like order(), with the customer paying a delivery charge on top of the products. */
+    private long orderWithDelivery(long platformId, String status, String date, String deliveryCharge) throws Exception {
+        return post(tenant, "/api/orders", """
+                {"platformId":%d,"customerId":%d,"status":"%s","orderedAt":"%sT12:00:00","deliveryCharge":%s,
+                 "items":[{"productId":%d,"quantity":2,"soldPrice":150}]}
+                """.formatted(platformId, customer, status, date, deliveryCharge, rice), 201).get("id").asLong();
+    }
+
+    @Test
+    void deliveryTheCustomerPaysOffsetsTheDeliveryExpense() throws Exception {
+        long o = orderWithDelivery(daraz, "PAID", "2026-09-10", "20");  // gross 100, customer paid 20 delivery
+        expense("DELIVERY", "20", "2026-09-10", o);                     // courier cost 20
+
+        JsonNode s = summary("?from=2026-09-01&to=2026-09-30");
+        assertMoney("100", s.get("realized").get("profit"));   // product profit is untouched
+        assertMoney("20", s.get("realized").get("delivery"));
+        assertMoney("20", s.get("expenses").get("total"));
+        assertMoney("100", s.get("netProfit"));                // the delivery washes out
+
+        JsonNode daraz = row(s, "Daraz");
+        assertMoney("20", daraz.get("delivery"));
+        assertMoney("100", daraz.get("netProfit"));
+
+        JsonNode point = get(tenant, "/api/reports/trend?from=2026-09-10&to=2026-09-10", 200).get("points").get(0);
+        assertMoney("20", point.get("delivery"));
+        assertMoney("100", point.get("netProfit"));
+
+        JsonNode d = get(tenant, "/api/dashboard", 200);
+        assertMoney("20", d.get("realized").get("delivery"));
+        assertMoney("100", d.get("netProfit"));
+
+        JsonNode detail = get(tenant, "/api/orders/" + o, 200);
+        assertMoney("20", detail.get("deliveryCharge"));
+        assertMoney("300", detail.get("revenue"));             // revenue stays the products' price
+    }
+
+    @Test
+    void chargingMoreThanTheCourierCostsIsProfitAndCommissionIgnoresDelivery() throws Exception {
+        long o = orderWithDelivery(facebook, "PAID", "2026-09-10", "30"); // gross 100, commission 10% of 300 = 30
+        expense("DELIVERY", "20", "2026-09-10", o);
+
+        JsonNode s = summary("?from=2026-09-01&to=2026-09-30");
+        assertMoney("50", s.get("expenses").get("total"));     // commission is on the products, not the delivery
+        assertMoney("80", s.get("netProfit"));                 // 100 + 30 - 20 - 30
+    }
+
+    @Test
+    void deliveryOnUnpaidOrdersIsNotIncome() throws Exception {
+        orderWithDelivery(daraz, "PENDING", "2026-09-10", "20");
+        long returned = orderWithDelivery(daraz, "PAID", "2026-09-11", "20");
+        patch(tenant, "/api/orders/" + returned + "/status", "{\"status\":\"RETURNED\"}", 200);
+
+        JsonNode s = summary("?from=2026-09-01&to=2026-09-30");
+        assertMoney("0", s.get("realized").get("delivery"));
+        assertMoney("20", s.get("pending").get("delivery"));   // expected along with the pending sale
+        assertMoney("0", s.get("netProfit"));
+    }
 }

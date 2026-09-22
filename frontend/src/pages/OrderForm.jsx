@@ -34,6 +34,7 @@ export default function OrderForm() {
   const [status, setStatus] = useState('PAID')
   const [orderedAt, setOrderedAt] = useState(toLocalInput())
   const [notes, setNotes] = useState('')
+  const [deliveryCharge, setDeliveryCharge] = useState('')
   const [lines, setLines] = useState([])
   const [original, setOriginal] = useState(null) // { platformId, rate, expenses } of the order being edited
   const [loading, setLoading] = useState(editing)
@@ -56,6 +57,7 @@ export default function OrderForm() {
       setStatus(o.status)
       setOrderedAt(o.orderedAt.slice(0, 16))
       setNotes(o.notes ?? '')
+      setDeliveryCharge(Number(o.deliveryCharge) > 0 ? o.deliveryCharge : '')
       setLines(o.items.map((i) => newLine(
         { id: i.productId, name: i.productName, costPrice: i.costPrice },
         { quantity: i.quantity, soldPrice: i.soldPrice },
@@ -77,6 +79,7 @@ export default function OrderForm() {
   const lineProfit = (l) => (Number(l.soldPrice || 0) - l.cost) * Number(l.quantity || 0)
   const revenue = lines.reduce((s, l) => s + Number(l.soldPrice || 0) * Number(l.quantity || 0), 0)
   const cost = lines.reduce((s, l) => s + l.cost * Number(l.quantity || 0), 0)
+  const delivery = Number(deliveryCharge || 0)
 
   // The rate a sale is charged: an edited order keeps the rate it was recorded at unless its platform changes.
   const platform = platforms.find((p) => String(p.id) === platformId)
@@ -98,6 +101,7 @@ export default function OrderForm() {
       status,
       orderedAt,
       notes,
+      deliveryCharge: deliveryCharge === '' ? 0 : deliveryCharge,
       items: lines.map((l) => ({ productId: l.productId, quantity: Number(l.quantity), soldPrice: l.soldPrice })),
     }
     setBusy(true)
@@ -204,6 +208,14 @@ export default function OrderForm() {
           )}
         </fieldset>
 
+        <label>
+          Delivery charge paid by the customer
+          <input type="number" min="0" step="0.01" placeholder="0" value={deliveryCharge}
+                 onChange={(e) => setDeliveryCharge(e.target.value)} />
+          <span className="hint">Money the customer paid for delivery on top of the products. Leave empty for free delivery.
+            Record what the courier charged you as a Delivery expense; the two cancel out in net profit.</span>
+        </label>
+
         <label>Notes<textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} /></label>
 
         <div className="totals">
@@ -211,6 +223,10 @@ export default function OrderForm() {
           {isOwner && <>
             <span>Cost <b>{money(cost)}</b></span>
             <span>Profit <b className={revenue - cost < 0 ? 'neg' : 'pos'}>{money(revenue - cost)}</b></span>
+          </>}
+          {delivery > 0 && <>
+            <span>Delivery <b>{money(delivery)}</b></span>
+            <span>Customer pays <b>{money(revenue + delivery)}</b></span>
           </>}
         </div>
 

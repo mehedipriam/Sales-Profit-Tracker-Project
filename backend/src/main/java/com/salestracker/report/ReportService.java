@@ -9,8 +9,10 @@ import com.salestracker.expense.ExpenseRepository;
 import com.salestracker.expense.ExpenseType;
 import com.salestracker.expense.ExpenseTypeTotals;
 import com.salestracker.expense.PlatformExpenses;
+import com.salestracker.order.DayDelivery;
 import com.salestracker.order.DayTotals;
 import com.salestracker.order.OrderStatus;
+import com.salestracker.order.PlatformDelivery;
 import com.salestracker.order.PlatformTotals;
 import com.salestracker.order.ProductTotals;
 import com.salestracker.order.SaleOrderRepository;
@@ -42,11 +44,12 @@ public class ReportService {
     private static final BigDecimal HUNDRED = BigDecimal.valueOf(100);
 
     /**
-     * profit is gross (revenue - cost of goods); netProfit also subtracts the platform's expenses. A platform with
-     * expenses but no paid orders (say a returned parcel's delivery) still gets a row, with zero revenue.
+     * profit is gross (revenue - cost of goods); netProfit adds the delivery customers paid and subtracts the
+     * platform's expenses. A platform with expenses but no paid orders (say a returned parcel's delivery) still gets
+     * a row, with zero revenue.
      */
     public record PlatformRow(Long platformId, String platformName, long orders,
-                              BigDecimal revenue, BigDecimal cost, BigDecimal profit,
+                              BigDecimal revenue, BigDecimal cost, BigDecimal profit, BigDecimal delivery,
                               BigDecimal expenses, BigDecimal netProfit) {}
 
     public record ExpenseTypeRow(ExpenseType type, long count, BigDecimal total) {}
@@ -69,7 +72,7 @@ public class ReportService {
 
     /** period = the day, or the first day of the month when granularity is "month". profit is gross. */
     public record TrendPoint(LocalDate period, long orders, BigDecimal revenue, BigDecimal cost, BigDecimal profit,
-                             BigDecimal expenses, BigDecimal netProfit) {}
+                             BigDecimal delivery, BigDecimal expenses, BigDecimal netProfit) {}
 
     public record TrendResponse(String granularity, List<TrendPoint> points) {}
 
@@ -99,9 +102,14 @@ public class ReportService {
         Map<OrderStatus, StatusTotals> byStatus = new EnumMap<>(OrderStatus.class);
         orders.totalsByStatus(tenantId, pid, range.from(), range.toExclusive())
                 .forEach(t -> byStatus.put(t.status(), t));
+        Map<OrderStatus, BigDecimal> delivery = DashboardService.deliveryByStatus(
+                orders.deliveryByStatus(tenantId, pid, range.from(), range.toExclusive()));
 
         List<PlatformTotals> perPlatform = orders.totalsByPlatform(
                 tenantId, OrderStatus.PAID, pid, range.from(), range.toExclusive());
+        Map<Long, BigDecimal> deliveryByPlatform = orders.deliveryByPlatform(
+                        tenantId, OrderStatus.PAID, pid, range.from(), range.toExclusive()).stream()
+                .collect(Collectors.toMap(PlatformDelivery::platformId, PlatformDelivery::total));
         List<ExpenseTypeTotals> byType = expenses.realizedByType(tenantId, pid, range.from().toLocalDate(),
                 range.toExclusive().toLocalDate());
         Map<Long, BigDecimal> spendByPlatform = expenses.realizedByPlatform(tenantId, pid,
@@ -120,9 +128,10 @@ public class ReportService {
                     BigDecimal revenue = t == null ? BigDecimal.ZERO : t.revenue();
                     BigDecimal cost = t == null ? BigDecimal.ZERO : t.cost();
                     BigDecimal spend = spendByPlatform.getOrDefault(id, BigDecimal.ZERO);
+                    BigDecimal collected = deliveryByPlatform.getOrDefault(id, BigDecimal.ZERO);
                     BigDecimal gross = revenue.subtract(cost);
                     return new PlatformRow(id, names.get(id).getName(), t == null ? 0 : t.orders(),
-                            revenue, cost, gross, spend, gross.subtract(spend));
+                            revenue, cost, gross, collected, spend, gross.add(collected).subtract(spend));
                 })
                 .sorted(Comparator.comparing(PlatformRow::revenue).reversed().thenComparing(PlatformRow::platformName))
                 .toList();
@@ -133,13 +142,13 @@ public class ReportService {
                 byType.stream().map(t -> new ExpenseTypeRow(t.type(), t.count(), t.total()))
                         .sorted(Comparator.comparing(ExpenseTypeRow::total).reversed()).toList());
 
-        Totals realized = DashboardService.totals(byStatus, OrderStatus.PAID);
+        Totals realized = DashboardService.totals(byStatus, delivery, OrderStatus.PAID);
         return new SummaryResponse(from, to, platformId,
                 realized,
-                DashboardService.totals(byStatus, OrderStatus.PENDING),
-                DashboardService.totals(byStatus, OrderStatus.RETURNED).orders(),
-                DashboardService.totals(byStatus, OrderStatus.CANCELLED).orders(),
-                breakdown, realized.profit().subtract(totalSpend),
+                DashboardService.totals(byStatus, delivery, OrderStatus.PENDING),
+                DashboardService.totals(byStatus, delivery, OrderStatus.RETURNED).orders(),
+                DashboardService.totals(byStatus, delivery, OrderStatus.CANCELLED).orders(),
+                breakdown, DashboardService.netProfit(realized, totalSpend),
                 rows);
     }
 
@@ -151,6 +160,9 @@ public class ReportService {
         Map<LocalDate, BigDecimal> spend = expenses.realizedByDay(tenantId, pid, range.from().toLocalDate(),
                         range.toExclusive().toLocalDate()).stream()
                 .collect(Collectors.toMap(DayExpenses::day, DayExpenses::total));
+        Map<LocalDate, BigDecimal> collected = orders.deliveryByDay(
+                        tenantId, OrderStatus.PAID, pid, range.from(), range.toExclusive()).stream()
+                .collect(Collectors.toMap(DayDelivery::day, DayDelivery::total));
 
         // An open-ended range starts and ends at the first and last day that has a sale or an expense.
         LocalDate firstActive = Stream.concat(days.stream().map(DayTotals::day), spend.keySet().stream())
@@ -171,12 +183,13 @@ public class ReportService {
             for (LocalDate d = start; !d.isAfter(end); d = d.plusDays(1)) {
                 DayTotals t = byDay.get(d);
                 BigDecimal spent = spend.getOrDefault(d, BigDecimal.ZERO);
-                points.add(t == null ? point(d, 0, BigDecimal.ZERO, BigDecimal.ZERO, spent)
-                        : point(d, t.orders(), t.revenue(), t.cost(), spent));
+                BigDecimal charged = collected.getOrDefault(d, BigDecimal.ZERO);
+                points.add(t == null ? point(d, 0, BigDecimal.ZERO, BigDecimal.ZERO, charged, spent)
+                        : point(d, t.orders(), t.revenue(), t.cost(), charged, spent));
             }
         } else {
             Map<YearMonth, long[]> orderCount = new HashMap<>();
-            Map<YearMonth, BigDecimal[]> money = new HashMap<>(); // revenue, cost, expenses
+            Map<YearMonth, BigDecimal[]> money = new HashMap<>(); // revenue, cost, expenses, delivery
             for (DayTotals t : days) {
                 YearMonth ym = YearMonth.from(t.day());
                 orderCount.computeIfAbsent(ym, k -> new long[1])[0] += t.orders();
@@ -188,9 +201,13 @@ public class ReportService {
                 BigDecimal[] m = money.computeIfAbsent(YearMonth.from(day), k -> zeros());
                 m[2] = m[2].add(total);
             });
+            collected.forEach((day, total) -> {
+                BigDecimal[] m = money.computeIfAbsent(YearMonth.from(day), k -> zeros());
+                m[3] = m[3].add(total);
+            });
             for (YearMonth ym = YearMonth.from(start); !ym.isAfter(YearMonth.from(end)); ym = ym.plusMonths(1)) {
                 BigDecimal[] m = money.getOrDefault(ym, zeros());
-                points.add(point(ym.atDay(1), orderCount.getOrDefault(ym, new long[1])[0], m[0], m[1], m[2]));
+                points.add(point(ym.atDay(1), orderCount.getOrDefault(ym, new long[1])[0], m[0], m[1], m[3], m[2]));
             }
         }
         return new TrendResponse(daily ? "day" : "month", points);
@@ -235,13 +252,14 @@ public class ReportService {
     }
 
     private static TrendPoint point(LocalDate period, long orders, BigDecimal revenue, BigDecimal cost,
-                                    BigDecimal expenses) {
+                                    BigDecimal delivery, BigDecimal expenses) {
         BigDecimal gross = revenue.subtract(cost);
-        return new TrendPoint(period, orders, revenue, cost, gross, expenses, gross.subtract(expenses));
+        return new TrendPoint(period, orders, revenue, cost, gross, delivery, expenses,
+                gross.add(delivery).subtract(expenses));
     }
 
     private static BigDecimal[] zeros() {
-        return new BigDecimal[]{BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO};
+        return new BigDecimal[]{BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO};
     }
 
     /** 0 means "all platforms"; a platform id must belong to the caller's business. */

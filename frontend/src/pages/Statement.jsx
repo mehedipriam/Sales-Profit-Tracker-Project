@@ -92,6 +92,10 @@ export default function Statement() {
                   <th scope="row">{paid.profit < 0 ? 'Gross loss' : 'Gross profit'}</th>
                   <td className={`num ${tone(paid.profit)}`}>{money(paid.profit)}</td>
                 </tr>
+                {Number(paid.delivery) > 0 && (
+                  <tr><th scope="row" className="sub">plus delivery charged to customers</th>
+                    <td className="num">{money(paid.delivery)}</td></tr>
+                )}
                 {summary.expenses.byType.map((t) => (
                   <tr key={t.type}><th scope="row" className="sub">less {EXPENSE_LABEL[t.type].toLowerCase()}</th>
                     <td className="num">{money(t.total)}</td></tr>
@@ -109,7 +113,8 @@ export default function Statement() {
               <thead>
                 <tr><th>Platform</th><th className="num">Orders</th><th className="num">Total sold</th>
                   <th className="num">Cost of goods</th><th className="num">Gross profit</th>
-                  <th className="num">Expenses</th><th className="num">Net profit / loss</th></tr>
+                  <th className="num">Delivery charged</th><th className="num">Expenses</th>
+                  <th className="num">Net profit / loss</th></tr>
               </thead>
               <tbody>
                 {summary.byPlatform.map((r) => (
@@ -119,6 +124,7 @@ export default function Statement() {
                     <td className="num">{money(r.revenue)}</td>
                     <td className="num">{money(r.cost)}</td>
                     <td className={`num ${tone(r.profit)}`}>{money(r.profit)}</td>
+                    <td className="num">{money(r.delivery)}</td>
                     <td className="num">{money(r.expenses)}</td>
                     <td className={`num ${tone(r.netProfit)}`}>{money(r.netProfit)}</td>
                   </tr>
@@ -127,12 +133,13 @@ export default function Statement() {
                   <tr>
                     <td>Not tied to a platform <span className="muted">(ads, overhead)</span></td>
                     <td className="num">—</td><td className="num">—</td><td className="num">—</td><td className="num">—</td>
+                    <td className="num">—</td>
                     <td className="num">{money(summary.expenses.unallocated)}</td>
                     <td className="num neg">{money(-summary.expenses.unallocated)}</td>
                   </tr>
                 )}
                 {summary.byPlatform.length === 0 && Number(summary.expenses.unallocated) === 0 && (
-                  <tr><td colSpan={7} className="empty">No paid orders in {period}.</td></tr>
+                  <tr><td colSpan={8} className="empty">No paid orders in {period}.</td></tr>
                 )}
               </tbody>
               {(summary.byPlatform.length > 0 || Number(summary.expenses.unallocated) > 0) && (
@@ -143,6 +150,7 @@ export default function Statement() {
                     <td className="num">{money(paid.revenue)}</td>
                     <td className="num">{money(paid.cost)}</td>
                     <td className={`num ${tone(paid.profit)}`}>{money(paid.profit)}</td>
+                    <td className="num">{money(paid.delivery)}</td>
                     <td className="num">{money(summary.expenses.total)}</td>
                     <td className={`num ${tone(summary.netProfit)}`}>{money(summary.netProfit)}</td>
                   </tr>
@@ -158,9 +166,9 @@ export default function Statement() {
                 <li>{summary.returnedOrders} returned / refunded, {summary.cancelledOrders} cancelled</li>
               </ul>
               <p className="muted">
-                Sales figures cover paid orders only. Net profit is gross profit minus the period's expenses (delivery,
-                packaging, platform commission, ads and the like); expenses on orders that are still pending count once
-                the order is paid.
+                Sales figures cover paid orders only. Net profit is gross profit plus the delivery charges customers paid,
+                minus the period's expenses (delivery, packaging, platform commission, ads and the like); expenses on
+                orders that are still pending count once the order is paid.
               </p>
             </div>
           </>

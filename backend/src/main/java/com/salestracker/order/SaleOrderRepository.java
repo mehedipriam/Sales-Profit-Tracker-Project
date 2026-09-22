@@ -87,5 +87,45 @@ public interface SaleOrderRepository extends JpaRepository<SaleOrder, Long> {
                                         @Param("platformId") long platformId,
                                         @Param("from") LocalDateTime from, @Param("to") LocalDateTime to);
 
+    // Delivery charges live on the order, not its items, so they are summed without the items join (which would
+    // count an order's charge once per line).
+
+    @Query("""
+            select new com.salestracker.order.StatusDelivery(o.status, sum(o.deliveryCharge))
+            from SaleOrder o
+            where o.tenantId = :tenantId
+              and (:platformId = 0L or o.platformId = :platformId)
+              and o.orderedAt >= :from and o.orderedAt < :to
+            group by o.status
+            """)
+    List<StatusDelivery> deliveryByStatus(@Param("tenantId") Long tenantId, @Param("platformId") long platformId,
+                                          @Param("from") LocalDateTime from, @Param("to") LocalDateTime to);
+
+    @Query("""
+            select new com.salestracker.order.PlatformDelivery(o.platformId, sum(o.deliveryCharge))
+            from SaleOrder o
+            where o.tenantId = :tenantId
+              and o.status = :status
+              and (:platformId = 0L or o.platformId = :platformId)
+              and o.orderedAt >= :from and o.orderedAt < :to
+            group by o.platformId
+            """)
+    List<PlatformDelivery> deliveryByPlatform(@Param("tenantId") Long tenantId, @Param("status") OrderStatus status,
+                                              @Param("platformId") long platformId,
+                                              @Param("from") LocalDateTime from, @Param("to") LocalDateTime to);
+
+    @Query("""
+            select new com.salestracker.order.DayDelivery(cast(o.orderedAt as LocalDate), sum(o.deliveryCharge))
+            from SaleOrder o
+            where o.tenantId = :tenantId
+              and o.status = :status
+              and (:platformId = 0L or o.platformId = :platformId)
+              and o.orderedAt >= :from and o.orderedAt < :to
+            group by cast(o.orderedAt as LocalDate)
+            """)
+    List<DayDelivery> deliveryByDay(@Param("tenantId") Long tenantId, @Param("status") OrderStatus status,
+                                    @Param("platformId") long platformId,
+                                    @Param("from") LocalDateTime from, @Param("to") LocalDateTime to);
+
     Optional<SaleOrder> findByIdAndTenantId(Long id, Long tenantId);
 }

@@ -34,6 +34,10 @@ public class SaleOrder implements TenantOwned {
     @Column(name = "commission_pct", nullable = false)
     private BigDecimal commissionPct = BigDecimal.ZERO;
 
+    /** What the customer paid for delivery on top of the products; income that offsets the delivery expense. */
+    @Column(name = "delivery_charge", nullable = false)
+    private BigDecimal deliveryCharge = BigDecimal.ZERO;
+
     @Column(name = "ordered_at", nullable = false)
     private LocalDateTime orderedAt;
 
@@ -51,11 +55,12 @@ public class SaleOrder implements TenantOwned {
     }
 
     public void apply(Long platformId, Long customerId, OrderStatus status, BigDecimal commissionPct,
-                      LocalDateTime orderedAt, String notes) {
+                      BigDecimal deliveryCharge, LocalDateTime orderedAt, String notes) {
         this.platformId = platformId;
         this.customerId = customerId;
         this.status = status;
         this.commissionPct = commissionPct;
+        this.deliveryCharge = deliveryCharge;
         this.orderedAt = orderedAt;
         this.notes = notes;
     }
@@ -68,6 +73,7 @@ public class SaleOrder implements TenantOwned {
     public Long getCustomerId() { return customerId; }
     public OrderStatus getStatus() { return status; }
     public BigDecimal getCommissionPct() { return commissionPct; }
+    public BigDecimal getDeliveryCharge() { return deliveryCharge; }
     public LocalDateTime getOrderedAt() { return orderedAt; }
     public String getNotes() { return notes; }
     public List<OrderItem> getItems() { return items; }

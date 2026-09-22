@@ -37,15 +37,16 @@ import java.util.stream.Collectors;
 
 /**
  * CSV export of the filtered report: one row per order line, every status included (a Status column lets Excel
- * users filter to paid orders, which is what the on-screen totals count). Streams page by page so a large history
- * never sits in memory.
+ * users filter to paid orders, which is what the on-screen totals count). An order's delivery charge sits on its
+ * first line only, so summing the column counts each charge once. Streams page by page so a large history never
+ * sits in memory.
  */
 @Service
 @Transactional(readOnly = true)
 public class ReportExportService {
     private static final DateTimeFormatter DATE_TIME = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
     private static final List<String> HEADER = List.of("Order date", "Order #", "Platform", "Customer", "Status",
-            "Product", "Quantity", "Unit sold price", "Unit cost", "Revenue", "Cost", "Profit");
+            "Product", "Quantity", "Unit sold price", "Unit cost", "Revenue", "Cost", "Profit", "Delivery charge");
     /** Characters that make a spreadsheet treat a cell as a formula. */
     private static final String FORMULA_TRIGGERS = "=+-@\t\r";
 
@@ -94,6 +95,7 @@ public class ReportExportService {
             Map<Long, Product> productById = byId(products.findAllById(productIds), Product::getId);
 
             for (SaleOrder o : page) {
+                boolean firstLine = true;
                 for (OrderItem i : o.getItems()) {
                     writeRow(w, List.of(
                             text(o.getOrderedAt().format(DATE_TIME)),
@@ -107,7 +109,9 @@ public class ReportExportService {
                             money(i.getCostPriceSnapshot()),
                             money(i.lineRevenue()),
                             money(i.lineCost()),
-                            money(i.lineProfit())));
+                            money(i.lineProfit()),
+                            firstLine ? money(o.getDeliveryCharge()) : ""));
+                    firstLine = false;
                 }
             }
             w.flush();

@@ -99,12 +99,13 @@ export default function Reports() {
               tone={tone(realized.profit)}
               hint={`revenue − cost · ${pct(realized.profit, realized.revenue)} margin`}
             />
+            <Stat label="Delivery charged" value={money(realized.delivery)} hint="paid by customers" />
             <Stat label="Expenses" value={money(summary.expenses.total)} hint="delivery, commission, ads…" />
             <Stat
               label={summary.netProfit < 0 ? 'Net loss' : 'Net profit'}
               value={money(summary.netProfit)}
               tone={tone(summary.netProfit)}
-              hint={`gross − expenses · ${pct(summary.netProfit, realized.revenue)} margin`}
+              hint={`gross + delivery − expenses · ${pct(summary.netProfit, realized.revenue)} margin`}
             />
           </div>
 
@@ -148,7 +149,7 @@ export default function Reports() {
                 <tr>
                   <th>Platform</th><th className="num">Orders</th><th className="num">Revenue</th>
                   <th className="num">Cost</th><th className="num">Gross profit</th>
-                  <th className="num">Expenses</th><th className="num">Net profit</th>
+                  <th className="num">Delivery charged</th><th className="num">Expenses</th><th className="num">Net profit</th>
                   <th className="num">Net margin</th><th className="num">Revenue share</th>
                 </tr>
               </thead>
@@ -160,6 +161,7 @@ export default function Reports() {
                     <td className="num">{money(r.revenue)}</td>
                     <td className="num">{money(r.cost)}</td>
                     <td className={`num ${tone(r.profit)}`}>{money(r.profit)}</td>
+                    <td className="num">{money(r.delivery)}</td>
                     <td className="num">{money(r.expenses)}</td>
                     <td className={`num ${tone(r.netProfit)}`}>{money(r.netProfit)}</td>
                     <td className="num">{pct(r.netProfit, r.revenue)}</td>
@@ -167,7 +169,7 @@ export default function Reports() {
                   </tr>
                 ))}
                 {summary.byPlatform.length === 0 && (
-                  <tr><td colSpan={9} className="empty">No paid orders in this period.</td></tr>
+                  <tr><td colSpan={10} className="empty">No paid orders in this period.</td></tr>
                 )}
               </tbody>
             </table>
