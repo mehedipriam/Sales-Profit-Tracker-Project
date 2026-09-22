@@ -1,0 +1,42 @@
+# Centralized logging (Phase 8b): Loki stores logs, Promtail discovers and ships every container's logs to
+# it via the Docker socket (no host-level logging-driver plugin needed), Grafana queries/visualizes them.
+# Opt-in - combine with the stack you're already running, e.g.:
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.monitoring.yml up -d
+# Needs GRAFANA_ADMIN_PASSWORD in .env. Grafana is published on 127.0.0.1 only, not the public domain - reach
+# it over an SSH tunnel (ssh -L 3000:localhost:3000 you@server, then open localhost:3000 in your own
+# browser) rather than adding another public login surface, log in with admin / GRAFANA_ADMIN_PASSWORD.
+services:
+  loki:
+    image: grafana/loki:3.0.0
+    restart: unless-stopped
+    volumes:
+      - ./monitoring/loki-config.yaml:/etc/loki/local-config.yaml:ro
+      - loki_data:/loki
+    command: -config.file=/etc/loki/local-config.yaml
+
+  promtail:
+    image: grafana/promtail:3.0.0
+    restart: unless-stopped
+    volumes:
+      - ./monitoring/promtail-config.yaml:/etc/promtail/config.yaml:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+    command: -config.file=/etc/promtail/config.yaml
+    depends_on: [loki]
+
+  grafana:
+    image: grafana/grafana:11.0.0
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?set GRAFANA_ADMIN_PASSWORD in .env}
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+    volumes:
+      - ./monitoring/grafana-datasources.yaml:/etc/grafana/provisioning/datasources/loki.yaml:ro
+      - grafana_data:/var/lib/grafana
+    depends_on: [loki]
+
+volumes:
+  loki_data:
+  grafana_data:

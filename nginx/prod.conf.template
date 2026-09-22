@@ -96,6 +96,13 @@ server {
         proxy_set_header X-Forwarded-Proto $scheme;
     }
 
+    # Phase 8b: what an external uptime monitor (UptimeRobot, healthchecks.io, ...) should point at - one
+    # URL that only returns 200 if nginx AND a real backend behind it are both actually up.
+    location = /actuator/health {
+        proxy_pass http://backend_pool/actuator/health;
+        proxy_set_header Host $host;
+    }
+
     # Vite fingerprints everything in /assets, so it can be cached forever.
     location /assets/ {
         include /etc/nginx/security-headers.conf;

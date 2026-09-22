@@ -1,0 +1,9 @@
+# Phase 8b: Grafana auto-provisions Loki as a datasource on first boot - open Explore and it's already
+# there, no manual setup through the UI.
+apiVersion: 1
+datasources:
+  - name: Loki
+    type: loki
+    access: proxy
+    url: http://loki:3100
+    isDefault: true

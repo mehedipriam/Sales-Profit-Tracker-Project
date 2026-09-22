@@ -306,6 +306,37 @@ OWNER user, and seeds Facebook Page/Daraz). This phase is the Owner/Staff split 
   deployed, so a restore never has to be figured out for the first time during an incident - an operational
   runbook covering that, deploys and rollbacks is Phase 8c.
 
+## Monitoring & logging (Phase 8b)
+Opt-in overlay - combine with whatever else is already running:
+```bash
+# .env needs GRAFANA_ADMIN_PASSWORD
+docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.monitoring.yml up -d
+```
+- **Centralized logging**: Loki stores logs, Promtail ships them there, Grafana queries/visualizes them.
+  Promtail discovers every container on the host through the Docker socket (`docker_sd_configs`) rather than
+  naming any of them individually, so it automatically covers the backend, both load-balanced instances of
+  it, and nginx (access + error) - a new container just shows up, nothing to update here when one is added.
+  No host-level logging-driver plugin to install; everything is a container from the compose file.
+  Verified for real, not just written and trusted: ran Loki, Promtail and a throwaway logging container in
+  an isolated Docker network, confirmed Promtail auto-discovered it and shipped its actual log lines into
+  Loki (queried Loki's HTTP API directly and got the real lines back), then confirmed Grafana's
+  auto-provisioned datasource (`monitoring/grafana-datasources.yaml` - it's there on first boot, no manual
+  setup through the UI) genuinely connects to Loki (`/api/datasources/.../health` → "Data source successfully
+  connected").
+- **Loki storage** is the simple single-process filesystem/tsdb setup (`monitoring/loki-config.yaml`), not
+  S3-backed or clustered - this project's stance on scale throughout: a single VPS is enough until it
+  demonstrably isn't. Logs expire themselves after 30 days (`retention_period: 720h`), no separate pruning
+  step to remember.
+- **Grafana is published on `127.0.0.1` only**, not the public domain - reach it over an SSH tunnel
+  (`ssh -L 3000:localhost:3000 you@server`, then open `localhost:3000` locally) rather than adding another
+  public login surface. Log in with `admin` / `GRAFANA_ADMIN_PASSWORD`.
+- **Uptime monitoring**: `nginx/prod.conf.template` now proxies `/actuator/health` to the backend pool -
+  one URL an external free service (UptimeRobot, healthchecks.io, Better Uptime, ...) can poll that only
+  returns `200` if nginx *and* a real backend behind it are both actually up. Verified against a real nginx
+  container with real resolvable backends, same as every other nginx change in this project. Setting up the
+  external monitor itself is a account you create and point at `https://<your-domain>/actuator/health` -
+  not something a script can do on your behalf.
+
 ## Tests
 ```bash
 cd backend && mvn test      # integration tests start a throwaway MySQL via Testcontainers, so Docker must be running
