@@ -109,7 +109,13 @@ Open http://localhost:5173, register a business, and you land on the dashboard.
   - expenses tied to no order (ads, overhead) count in the total but have no platform, so they appear as `unallocated`
     and are left out when a platform filter is set. Platform rows plus `unallocated` add up to the total.
   - a platform with expenses but no paid orders still gets a row (zero revenue, negative net).
-- The CSV export is unchanged: it lists order lines with gross figures. Expenses are on the Expenses page.
+- The CSV export lists order lines with gross figures. Expenses are on the Expenses page.
+- **Delivery the customer pays**: an order's optional `deliveryCharge` is what the customer paid for delivery on top of
+  the products (V6 migration; existing orders are 0). It is income, so **net profit = gross profit + delivery charged -
+  expenses**: a customer-paid delivery cancels out the courier's Delivery expense. It is kept apart from `revenue`, so
+  product margins and platform commission stay on the products only. Only `PAID` orders count it (`realized.delivery`);
+  `pending.delivery` is expected. Summary `byPlatform` rows and trend points carry `delivery` too, and the CSV has a
+  `Delivery charge` column filled on each order's first line, so summing the column counts each charge once.
 
 ## Run with Docker (Phase 5a)
 ```bash
@@ -206,8 +212,8 @@ rate-limiting run (burst allowed through, then real `429`s, while an unrelated `
 - **Rate limiting**: `/api/auth/login` and `/api/auth/register` - the credential-guessing surface - are capped at 1
   request/second per client IP (`limit_req_zone`), with a burst of up to 5 let through immediately (`burst=5
   nodelay`) so a real person fumbling a password a couple of times never notices, while a scripted attacker is capped
-  at ~3600 attempts/hour per IP. Over the limit returns `429`, not the default `503`. Every other endpoint is
-  unaffected.
+  at ~3600 attempts/hour per IP. Over the limit returns `429`, not the default `503`. `/api/account/` (settings, which
+  check the current password) shares the same limit. Every other endpoint is unaffected.
 - **Security headers**: `Content-Security-Policy` (`'self'` throughout - the build has no CDNs, no inline
   `<script>`/`<style>`, and the frontend calls the API via a same-origin relative path, confirmed by reading the
   actual Vite build output and `frontend/src/api/client.js` rather than assumed; `style-src` also allows
@@ -284,6 +290,16 @@ OWNER user, and seeds Facebook Page/Daraz). This phase is the Owner/Staff split 
   financials on both products and orders with the Owner's view of the identical rows proving the data isn't actually
   gone, full Staff CRUD access, the commission-rate boundary, and the cost-price-optional fix) - 69 backend tests
   pass in total, zero regressions from before this phase.
+
+## Account settings
+The **Settings** page (the top-bar link, or click your name) lets the signed-in user manage their own account:
+- `PUT /api/account/profile` - `{fullName, email, currentPassword}`. Renaming needs no password; changing the email
+  (the login) requires `currentPassword`, rejects an email already in use (`409`), and returns a fresh token plus user,
+  since the token carries the email.
+- `PUT /api/account/password` - `{currentPassword, newPassword}` (8-72 characters); `204` on success.
+- `PUT /api/account/business` - `{name}`, **Owner only**: renames the store (tenant) for everyone on the team.
+- A wrong current password is a `400`, not a `401`, so the frontend shows the error instead of logging the user out.
+  Covered by `AccountIntegrationTest`.
 
 ## Backups & recovery (Phase 8a)
 ```bash

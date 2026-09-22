@@ -63,11 +63,12 @@ public class AuthService {
         return toInfo(user);
     }
 
-    private AuthResponse toResponse(User user) {
+    /** A fresh token plus the user's details - after login, or after a change the token must reflect. */
+    public AuthResponse toResponse(User user) {
         return new AuthResponse(jwt.generate(user), toInfo(user));
     }
 
-    private UserInfo toInfo(User u) {
+    public UserInfo toInfo(User u) {
         String businessName = tenants.findById(u.getTenantId()).map(Tenant::getName).orElse("");
         return new UserInfo(u.getId(), u.getTenantId(), businessName, u.getEmail(), u.getFullName(), u.getRole());
     }

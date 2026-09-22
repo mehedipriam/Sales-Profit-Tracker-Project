@@ -30,9 +30,14 @@ export default function Layout() {
           <NavLink to="/platforms">Platforms</NavLink>
           {isOwner && <NavLink to="/team">Team</NavLink>}
         </nav>
-        <div className="spacer" />
-        <span className="who">{user.businessName} · {user.fullName} · {user.role}</span>
-        <button className="btn secondary" onClick={onLogout}>Log out</button>
+        <div className="account">
+          <NavLink className="who" to="/settings" title="Store name, profile and password">
+            <span className="who-store">{user.businessName}</span>
+            <span className="who-user">{user.fullName} · {isOwner ? 'Owner' : 'Staff'}</span>
+          </NavLink>
+          <NavLink className="btn secondary small" to="/settings">Settings</NavLink>
+          <button className="btn secondary small" onClick={onLogout}>Log out</button>
+        </div>
       </header>
       <main className="content">
         <ErrorBoundary key={pathname}>

@@ -31,14 +31,19 @@ export function AuthProvider({ children }) {
 
   const login = useCallback((email, password) => authenticate('/auth/login', { email, password }), [authenticate])
   const register = useCallback((data) => authenticate('/auth/register', data), [authenticate])
+  // After a settings change: a new token when the server issued one (e.g. the email changed), and the fresh user.
+  const setSession = useCallback(({ token, user: next }) => {
+    if (token) tokenStore.set(token)
+    setUser(next)
+  }, [])
   const logout = useCallback(() => {
     tokenStore.clear()
     setUser(null)
   }, [])
 
   const value = useMemo(
-    () => ({ user, loading, login, register, logout }),
-    [user, loading, login, register, logout],
+    () => ({ user, loading, login, register, logout, setSession }),
+    [user, loading, login, register, logout, setSession],
   )
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }

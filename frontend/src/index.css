@@ -21,14 +21,40 @@ a:hover { filter: brightness(0.85); }
 .center-note { text-align: center; margin-top: 4rem; }
 
 .shell { min-height: 100vh; }
+/* Brand left, page links centered between, account right. */
 .topbar {
-  display: flex; align-items: center; gap: 1rem;
-  padding: 0.75rem 1.5rem; background: var(--surface); border-bottom: 1px solid var(--border);
+  display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 1.25rem;
+  padding: 0.6rem 1.5rem; background: var(--surface); border-bottom: 1px solid var(--border);
+  position: sticky; top: 0; z-index: 10; box-shadow: 0 1px 3px rgba(16, 24, 40, 0.04);
 }
-.topbar nav a { color: var(--muted); text-decoration: none; margin-right: 1rem; }
-.topbar nav a.active { color: var(--primary); font-weight: 600; }
+.topbar .brand { justify-self: start; font-size: 1.05rem; white-space: nowrap; }
+.topbar nav { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.15rem; }
+.topbar nav a {
+  color: var(--muted); padding: 0.35rem 0.6rem; border-radius: 999px; font-size: 0.9rem; white-space: nowrap;
+  transition: background 0.15s, color 0.15s;
+}
+.topbar nav a:hover { color: var(--text); background: var(--bg); filter: none; }
+.topbar nav a.active { color: var(--primary); background: #eaf1fe; font-weight: 600; }
+.account { justify-self: end; display: flex; align-items: center; gap: 0.5rem; }
+.who {
+  display: flex; flex-direction: column; align-items: flex-end; line-height: 1.25;
+  margin-right: 0.25rem; padding: 0.15rem 0.35rem; border-radius: 6px; color: inherit;
+}
+.who:hover { background: var(--bg); filter: none; }
+.who-store, .who-user { max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.who-store { font-weight: 600; font-size: 0.8rem; color: var(--text); }
+.who-user { font-size: 0.7rem; color: var(--muted); }
+.btn.small { padding: 0.3rem 0.65rem; font-size: 0.8rem; white-space: nowrap; }
 .spacer { flex: 1; }
-.who { color: var(--muted); font-size: 0.9rem; }
+@media (max-width: 1180px) {
+  .topbar { grid-template-columns: 1fr auto; }
+  .topbar nav { grid-column: 1 / -1; grid-row: 2; }
+}
+
+.settings { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1rem; align-items: start; }
+.settings .card { max-width: none; }
+.settings h2 { margin: 0; font-size: 1.1rem; }
+.success { color: #1a7f45; margin: 0; }
 .content { max-width: 1100px; margin: 0 auto; padding: 1.5rem; }
 
 .auth-page { display: grid; place-items: center; min-height: 100vh; padding: 1rem; }

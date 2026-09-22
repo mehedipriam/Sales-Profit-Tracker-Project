@@ -12,6 +12,7 @@ import OrderForm from './pages/OrderForm'
 import Orders from './pages/Orders'
 import Platforms from './pages/Platforms'
 import Products from './pages/Products'
+import Settings from './pages/Settings'
 import Statement from './pages/Statement'
 import Stock from './pages/Stock'
 import Team from './pages/Team'
@@ -35,6 +36,7 @@ export default function App() {
               <Route path="/orders/new" element={<OrderForm />} />
               <Route path="/orders/:id" element={<OrderForm />} />
               <Route path="/platforms" element={<Platforms />} />
+              <Route path="/settings" element={<Settings />} />
               {/* Financial/admin-only (Phase 7b): Staff never lands here, the api enforces it either way. */}
               <Route element={<OwnerRoute />}>
                 <Route path="/" element={<Dashboard />} />
