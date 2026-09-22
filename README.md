@@ -334,8 +334,18 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compos
   one URL an external free service (UptimeRobot, healthchecks.io, Better Uptime, ...) can poll that only
   returns `200` if nginx *and* a real backend behind it are both actually up. Verified against a real nginx
   container with real resolvable backends, same as every other nginx change in this project. Setting up the
-  external monitor itself is a account you create and point at `https://<your-domain>/actuator/health` -
+  external monitor itself is an account you create and point at `https://<your-domain>/actuator/health` -
   not something a script can do on your behalf.
+
+## Operational runbook (Phase 8c)
+`RUNBOOK.md` - the deploy procedure (a quick one, and a rolling one that redeploys `backend`/`backend2` one at
+a time so the other keeps serving traffic the whole time - Phase 6b's two instances earning their keep),
+rollback (including the one real nuance: Flyway migrations are forward-only, so rolling back *code* doesn't
+roll back a *schema* change that already ran - documented honestly rather than glossed over), incident
+response basics, the backup restore drill and its cron schedule, the certificate-reload reminder from Phase
+6a, and a short, deliberately narrow note on when this single-VPS setup should actually change (a second
+server, a hard zero-downtime requirement, or real auto-scaling need - not before any of those are genuinely
+true).
 
 ## Tests
 ```bash
