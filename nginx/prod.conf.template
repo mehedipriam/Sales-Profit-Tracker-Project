@@ -1,8 +1,7 @@
 # TLS-terminating reverse proxy for production (Phase 6a): serves the built React app and proxies
 # /api to the backend, same as frontend/nginx.conf, plus HTTPS and an HTTP -> HTTPS redirect.
 # Rendered to nginx/prod.conf by nginx/init-letsencrypt.sh, which replaces __DOMAIN__ with the real
-# domain from .env. Security headers (CSP, HSTS, X-Frame-Options) are Phase 6c - deliberately not in
-# this file yet.
+# domain from .env.
 
 # Load balancing (Phase 6b): round-robin (nginx's default - no directive needed) across both backend
 # containers. This is open-source nginx, so there is no active health polling of /actuator/health from
@@ -15,6 +14,23 @@ upstream backend_pool {
     server backend:8080 max_fails=3 fail_timeout=10s;
     server backend2:8080 max_fails=3 fail_timeout=10s;
 }
+
+# Hardening (Phase 6c).
+# Rate limiting: at most 1 request/second per client IP against the auth endpoints, with short bursts of
+# up to 5 allowed outright (nodelay) rather than queued/delayed - generous enough that a real person
+# fumbling a password a few times never notices, but it caps a scripted attacker at ~3600 attempts/hour
+# per IP instead of however many the network allows. 10m of zone storage is ~160k tracked IPs.
+limit_req_zone $binary_remote_addr zone=auth_limit:10m rate=1r/s;
+limit_req_status 429;
+
+# Access log: the default format plus which backend served the request and how long it took - directly
+# useful for watching the Phase 6b load balancer in `docker compose logs -f frontend` (nginx's official
+# image already symlinks both access.log and error.log to stdout/stderr, so no extra plumbing is needed
+# to see them - see README: "Hardening"). A full log aggregation stack (Loki/Grafana or similar) is
+# Phase 8, once there's actually a fleet of servers to justify it, not built speculatively here.
+log_format main_ext '$remote_addr - $remote_user [$time_local] "$request" '
+                     '$status $body_bytes_sent "$http_referer" "$http_user_agent" '
+                     'upstream=$upstream_addr rt=${request_time}s';
 
 server {
     listen 80;
@@ -41,13 +57,38 @@ server {
     include /etc/letsencrypt/options-ssl-nginx.conf;
     ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
 
+    access_log /var/log/nginx/access.log main_ext;
+
     root /usr/share/nginx/html;
     index index.html;
 
     gzip on;
     gzip_types text/css application/javascript application/json image/svg+xml;
 
+    # Login and registration specifically - the credential-guessing surface - are rate-limited; an exact
+    # match takes priority over the general /api/ block below regardless of directive order.
+    location = /api/auth/login {
+        include /etc/nginx/security-headers.conf;
+        limit_req zone=auth_limit burst=5 nodelay;
+        proxy_pass http://backend_pool;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location = /api/auth/register {
+        include /etc/nginx/security-headers.conf;
+        limit_req zone=auth_limit burst=5 nodelay;
+        proxy_pass http://backend_pool;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
     location /api/ {
+        include /etc/nginx/security-headers.conf;
         proxy_pass http://backend_pool;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
@@ -57,6 +98,7 @@ server {
 
     # Vite fingerprints everything in /assets, so it can be cached forever.
     location /assets/ {
+        include /etc/nginx/security-headers.conf;
         expires 1y;
         add_header Cache-Control "public, immutable";
         try_files $uri =404;
@@ -64,6 +106,7 @@ server {
 
     # Client-side routes (/orders, /reports ...) must fall back to index.html; never cache it so a deploy shows up.
     location / {
+        include /etc/nginx/security-headers.conf;
         add_header Cache-Control "no-cache";
         try_files $uri /index.html;
     }

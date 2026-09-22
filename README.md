@@ -173,8 +173,8 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
   the files on disk** - nginx keeps the old certificate loaded in memory until reloaded, so reload it after a renewal
   actually happens (`docker compose exec frontend nginx -s reload`), e.g. from a host cron job; that lands properly
   with Phase 8's operational runbook rather than being half-built here.
-- Load balancing across multiple backend containers is Phase 6b; security headers (CSP, HSTS, X-Frame-Options) are
-  Phase 6c - `nginx/prod.conf.template` deliberately doesn't have either yet.
+- Load balancing across multiple backend containers is Phase 6b; security headers (CSP, HSTS, X-Frame-Options) and
+  rate limiting are Phase 6c.
 
 ## Load balancing (Phase 6b)
 `docker-compose.prod.yml` also runs a second backend instance, `backend2` - identical image and env vars to `backend`,
@@ -196,6 +196,30 @@ killing one) rather than just trusting the config on paper.
   new internal IP that nginx won't discover until it's reloaded. The startup ordering above avoids this on a fresh
   `up`; for a rolling redeploy later, reload nginx afterwards - another item for Phase 8's runbook rather than solved
   here with heavier tooling (nginx-plus or a Lua resolver) this project doesn't otherwise need.
+
+## Hardening (Phase 6c)
+All in `nginx/prod.conf.template` and the new `nginx/security-headers.conf`, verified against a real nginx container
+(not just read over) - correct headers on both a proxied `/api/` response and a static location that already had its
+own `Cache-Control` (nginx's `add_header` doesn't inherit into a location that sets any header of its own, so the
+headers file is `include`d inside every location rather than declared once at the server level), and a real
+rate-limiting run (burst allowed through, then real `429`s, while an unrelated `/api/` path stayed unaffected).
+- **Rate limiting**: `/api/auth/login` and `/api/auth/register` - the credential-guessing surface - are capped at 1
+  request/second per client IP (`limit_req_zone`), with a burst of up to 5 let through immediately (`burst=5
+  nodelay`) so a real person fumbling a password a couple of times never notices, while a scripted attacker is capped
+  at ~3600 attempts/hour per IP. Over the limit returns `429`, not the default `503`. Every other endpoint is
+  unaffected.
+- **Security headers**: `Content-Security-Policy` (`'self'` throughout - the build has no CDNs, no inline
+  `<script>`/`<style>`, and the frontend calls the API via a same-origin relative path, confirmed by reading the
+  actual Vite build output and `frontend/src/api/client.js` rather than assumed; `style-src` also allows
+  `'unsafe-inline'`, a deliberate, documented trade-off - see the comment in `nginx/security-headers.conf` for why),
+  `Strict-Transport-Security` (1 year, `includeSubDomains`), `X-Frame-Options: DENY`, plus `X-Content-Type-Options`
+  and `Referrer-Policy` (standard companions to the three the spec named, effectively free to add).
+- **Log monitoring**: an extended access log format (`upstream=... rt=...s`) shows which of the two backends served
+  each request and how long it took - directly useful for watching the Phase 6b load balancer live via
+  `docker compose logs -f frontend` (nginx's official image already symlinks `access.log`/`error.log` to
+  stdout/stderr, so nothing extra is needed to see them). `docker-compose.prod.yml` also caps `frontend`'s on-disk
+  log size (`max-size: 10m, max-file: 5`) so a long-running deployment's logs can't grow without bound. A full log
+  aggregation stack (Loki/Grafana or similar) is Phase 8, once there's an actual fleet of servers to justify it.
 
 ## Tests
 ```bash
