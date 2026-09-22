@@ -1,12 +1,13 @@
 package com.salestracker.order;
 
+import com.salestracker.tenant.TenantOwned;
 import jakarta.persistence.*;
 
 import java.math.BigDecimal;
 
 @Entity
 @Table(name = "order_items")
-public class OrderItem {
+public class OrderItem implements TenantOwned {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -49,6 +50,7 @@ public class OrderItem {
     public BigDecimal lineProfit() { return lineRevenue().subtract(lineCost()); }
 
     public Long getId() { return id; }
+    @Override public Long getTenantId() { return tenantId; }
     public Long getProductId() { return productId; }
     public int getQuantity() { return quantity; }
     public BigDecimal getCostPriceSnapshot() { return costPriceSnapshot; }

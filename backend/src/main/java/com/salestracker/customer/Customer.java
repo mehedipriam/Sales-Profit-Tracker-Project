@@ -1,10 +1,11 @@
 package com.salestracker.customer;
 
+import com.salestracker.tenant.TenantOwned;
 import jakarta.persistence.*;
 
 @Entity
 @Table(name = "customers")
-public class Customer {
+public class Customer implements TenantOwned {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;

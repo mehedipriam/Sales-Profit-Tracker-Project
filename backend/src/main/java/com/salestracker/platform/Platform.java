@@ -1,12 +1,13 @@
 package com.salestracker.platform;
 
+import com.salestracker.tenant.TenantOwned;
 import jakarta.persistence.*;
 
 import java.math.BigDecimal;
 
 @Entity
 @Table(name = "platforms")
-public class Platform {
+public class Platform implements TenantOwned {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;

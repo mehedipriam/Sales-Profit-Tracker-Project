@@ -1,5 +1,6 @@
 package com.salestracker.order;
 
+import com.salestracker.tenant.TenantOwned;
 import jakarta.persistence.*;
 import org.hibernate.annotations.BatchSize;
 
@@ -11,7 +12,7 @@ import java.util.List;
 /** A sale. Named SaleOrder because ORDER is a reserved word in SQL/HQL; the table is "orders". */
 @Entity
 @Table(name = "orders")
-public class SaleOrder {
+public class SaleOrder implements TenantOwned {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;

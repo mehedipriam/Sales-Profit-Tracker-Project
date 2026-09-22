@@ -221,6 +221,36 @@ rate-limiting run (burst allowed through, then real `429`s, while an unrelated `
   log size (`max-size: 10m, max-file: 5`) so a long-running deployment's logs can't grow without bound. A full log
   aggregation stack (Loki/Grafana or similar) is Phase 8, once there's an actual fleet of servers to justify it.
 
+## Tenant isolation (Phase 7a)
+Every table has carried a `tenant_id` since Phase 1a; this phase is the audit and enforcement, not the column.
+- **Audit**: read every controller, service, repository and DTO in the backend looking specifically for a query,
+  lookup or request field that could cross tenants. Result: every hand-written `@Query`/derived-query method already
+  filtered by `tenant_id`, every controller took `tenantId` only from the JWT-derived principal
+  (`@AuthenticationPrincipal AuthUser`, never a request field - no request DTO even has a `tenantId` field to begin
+  with), and every cross-entity reference (an order's `platformId`/`customerId`, an expense's `orderId`, ...) is
+  validated against the caller's tenant before being persisted, so the handful of plain `findById` calls that exist
+  are all reads of an already-tenant-validated foreign key, not of caller input. No isolation bug was found - the
+  manual discipline the codebase already had turned out to be solid.
+- **Enforcement, systemically**: "carefully checked by hand" is still one missed `tenantId = :tenantId` away from a
+  leak in code nobody's written yet, which is the gap the spec calls out. `TenantScopedRepositoryImpl`
+  (`com.salestracker.tenant`) backs every Spring Data repository in the app (wired via
+  `@EnableJpaRepositories(repositoryBaseClass = ...)` on `SalesTrackerApplication`) and overrides the plain,
+  un-scoped methods `JpaRepository` provides for free - `findById`, `findAll`, `findAllById`, `existsById`,
+  `deleteById`, `delete`, `deleteAllById`, `deleteAll` - to filter by the current request's tenant automatically.
+  `TenantContext` is a request-scoped holder (a `ThreadLocal`) that `JwtAuthFilter` sets right after it resolves the
+  JWT and always clears in a `finally` block; every tenant-owned entity implements the one-method `TenantOwned`
+  interface so the base repository can check ownership generically. This is additive, not a replacement - the
+  existing manual checks stay (they give a precise `400 "Unknown platform"` instead of a generic empty result, which
+  matters for UX), so a future query gets two independent layers agreeing rather than one.
+- **Proven, not just written**: `TenantIsolationIntegrationTest` covers the resources that didn't already have their
+  own isolation spot-check (expense, stock and reports each got one alongside their own feature work) - product,
+  customer, platform and order, through every verb, plus dashboard/report aggregates staying at zero for a tenant
+  with no data despite another tenant having real paid revenue. One test goes further and proves the systemic guard
+  itself: it calls the bare, un-scoped `ProductRepository.findById` directly - standing in for a future query nobody
+  thought to scope - under a different tenant's `TenantContext`, and confirms `TenantScopedRepositoryImpl` still
+  refuses to hand back the other tenant's row.
+- Roles (Owner/Staff) and self-service onboarding are Phase 7b; free/paid tiers and a payment gateway are Phase 7c.
+
 ## Tests
 ```bash
 cd backend && mvn test      # integration tests start a throwaway MySQL via Testcontainers, so Docker must be running

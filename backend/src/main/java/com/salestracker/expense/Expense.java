@@ -1,5 +1,6 @@
 package com.salestracker.expense;
 
+import com.salestracker.tenant.TenantOwned;
 import jakarta.persistence.*;
 
 import java.math.BigDecimal;
@@ -7,7 +8,7 @@ import java.time.LocalDate;
 
 @Entity
 @Table(name = "expenses")
-public class Expense {
+public class Expense implements TenantOwned {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;

@@ -1,12 +1,13 @@
 package com.salestracker.stock;
 
+import com.salestracker.tenant.TenantOwned;
 import jakarta.persistence.*;
 
 import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "stock_adjustments")
-public class StockAdjustment {
+public class StockAdjustment implements TenantOwned {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -51,6 +52,7 @@ public class StockAdjustment {
     }
 
     public Long getId() { return id; }
+    @Override public Long getTenantId() { return tenantId; }
     public Long getProductId() { return productId; }
     public Long getOrderId() { return orderId; }
     public StockReason getReason() { return reason; }

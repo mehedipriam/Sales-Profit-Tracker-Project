@@ -1,12 +1,13 @@
 package com.salestracker.product;
 
+import com.salestracker.tenant.TenantOwned;
 import jakarta.persistence.*;
 
 import java.math.BigDecimal;
 
 @Entity
 @Table(name = "products")
-public class Product {
+public class Product implements TenantOwned {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
