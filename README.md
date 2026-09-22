@@ -142,6 +142,16 @@ GitHub Actions workflow at `.github/workflows/ci.yml`, on every push/PR to `main
 - Actually deploying those images (SSH/webhook step, staging branch/environment) is deferred until a real server
   exists - that lands with Phase 6's Nginx/production setup rather than being stubbed out speculatively here.
 
+## Configuration management (Phase 5c)
+Built in from Phase 1b/5a and confirmed here rather than deferred:
+- **Secrets are environment-variable-only.** `MYSQL_ROOT_PASSWORD`, `MYSQL_PASSWORD`, `JWT_SECRET` etc. have no defaults
+  in `application.yml`/`application-prod.yml` or in `docker-compose.yml` (`${VAR:?set VAR in .env}`) - a missing one stops
+  startup with a clear message instead of running with a blank secret. `.env` is gitignored; only `.env.example` (placeholder
+  values) is tracked, and `.env` has never been committed.
+- **Separate Spring profiles**: `application-dev.yml` (localhost defaults, for running from an IDE) and
+  `application-prod.yml` (no defaults - every value must be supplied explicitly, `logging.level.root: INFO`). Docker
+  Compose sets `SPRING_PROFILES_ACTIVE: prod`; the default profile for a bare `mvn spring-boot:run` is `dev`.
+
 ## Tests
 ```bash
 cd backend && mvn test      # integration tests start a throwaway MySQL via Testcontainers, so Docker must be running
