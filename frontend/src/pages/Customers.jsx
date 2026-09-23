@@ -59,6 +59,8 @@ function CustomerForm({ customer, platforms, onSaved, onCancel }) {
   )
 }
 
+const PAGE_SIZE = 20
+
 export default function Customers() {
   const [q, setQ] = useState('')
   const [platformId, setPlatformId] = useState('')
@@ -75,7 +77,7 @@ export default function Customers() {
 
   const load = useCallback(() => {
     api
-      .get('/customers', { params: { q: dq, platformId: platformId || undefined, page } })
+      .get('/customers', { params: { q: dq, platformId: platformId || undefined, page, size: PAGE_SIZE } })
       .then((res) => { setData(res.data); setError('') })
       .catch((err) => setError(errorMessage(err)))
   }, [dq, platformId, page])
@@ -119,13 +121,15 @@ export default function Customers() {
       {error && <p className="error" role="alert">{error}</p>}
 
       <div className="table-wrap">
-        <table>
+        <table className="striped">
           <thead>
-            <tr><th>Name</th><th>Phone</th><th>Address</th><th>Platform</th><th>Notes</th><th /></tr>
+            <tr><th className="serial">#</th><th>Name</th><th>Phone</th><th>Address</th><th>Platform</th><th>Notes</th><th /></tr>
           </thead>
           <tbody>
-            {data?.content.map((c) => (
+            {data?.content.map((c, i) => (
               <tr key={c.id}>
+                {/* Counts on from the previous page, so page 2 starts at 21. */}
+                <td className="serial">{data.page * PAGE_SIZE + i + 1}</td>
                 <td>{c.name}</td>
                 <td>{c.phone || '—'}</td>
                 <td>{c.address || '—'}</td>
@@ -138,7 +142,7 @@ export default function Customers() {
               </tr>
             ))}
             {data && data.content.length === 0 && (
-              <tr><td colSpan={6} className="empty">No customers found.</td></tr>
+              <tr><td colSpan={7} className="empty">No customers found.</td></tr>
             )}
           </tbody>
         </table>

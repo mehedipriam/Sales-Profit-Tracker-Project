@@ -87,6 +87,8 @@ function ProductForm({ product, categories, isOwner, onSaved, onCancel }) {
   )
 }
 
+const PAGE_SIZE = 20
+
 export default function Products() {
   const { user } = useAuth()
   const isOwner = user?.role === 'OWNER'
@@ -101,7 +103,7 @@ export default function Products() {
 
   const load = useCallback(() => {
     api
-      .get('/products', { params: { q: dq, category, page } })
+      .get('/products', { params: { q: dq, category, page, size: PAGE_SIZE } })
       .then((res) => { setData(res.data); setError('') })
       .catch((err) => setError(errorMessage(err)))
     api.get('/products/categories').then((res) => setCategories(res.data)).catch(() => {})
@@ -145,10 +147,10 @@ export default function Products() {
       {error && <p className="error" role="alert">{error}</p>}
 
       <div className="table-wrap">
-        <table>
+        <table className="striped">
           <thead>
             <tr>
-              <th>Name</th><th>SKU</th><th>Category</th>
+              <th className="serial">#</th><th>Name</th><th>SKU</th><th>Category</th>
               {isOwner && <th className="num">Cost</th>}
               <th className="num">Price</th>
               {isOwner && <th className="num">Margin</th>}
@@ -156,10 +158,12 @@ export default function Products() {
             </tr>
           </thead>
           <tbody>
-            {data?.content.map((p) => {
+            {data?.content.map((p, i) => {
               const margin = p.sellingPrice - p.costPrice
               return (
                 <tr key={p.id}>
+                  {/* Counts on from the previous page, so page 2 starts at 21. */}
+                  <td className="serial">{data.page * PAGE_SIZE + i + 1}</td>
                   <td>{p.name}</td>
                   <td>{p.sku || '—'}</td>
                   <td>{p.category || '—'}</td>
@@ -182,7 +186,7 @@ export default function Products() {
               )
             })}
             {data && data.content.length === 0 && (
-              <tr><td colSpan={isOwner ? 8 : 6} className="empty">No products found.</td></tr>
+              <tr><td colSpan={isOwner ? 9 : 7} className="empty">No products found.</td></tr>
             )}
           </tbody>
         </table>

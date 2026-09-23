@@ -130,18 +130,20 @@ export default function Stock() {
       {error && <p className="error" role="alert">{error}</p>}
 
       <div className="table-wrap spaced">
-        <table>
+        <table className="striped">
           <thead>
             <tr><th>When</th><th>Product</th><th>Reason</th><th className="num">Change</th><th className="num">Stock after</th><th>Note</th><th /></tr>
           </thead>
           <tbody>
             {data?.content.map((a) => (
               <tr key={a.id}>
-                <td>{dateTime(a.createdAt)}</td>
+                <td className="nowrap">{dateTime(a.createdAt)}</td>
                 <td>{a.productName}</td>
                 <td>
-                  {STOCK_REASON_LABEL[a.reason]}
-                  {a.reason === 'ORDER' && <> <span className="badge auto" title="Written automatically when an order is recorded, changed or returned">Auto</span></>}
+                  <span className="reason">
+                    {STOCK_REASON_LABEL[a.reason]}
+                    {a.reason === 'ORDER' && <span className="badge auto" title="Written automatically when an order is recorded, changed or returned">Auto</span>}
+                  </span>
                 </td>
                 <td className={`num ${a.change < 0 ? 'neg' : 'pos'}`}>{a.change > 0 ? `+${a.change}` : a.change}</td>
                 <td className="num">{a.stockAfter}</td>
