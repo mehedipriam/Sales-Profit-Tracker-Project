@@ -15,15 +15,36 @@ export function AuthProvider({ children }) {
   }, [])
   const [loading, setLoading] = useState(() => Boolean(tokenStore.get()))
 
-  // Restore the session from a stored token.
+  // Restore the session from a stored token. Only a 401 means the token is bad (the client interceptor then
+  // clears it); any other failure - e.g. a 502 while the backend is still starting - is retried, so a
+  // remembered login survives reopening the app right after a restart.
   useEffect(() => {
     if (!tokenStore.get()) return
-    api
-      .get('/auth/me')
-      .then((res) => setUser(res.data))
-      .catch(() => tokenStore.clear())
-      .finally(() => setLoading(false))
-  }, [])
+    let cancelled = false
+    let timer
+    const restore = (attempt) =>
+      api
+        .get('/auth/me')
+        .then((res) => {
+          if (cancelled) return
+          setUser(res.data)
+          setLoading(false)
+        })
+        .catch((err) => {
+          if (cancelled) return
+          if (err.response?.status === 401 || attempt >= 30) {
+            if (err.response?.status === 401) tokenStore.clear()
+            setLoading(false)
+          } else {
+            timer = setTimeout(() => restore(attempt + 1), 2000)
+          }
+        })
+    restore(1)
+    return () => {
+      cancelled = true
+      clearTimeout(timer)
+    }
+  }, [setUser])
 
   useEffect(() => {
     const onLogout = () => setUser(null)
