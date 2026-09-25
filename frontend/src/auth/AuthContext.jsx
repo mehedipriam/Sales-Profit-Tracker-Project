@@ -33,11 +33,14 @@ export function AuthProvider({ children }) {
 
   const authenticate = useCallback(async (path, body) => {
     const res = await api.post(path, body)
-    tokenStore.set(res.data.token)
+    tokenStore.set(res.data.token, Boolean(body.rememberMe))
     setUser(res.data.user)
   }, [])
 
-  const login = useCallback((email, password) => authenticate('/auth/login', { email, password }), [authenticate])
+  const login = useCallback(
+    (email, password, rememberMe) => authenticate('/auth/login', { email, password, rememberMe }),
+    [authenticate],
+  )
   const register = useCallback((data) => authenticate('/auth/register', data), [authenticate])
   // After a settings change: a new token when the server issued one (e.g. the email changed), and the fresh user.
   const setSession = useCallback(({ token, user: next }) => {

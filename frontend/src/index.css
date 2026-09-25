@@ -70,6 +70,18 @@ input {
   padding: 0.6rem 0.7rem; border: 1px solid var(--border); border-radius: 6px; font: inherit;
 }
 input:focus { outline: 2px solid var(--primary); outline-offset: -1px; }
+/* Password input with the show/hide eye inside its right edge. */
+.password-field { position: relative; display: flex; }
+.password-field input { flex: 1; padding-right: 2.6rem; }
+.password-toggle {
+  position: absolute; right: 0.3rem; top: 50%; transform: translateY(-50%);
+  display: grid; place-items: center; padding: 0.3rem; border: 0; border-radius: 4px;
+  background: transparent; color: var(--muted); cursor: pointer;
+}
+.password-toggle:hover { color: var(--text); }
+.password-toggle:focus-visible { outline: 2px solid var(--primary); }
+.remember { flex-direction: row; align-items: center; gap: 0.5rem; cursor: pointer; }
+.remember input { width: 1rem; height: 1rem; margin: 0; accent-color: var(--primary); }
 
 .btn {
   padding: 0.6rem 1rem; border: 0; border-radius: 6px; background: var(--primary);

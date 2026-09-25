@@ -43,7 +43,7 @@ public class AuthService {
                 new Platform(tenant.getId(), "Daraz")));
         User user = users.save(new User(tenant.getId(), email, encoder.encode(req.password()),
                 req.fullName().trim(), Role.OWNER));
-        return toResponse(user);
+        return toResponse(user, false);
     }
 
     @Transactional(readOnly = true)
@@ -53,7 +53,7 @@ public class AuthService {
                 .filter(u -> encoder.matches(req.password(), u.getPasswordHash()))
                 .filter(User::isActive)
                 .orElseThrow(() -> new ApiException(HttpStatus.UNAUTHORIZED, "Invalid email or password"));
-        return toResponse(user);
+        return toResponse(user, req.rememberMe());
     }
 
     @Transactional(readOnly = true)
@@ -64,8 +64,8 @@ public class AuthService {
     }
 
     /** A fresh token plus the user's details - after login, or after a change the token must reflect. */
-    public AuthResponse toResponse(User user) {
-        return new AuthResponse(jwt.generate(user), toInfo(user));
+    public AuthResponse toResponse(User user, boolean remembered) {
+        return new AuthResponse(jwt.generate(user, remembered), toInfo(user));
     }
 
     public UserInfo toInfo(User u) {

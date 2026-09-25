@@ -51,7 +51,7 @@ public class AccountService {
             user.changeEmail(email);
         }
         user.rename(req.fullName().trim());
-        return auth.toResponse(user);
+        return auth.toResponse(user, principal.remembered());
     }
 
     public void changePassword(AuthUser principal, PasswordRequest req) {

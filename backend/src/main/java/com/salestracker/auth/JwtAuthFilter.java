@@ -32,7 +32,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             String header = request.getHeader("Authorization");
             if (header != null && header.startsWith("Bearer ")) {
                 jwtService.parse(header.substring(7))
-                        // A JWT can outlive a deactivation (tokens last 8h - see app.jwt.expiration-minutes) -
+                        // A JWT can outlive a deactivation (8h, or 30 days with "Remember me" - see app.jwt) -
                         // re-checking active status here, not just at login, makes revoking Staff access immediate
                         // rather than "eventually, once their token expires".
                         .filter(user -> users.existsByIdAndActiveTrue(user.userId()))

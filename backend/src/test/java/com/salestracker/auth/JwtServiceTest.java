@@ -12,25 +12,27 @@ class JwtServiceTest {
 
     @Test
     void roundTripKeepsTenantAndRole() {
-        JwtService jwt = new JwtService(SECRET, 10);
+        JwtService jwt = new JwtService(SECRET, 10, 30);
         User user = new User(7L, "a@b.com", "hash", "A B", Role.STAFF);
         ReflectionTestUtils.setField(user, "id", 42L);
-        String token = jwt.generate(user);
+        String token = jwt.generate(user, false);
 
         AuthUser parsed = jwt.parse(token).orElseThrow();
         assertEquals(42L, parsed.userId());
         assertEquals(7L, parsed.tenantId());
         assertEquals(Role.STAFF, parsed.role());
         assertEquals("a@b.com", parsed.email());
+        assertFalse(parsed.remembered());
+        assertTrue(jwt.parse(jwt.generate(user, true)).orElseThrow().remembered());
     }
 
     @Test
     void tamperedOrForeignTokenIsRejected() {
-        JwtService jwt = new JwtService(SECRET, 10);
-        JwtService other = new JwtService("another-secret-that-is-long-enough-9876543210", 10);
+        JwtService jwt = new JwtService(SECRET, 10, 30);
+        JwtService other = new JwtService("another-secret-that-is-long-enough-9876543210", 10, 30);
         User user = new User(1L, "x@y.com", "h", "X", Role.OWNER);
         ReflectionTestUtils.setField(user, "id", 1L);
-        String token = other.generate(user);
+        String token = other.generate(user, false);
 
         assertTrue(jwt.parse(token).isEmpty());
         assertTrue(jwt.parse("not-a-jwt").isEmpty());
@@ -38,6 +40,6 @@ class JwtServiceTest {
 
     @Test
     void shortSecretIsRefused() {
-        assertThrows(IllegalStateException.class, () -> new JwtService("short", 10));
+        assertThrows(IllegalStateException.class, () -> new JwtService("short", 10, 30));
     }
 }

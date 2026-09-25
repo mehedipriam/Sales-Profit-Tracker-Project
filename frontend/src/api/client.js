@@ -2,10 +2,18 @@ import axios from 'axios'
 
 const TOKEN_KEY = 'spt_token'
 
+// "Remember me" keeps the token in localStorage (survives closing the browser); otherwise it lives in
+// sessionStorage and is gone with the tab. Without `remember`, set() keeps the token where it already is.
 export const tokenStore = {
-  get: () => localStorage.getItem(TOKEN_KEY),
-  set: (t) => localStorage.setItem(TOKEN_KEY, t),
-  clear: () => localStorage.removeItem(TOKEN_KEY),
+  get: () => localStorage.getItem(TOKEN_KEY) || sessionStorage.getItem(TOKEN_KEY),
+  set: (t, remember = Boolean(localStorage.getItem(TOKEN_KEY))) => {
+    tokenStore.clear()
+    ;(remember ? localStorage : sessionStorage).setItem(TOKEN_KEY, t)
+  },
+  clear: () => {
+    localStorage.removeItem(TOKEN_KEY)
+    sessionStorage.removeItem(TOKEN_KEY)
+  },
 }
 
 const api = axios.create({ baseURL: '/api' })
