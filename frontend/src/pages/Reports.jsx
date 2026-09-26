@@ -6,7 +6,11 @@ import ExportButtons from '../components/ExportButtons'
 import ShareBars from '../components/charts/ShareBars'
 import TrendChart from '../components/charts/TrendChart'
 import RangePicker from '../components/RangePicker'
+import NetHero from '../components/NetHero'
 import Stat from '../components/Stat'
+import {
+  BoxIcon, CancelIcon, ChartIcon, ClockIcon, ReceiptIcon, ReturnIcon, TrendUpIcon, TruckIcon,
+} from '../components/icons'
 import { describeRange, resolveRange } from '../utils/dateRange'
 import { EXPENSE_LABEL, money } from '../utils/format'
 
@@ -90,23 +94,25 @@ export default function Reports() {
             {' · paid orders, less expenses'}
           </p>
 
-          <div className="stats">
-            <Stat label="Revenue" value={money(realized.revenue)} hint={`${realized.orders} paid orders`} />
-            <Stat label="Cost of goods" value={money(realized.cost)} />
+          <NetHero realized={realized} expenses={summary.expenses.total} netProfit={summary.netProfit} />
+
+          <div className="stats kpis">
+            <Stat label="Revenue" value={money(realized.revenue)} hint={`${realized.orders} paid orders`}
+                  icon={<TrendUpIcon />} accent="blue" />
+            <Stat label="Cost of goods" value={money(realized.cost)} hint="what the stock cost you"
+                  icon={<BoxIcon />} accent="slate" />
             <Stat
               label={realized.profit < 0 ? 'Gross loss' : 'Gross profit'}
               value={money(realized.profit)}
               tone={tone(realized.profit)}
               hint={`revenue − cost · ${pct(realized.profit, realized.revenue)} margin`}
+              icon={<ChartIcon />}
+              accent={realized.profit < 0 ? 'red' : 'green'}
             />
-            <Stat label="Delivery charged" value={money(realized.delivery)} hint="paid by customers" />
-            <Stat label="Expenses" value={money(summary.expenses.total)} hint="delivery, commission, ads…" />
-            <Stat
-              label={summary.netProfit < 0 ? 'Net loss' : 'Net profit'}
-              value={money(summary.netProfit)}
-              tone={tone(summary.netProfit)}
-              hint={`gross + delivery − expenses · ${pct(summary.netProfit, realized.revenue)} margin`}
-            />
+            <Stat label="Delivery charged" value={money(realized.delivery)} hint="paid by customers"
+                  icon={<TruckIcon />} accent="teal" />
+            <Stat label="Expenses" value={money(summary.expenses.total)} hint="delivery, commission, ads…"
+                  icon={<ReceiptIcon />} accent="violet" />
           </div>
 
           {summary.expenses.byType.length > 0 && (
@@ -122,15 +128,20 @@ export default function Reports() {
             </p>
           )}
 
-          <div className="stats secondary-stats">
+          <h2 className="section-title">Order status</h2>
+          <div className="stats kpis">
             <Stat
               label="Pending (expected)"
               value={money(summary.pending.profit)}
               tone={tone(summary.pending.profit)}
               hint={`${summary.pending.orders} unpaid orders · ${money(summary.pending.revenue)} revenue · before expenses`}
+              icon={<ClockIcon />}
+              accent="amber"
             />
-            <Stat label="Returned / refunded" value={summary.returnedOrders} hint="excluded from totals" />
-            <Stat label="Cancelled" value={summary.cancelledOrders} hint="excluded from totals" />
+            <Stat label="Returned / refunded" value={summary.returnedOrders} hint="excluded from totals"
+                  icon={<ReturnIcon />} accent="red" />
+            <Stat label="Cancelled" value={summary.cancelledOrders} hint="excluded from totals"
+                  icon={<CancelIcon />} accent="slate" />
           </div>
 
           <TrendChart trend={data.trend} />

@@ -5,6 +5,13 @@ import { LOSS, MUTED, REVENUE } from './tokens'
 
 const pct = (n) => `${Number(n).toFixed(1)}%`
 
+/** Fixed column widths so both tables fit their half-width card instead of scrolling sideways. */
+const Cols = () => (
+  <colgroup>
+    <col className="c-rank" /><col /><col className="c-bar" /><col className="c-money" /><col className="c-money" />
+  </colgroup>
+)
+
 function Card({ title, subtitle, empty, children }) {
   return (
     <div className="viz-card">
@@ -26,6 +33,7 @@ export function BestSellers({ rows }) {
   return (
     <Card title="Top 10 best sellers" subtitle="By units sold · paid orders" empty={rows.length === 0}>
       <table className="viz-table">
+        <Cols />
         <thead>
           <tr><th>#</th><th>Product</th><th>Units sold</th><th className="num">Revenue</th><th className="num">Profit</th></tr>
         </thead>
@@ -33,7 +41,7 @@ export function BestSellers({ rows }) {
           {rows.map((r, i) => (
             <tr key={r.productId}>
               <td className="rank">{i + 1}</td>
-              <td className="name">{r.name}</td>
+              <td className="name" title={r.name}>{r.name}</td>
               <td>
                 <div
                   className="barcell"
@@ -66,6 +74,7 @@ export function LowestMargin({ rows }) {
   return (
     <Card title="Top 10 lowest margins" subtitle="Profit ÷ revenue · loss-making first · paid orders" empty={rows.length === 0}>
       <table className="viz-table">
+        <Cols />
         <thead>
           <tr><th>#</th><th>Product</th><th>Margin</th><th className="num">Revenue</th><th className="num">Profit</th></tr>
         </thead>
@@ -76,7 +85,7 @@ export function LowestMargin({ rows }) {
             return (
               <tr key={r.productId}>
                 <td className="rank">{i + 1}</td>
-                <td className="name">{r.name}</td>
+                <td className="name" title={r.name}>{r.name}</td>
                 <td>
                   <div
                     className="barcell"

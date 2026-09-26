@@ -3,8 +3,10 @@ import { useSearchParams } from 'react-router-dom'
 import api, { errorMessage } from '../api/client'
 import { useAuth } from '../auth/AuthContext'
 import ExportButtons from '../components/ExportButtons'
+import { ClockIcon, ReturnIcon } from '../components/icons'
+import { logoUrl } from '../components/logo'
 import { toDateStr } from '../utils/dateRange'
-import { EXPENSE_LABEL, money } from '../utils/format'
+import { EXPENSE_LABEL, currencySymbol, money } from '../utils/format'
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
 const pad = (n) => String(n).padStart(2, '0')
@@ -62,28 +64,55 @@ export default function Statement() {
         <ExportButtons range={range} platformId="" printTitle={`Statement - ${period}`} />
       </div>
 
-      <div className="filters no-print" role="group" aria-label="Choose month">
-        <button type="button" className="btn secondary" onClick={() => go(year, month - 1)} aria-label="Previous month">‹</button>
-        <select aria-label="Month" value={month} onChange={(e) => go(year, Number(e.target.value))}>
-          {MONTHS.map((name, i) => <option key={name} value={i + 1}>{name}</option>)}
-        </select>
-        <input aria-label="Year" type="number" min="2000" max="2100" value={year}
-               onChange={(e) => e.target.value.length === 4 && go(Number(e.target.value), month)} />
-        <button type="button" className="btn secondary" onClick={() => go(year, month + 1)} aria-label="Next month">›</button>
+      <div className="month-bar no-print">
+        <div className="month-nav" role="group" aria-label="Choose month">
+          <button type="button" onClick={() => go(year, month - 1)} aria-label="Previous month">‹</button>
+          <select aria-label="Month" value={month} onChange={(e) => go(year, Number(e.target.value))}>
+            {MONTHS.map((name, i) => <option key={name} value={i + 1}>{name}</option>)}
+          </select>
+          <input aria-label="Year" type="number" min="2000" max="2100" value={year}
+                 onChange={(e) => e.target.value.length === 4 && go(Number(e.target.value), month)} />
+          <button type="button" onClick={() => go(year, month + 1)} aria-label="Next month">›</button>
+        </div>
+        {key !== currentMonth() && (
+          <button type="button" className="btn secondary small" onClick={() => setParams({})}>This month</button>
+        )}
       </div>
 
       {result?.key === key && result.error && <p className="error" role="alert">{result.error}</p>}
 
       <article className={`statement${loading ? ' stale' : ''}`} aria-busy={loading}>
         <header className="statement-head">
-          <h2>{user.businessName}</h2>
-          <p className="doc-title">Monthly summary statement</p>
-          <p>{period} <span className="muted">({range.from} to {range.to})</span></p>
-          <p className="muted">Generated {new Date().toLocaleDateString('en-GB', { dateStyle: 'long' })}</p>
+          <div className="statement-brand">
+            <img src={logoUrl(currencySymbol())} alt="" />
+            <div>
+              <h2>{user.businessName}</h2>
+              <p className="doc-title">Monthly summary statement</p>
+            </div>
+          </div>
+          <div className="statement-period">
+            <strong>{period}</strong>
+            <span>{range.from} to {range.to}</span>
+            <span>Generated {new Date().toLocaleDateString('en-GB', { dateStyle: 'long' })}</span>
+          </div>
         </header>
 
         {paid && (
-          <>
+          <div className="statement-body">
+            <div className="statement-tiles">
+              <div className="st-tile accent-blue"><span>Total sold</span><b>{money(paid.revenue)}</b>
+                <small>{paid.orders} paid order{paid.orders === 1 ? '' : 's'}</small></div>
+              <div className={`st-tile ${paid.profit < 0 ? 'accent-red' : 'accent-green'}`}>
+                <span>{paid.profit < 0 ? 'Gross loss' : 'Gross profit'}</span><b>{money(paid.profit)}</b>
+                <small>{pct(paid.profit, paid.revenue)} of sales</small></div>
+              <div className="st-tile accent-violet"><span>Expenses</span><b>{money(summary.expenses.total)}</b>
+                <small>delivery, commission, ads…</small></div>
+              <div className={`st-tile hero ${summary.netProfit < 0 ? 'loss' : ''}`}>
+                <span>{summary.netProfit < 0 ? 'Net loss' : 'Net profit'}</span><b>{money(summary.netProfit)}</b>
+                <small>{pct(summary.netProfit, paid.revenue)} net margin</small></div>
+            </div>
+
+            <h3 className="ledger-title">How it adds up</h3>
             <table className="ledger">
               <tbody>
                 <tr><th scope="row">Total sold</th><td className="num">{money(paid.revenue)}</td></tr>
@@ -100,7 +129,7 @@ export default function Statement() {
                   <tr key={t.type}><th scope="row" className="sub">less {EXPENSE_LABEL[t.type].toLowerCase()}</th>
                     <td className="num">{money(t.total)}</td></tr>
                 ))}
-                <tr className="ledger-total">
+                <tr className={`ledger-total${summary.netProfit < 0 ? ' loss' : ''}`}>
                   <th scope="row">{summary.netProfit < 0 ? 'Net loss' : 'Net profit'}</th>
                   <td className={`num ${tone(summary.netProfit)}`}>{money(summary.netProfit)}</td>
                 </tr>
@@ -109,6 +138,7 @@ export default function Statement() {
             </table>
 
             <h3 className="ledger-title">By platform</h3>
+            <div className="ledger-scroll">
             <table className="ledger wide">
               <thead>
                 <tr><th>Platform</th><th className="num">Orders</th><th className="num">Total sold</th>
@@ -157,21 +187,35 @@ export default function Statement() {
                 </tfoot>
               )}
             </table>
+            </div>
 
             <div className="statement-notes">
-              <p><b>Not included in the figures above</b></p>
-              <ul>
-                <li>{summary.pending.orders} pending order{summary.pending.orders === 1 ? '' : 's'}
-                  {summary.pending.orders > 0 && ` - expected ${money(summary.pending.revenue)} sold, ${money(summary.pending.profit)} profit once paid`}</li>
-                <li>{summary.returnedOrders} returned / refunded, {summary.cancelledOrders} cancelled</li>
-              </ul>
-              <p className="muted">
+              <h3 className="ledger-title">Not included in the figures above</h3>
+              <div className="note-cards">
+                <div className="note-card accent-amber">
+                  <span className="stat-icon" aria-hidden="true"><ClockIcon /></span>
+                  <div>
+                    <b>{summary.pending.orders} pending order{summary.pending.orders === 1 ? '' : 's'}</b>
+                    <p>{summary.pending.orders > 0
+                      ? `Expected ${money(summary.pending.revenue)} sold, ${money(summary.pending.profit)} profit once paid`
+                      : 'Nothing waiting on payment'}</p>
+                  </div>
+                </div>
+                <div className="note-card accent-red">
+                  <span className="stat-icon" aria-hidden="true"><ReturnIcon /></span>
+                  <div>
+                    <b>{summary.returnedOrders} returned · {summary.cancelledOrders} cancelled</b>
+                    <p>Left out of sales and profit</p>
+                  </div>
+                </div>
+              </div>
+              <p className="muted statement-fineprint">
                 Sales figures cover paid orders only. Net profit is gross profit plus the delivery charges customers paid,
                 minus the period's expenses (delivery, packaging, platform commission, ads and the like); expenses on
                 orders that are still pending count once the order is paid.
               </p>
             </div>
-          </>
+          </div>
         )}
       </article>
     </section>

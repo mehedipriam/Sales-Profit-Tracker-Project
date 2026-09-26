@@ -2,7 +2,11 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import api, { errorMessage } from '../api/client'
 import { useAuth } from '../auth/AuthContext'
+import NetHero from '../components/NetHero'
 import Stat from '../components/Stat'
+import {
+  BoxIcon, CancelIcon, ChartIcon, ClockIcon, ReceiptIcon, ReturnIcon, TrendUpIcon, TruckIcon,
+} from '../components/icons'
 import { STATUS_LABEL, dateTime, money } from '../utils/format'
 
 export default function Dashboard() {
@@ -40,34 +44,41 @@ export default function Dashboard() {
       )}
 
       <h2 className="section-title">All-time results <span className="muted">(paid orders)</span></h2>
-      <div className="stats">
-        <Stat label="Revenue" value={money(realized.revenue)} hint={`${realized.orders} paid orders`} />
-        <Stat label="Cost of goods" value={money(realized.cost)} />
+      <NetHero realized={realized} expenses={expenses} netProfit={netProfit} />
+
+      <div className="stats kpis">
+        <Stat label="Revenue" value={money(realized.revenue)} hint={`${realized.orders} paid orders`}
+              icon={<TrendUpIcon />} accent="blue" />
+        <Stat label="Cost of goods" value={money(realized.cost)} hint="what the stock cost you"
+              icon={<BoxIcon />} accent="slate" />
         <Stat
           label={realized.profit < 0 ? 'Gross loss' : 'Gross profit'}
           value={money(realized.profit)}
           tone={tone(realized.profit)}
           hint="revenue − cost"
+          icon={<ChartIcon />}
+          accent={realized.profit < 0 ? 'red' : 'green'}
         />
-        <Stat label="Delivery charged" value={money(realized.delivery)} hint="paid by customers" />
-        <Stat label="Expenses" value={money(expenses)} hint="delivery, commission, ads…" />
-        <Stat
-          label={netProfit < 0 ? 'Net loss' : 'Net profit'}
-          value={money(netProfit)}
-          tone={tone(netProfit)}
-          hint="gross + delivery charged − expenses"
-        />
+        <Stat label="Delivery charged" value={money(realized.delivery)} hint="paid by customers"
+              icon={<TruckIcon />} accent="teal" />
+        <Stat label="Expenses" value={money(expenses)} hint="delivery, commission, ads…"
+              icon={<ReceiptIcon />} accent="violet" />
       </div>
 
-      <div className="stats secondary-stats">
+      <h2 className="section-title">Order status</h2>
+      <div className="stats kpis">
         <Stat
           label="Pending (expected)"
           value={money(pending.profit)}
           tone={tone(pending.profit)}
           hint={`${pending.orders} unpaid orders · ${money(pending.revenue)} revenue, e.g. cash on delivery`}
+          icon={<ClockIcon />}
+          accent="amber"
         />
-        <Stat label="Returned / refunded" value={returnedOrders} hint="excluded from totals" />
-        <Stat label="Cancelled" value={cancelledOrders} hint="excluded from totals" />
+        <Stat label="Returned / refunded" value={returnedOrders} hint="excluded from totals"
+              icon={<ReturnIcon />} accent="red" />
+        <Stat label="Cancelled" value={cancelledOrders} hint="excluded from totals"
+              icon={<CancelIcon />} accent="slate" />
       </div>
 
       {lowStock.length > 0 && (

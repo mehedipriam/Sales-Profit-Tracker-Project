@@ -160,13 +160,60 @@ select.status.RETURNED, select.status.CANCELLED { color: var(--danger); }
 
 .section-title { font-size: 1.1rem; margin: 1.5rem 0 0.75rem; }
 .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; }
-.secondary-stats { margin-top: 1rem; }
 .stat { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 1rem; display: flex; flex-direction: column; gap: 0.25rem; }
 .stat-label { color: var(--muted); font-size: 0.85rem; }
 .stat-value { font-size: 1.6rem; font-weight: 700; }
 .stat-value.pos { color: #1a7f45; }
 .stat-value.neg { color: var(--danger); }
 .stat-hint { color: var(--muted); font-size: 0.8rem; }
+.stat-head { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
+
+/* Accented figure cards (Dashboard): a coloured icon chip, a matching top edge and a gentle lift on hover. */
+.kpis .stat {
+  position: relative; overflow: hidden; border-radius: 12px; padding: 1.1rem 1.2rem; gap: 0.35rem;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04); transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+}
+.kpis .stat::before { content: ''; position: absolute; inset: 0 0 auto; height: 3px; background: var(--accent, var(--border)); }
+.kpis .stat:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08); border-color: var(--accent-soft, var(--border)); }
+.kpis .stat-label { font-weight: 500; }
+.kpis .stat-value { font-size: 1.55rem; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; }
+.stat-icon {
+  display: inline-grid; place-items: center; width: 2.25rem; height: 2.25rem; border-radius: 10px; flex-shrink: 0;
+  color: var(--accent, var(--muted)); background: var(--accent-soft, #eef1f6);
+}
+.accent-blue { --accent: #2563eb; --accent-soft: #e3ecfd; }
+.accent-green { --accent: #1a7f45; --accent-soft: #dcf5e6; }
+.accent-amber { --accent: #c27c0e; --accent-soft: #fdf0d5; }
+.accent-red { --accent: #c0392b; --accent-soft: #fbe0dc; }
+.accent-teal { --accent: #0f8b8d; --accent-soft: #d7f3f2; }
+.accent-violet { --accent: #7c3aed; --accent-soft: #ede5fd; }
+.accent-slate { --accent: #52607a; --accent-soft: #e8ecf2; }
+
+/* Net profit banner: the headline number, with how it's worked out alongside. */
+.net-hero {
+  display: flex; align-items: center; justify-content: space-between; gap: 1.5rem; flex-wrap: wrap;
+  padding: 1.4rem 1.6rem; margin-bottom: 1rem; border-radius: 14px; color: #fff;
+  background: linear-gradient(120deg, #1e3a5f 0%, #1f5f4a 100%);
+  box-shadow: 0 10px 24px rgba(30, 58, 95, 0.18);
+}
+.net-hero.loss { background: linear-gradient(120deg, #1e3a5f 0%, #8a2b22 100%); box-shadow: 0 10px 24px rgba(138, 43, 34, 0.18); }
+.net-hero-main { display: flex; flex-direction: column; gap: 0.3rem; }
+.net-hero-label { display: inline-flex; align-items: center; gap: 0.45rem; font-size: 0.9rem; font-weight: 500; opacity: 0.9; }
+.net-hero-value { font-size: 2.4rem; font-weight: 800; letter-spacing: -0.02em; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.net-hero-sub { font-size: 0.85rem; opacity: 0.8; }
+.net-flow { display: flex; align-items: center; flex-wrap: wrap; gap: 0.5rem; list-style: none; margin: 0; padding: 0; }
+.net-flow li:not(.op) {
+  display: flex; flex-direction: column; gap: 0.1rem; padding: 0.55rem 0.8rem; border-radius: 10px;
+  background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.16);
+}
+.net-flow span { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em; opacity: 0.75; }
+.net-flow b { font-size: 0.98rem; font-variant-numeric: tabular-nums; }
+.net-flow .op { font-size: 1.2rem; font-weight: 600; opacity: 0.7; }
+@media (max-width: 600px) {
+  .net-hero { padding: 1.1rem 1.2rem; }
+  .net-hero-value { font-size: 2rem; }
+  .net-flow .op { display: none; }
+}
 .badge { padding: 0.15rem 0.5rem; border-radius: 999px; font-size: 0.8rem; background: #eef1f6; white-space: nowrap; }
 .badge.PAID { background: #dcf5e6; color: #1a7f45; }
 .badge.PENDING { background: #fdf0d5; color: #b7791f; }
@@ -183,7 +230,7 @@ select.status.RETURNED, select.status.CANCELLED { color: var(--danger); }
 .viz-sub { margin: 0.15rem 0 0; font-size: 0.82rem; }
 .empty-note { color: var(--muted); text-align: center; padding: 2rem 0; margin: 0; }
 .note { margin: 0.5rem 0 0; font-size: 0.85rem; }
-.viz-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: 1rem; }
+.viz-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 460px), 1fr)); gap: 1rem; }
 .viz-card .table-wrap { border: 0; border-radius: 0; }
 
 .segmented { display: inline-flex; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
@@ -211,14 +258,19 @@ select.status.RETURNED, select.status.CANCELLED { color: var(--danger); }
 .seg:only-child { border-radius: 4px; }
 .seg:hover, .seg:focus-visible { filter: brightness(1.08); outline: 2px solid var(--text); outline-offset: 1px; }
 
-.viz-table td, .viz-table th { padding: 0.5rem 0.6rem; }
-.viz-table .rank { color: var(--muted); width: 1.5rem; }
-.viz-table .name { max-width: 170px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.barcell { display: flex; align-items: center; gap: 0.5rem; min-width: 150px; }
+/* Fixed layout: the columns share the card's width exactly, a long product name is cut with "…" (the tooltip and
+ * the full Products page still have it), and only a phone-narrow card falls back to scrolling (min-width). */
+.viz-table { table-layout: fixed; min-width: 400px; }
+.viz-table td, .viz-table th { padding: 0.5rem 0.5rem; font-size: 0.88rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.viz-table .c-rank { width: 2rem; }
+.viz-table .c-bar { width: 34%; }
+.viz-table .c-money { width: 6.5rem; }
+.viz-table .rank { color: var(--muted); }
+.barcell { display: flex; align-items: center; gap: 0.4rem; min-width: 0; }
 .barcell:focus-visible { outline: 2px solid var(--text); outline-offset: -2px; }
 .hbar { flex: 1; height: 10px; }
 .hbar-fill { display: block; height: 100%; border-radius: 0 4px 4px 0; min-width: 2px; }
-.hbar-value { min-width: 4.6rem; text-align: right; font-size: 0.85rem; font-variant-numeric: tabular-nums; }
+.hbar-value { min-width: 3.2rem; text-align: right; font-size: 0.85rem; font-variant-numeric: tabular-nums; }
 .divbar { position: relative; flex: 1; height: 10px; }
 .divbar-axis { position: absolute; left: 50%; top: -3px; bottom: -3px; width: 1px; background: #c3c2b7; }
 .divbar-fill { position: absolute; top: 0; height: 100%; min-width: 2px; }
@@ -230,21 +282,97 @@ select.status.RETURNED, select.status.CANCELLED { color: var(--danger); }
 .export-buttons { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
 .print-only { display: none; }
 
-.statement { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 2rem 2.25rem; max-width: 760px; margin: 1rem auto 0; }
-.statement-head { border-bottom: 2px solid var(--text); margin-bottom: 1.25rem; padding-bottom: 0.75rem; }
+.statement {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 14px; max-width: 1000px; margin: 1rem auto 0;
+  overflow: hidden; box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
+}
+/* Padding on one wrapper, not margins on each child: a width:100% table plus side margins would overflow the card. */
+.statement-body { padding: 0 2.25rem 2rem; }
+/* Keep the brand colours when saved as PDF; browsers otherwise drop backgrounds when printing. */
+.statement, .statement * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+.statement-head {
+  display: flex; justify-content: space-between; align-items: center; gap: 1.5rem; flex-wrap: wrap;
+  padding: 1.6rem 2.25rem; margin-bottom: 1.5rem; color: #fff;
+  background: linear-gradient(120deg, #1e3a5f 0%, #1f5f4a 100%);
+}
+.statement-brand { display: flex; align-items: center; gap: 0.9rem; }
+.statement-brand img { width: 52px; height: 52px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18); }
 .statement-head h2 { margin: 0; font-size: 1.5rem; }
 .statement-head p { margin: 0.2rem 0 0; }
+.statement-head .doc-title { color: rgba(255, 255, 255, 0.75); }
+.statement-period { display: flex; flex-direction: column; align-items: flex-end; gap: 0.15rem; text-align: right; }
+.statement-period strong {
+  font-size: 1.05rem; padding: 0.3rem 0.8rem; border-radius: 999px; margin-bottom: 0.25rem;
+  background: rgba(255, 255, 255, 0.14); border: 1px solid rgba(255, 255, 255, 0.22);
+}
+.statement-period span { font-size: 0.8rem; opacity: 0.8; }
 .doc-title { text-transform: uppercase; letter-spacing: 0.06em; font-size: 0.8rem; color: var(--muted); }
+
+.statement-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 0.75rem; }
+.st-tile {
+  display: flex; flex-direction: column; gap: 0.2rem; padding: 0.9rem 1rem; border-radius: 12px;
+  border: 1px solid var(--border); border-top: 3px solid var(--accent, var(--border)); background: var(--surface);
+}
+.st-tile span { font-size: 0.8rem; color: var(--muted); font-weight: 500; }
+.st-tile b { font-size: 1.3rem; font-variant-numeric: tabular-nums; color: var(--accent, var(--text)); }
+.st-tile small { font-size: 0.75rem; color: var(--muted); }
+.st-tile.hero { border: 0; color: #fff; background: linear-gradient(135deg, #1a7f45, #0f6a5c); }
+.st-tile.hero.loss { background: linear-gradient(135deg, #c0392b, #8a2b22); }
+.st-tile.hero span, .st-tile.hero small { color: rgba(255, 255, 255, 0.85); }
+.st-tile.hero b { color: #fff; font-size: 1.45rem; }
+
 .ledger { width: 100%; border-collapse: collapse; margin-bottom: 1rem; }
-.ledger th, .ledger td { padding: 0.5rem 0.25rem; border-bottom: 1px solid var(--border); font-size: 0.95rem; text-align: left; background: none; }
-.ledger.wide thead th { border-bottom: 1px solid var(--text); font-size: 0.85rem; }
-.ledger .num { text-align: right; }
-.ledger.wide tfoot th, .ledger.wide tfoot td { border-top: 2px solid var(--text); border-bottom: 0; font-weight: 700; }
-.ledger-total th, .ledger-total td { font-size: 1.15rem; font-weight: 700; border-bottom: 2px solid var(--text); }
+.ledger th, .ledger td { padding: 0.6rem 0.75rem; border-bottom: 1px solid #edf0f4; font-size: 0.95rem; text-align: left; background: none; }
+.ledger .num { text-align: right; font-variant-numeric: tabular-nums; }
+.ledger:not(.wide) th { font-weight: 600; }
+.ledger:not(.wide) th.sub { font-weight: 400; color: var(--muted); padding-left: 1.75rem; }
+.ledger-total th, .ledger-total td { font-size: 1.15rem; font-weight: 700; background: #e9f7ef; border-bottom: 0; }
+.ledger-total.loss th, .ledger-total.loss td { background: #fdecea; }
 .ledger:not(.wide) tbody tr:last-child th, .ledger:not(.wide) tbody tr:last-child td { border-bottom: 0; }
-.ledger-title { margin: 1.5rem 0 0.4rem; font-size: 1rem; }
-.statement-notes { margin-top: 1.5rem; font-size: 0.88rem; }
-.statement-notes ul { margin: 0.3rem 0 0.75rem; padding-left: 1.2rem; }
+
+.ledger-scroll { overflow-x: auto; border: 1px solid var(--border); border-radius: 10px; margin-bottom: 1rem; }
+.ledger.wide { margin: 0; }
+/* Headings may wrap onto two lines ("Delivery / charged") so all eight columns fit; the amounts never wrap. */
+.ledger.wide th, .ledger.wide td { font-size: 0.86rem; padding: 0.6rem 0.55rem; }
+.ledger.wide td.num, .ledger.wide tfoot .num { white-space: nowrap; }
+.ledger.wide thead th {
+  background: #1e3a5f; color: #fff; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.03em; border-bottom: 0;
+  line-height: 1.25; vertical-align: bottom;
+}
+.ledger.wide tbody tr:nth-child(even) td { background: #f4f6fa; }
+.ledger.wide tfoot th, .ledger.wide tfoot td { border-top: 2px solid var(--text); border-bottom: 0; font-weight: 700; background: #eef1f6; }
+.ledger-title { margin: 1.75rem 0 0.6rem; font-size: 1rem; }
+
+.statement-notes { font-size: 0.88rem; }
+.note-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 0.75rem; }
+.note-card {
+  display: flex; align-items: flex-start; gap: 0.75rem; padding: 0.85rem 1rem; border-radius: 12px;
+  background: var(--accent-soft); border: 1px solid transparent;
+}
+.note-card .stat-icon { background: var(--surface); }
+.note-card b { display: block; margin-bottom: 0.15rem; }
+.note-card p { margin: 0; color: var(--muted); }
+.statement-fineprint { margin-top: 1rem; line-height: 1.5; font-size: 0.82rem; }
+
+/* Month switcher: one joined control, prev · month · year · next. */
+.month-bar { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 1rem; }
+.month-nav {
+  display: inline-flex; align-items: stretch; background: var(--surface); border: 1px solid var(--border);
+  border-radius: 10px; overflow: hidden; box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+.month-nav > * { border: 0; border-radius: 0; background: transparent; font: inherit; }
+.month-nav > * + * { border-left: 1px solid var(--border); }
+.month-nav button { padding: 0 0.85rem; font-size: 1.2rem; color: var(--muted); }
+.month-nav button:hover { background: var(--bg); color: var(--text); }
+.month-nav select { padding: 0.55rem 0.7rem; font-weight: 600; }
+.month-nav input { width: 5.5rem; padding: 0.55rem 0.7rem; font-weight: 600; }
+.month-nav input:focus, .month-nav select:focus { outline: 2px solid var(--primary); outline-offset: -2px; }
+@media (max-width: 600px) {
+  .statement-body { padding: 0 1rem 1.5rem; }
+  .statement-head { padding: 1.2rem 1rem; }
+  .statement-period { align-items: flex-start; text-align: left; }
+}
 .filters input[type="number"] { flex: none; width: 6rem; min-width: 0; }
 
 @media print {
@@ -260,8 +388,14 @@ select.status.RETURNED, select.status.CANCELLED { color: var(--danger); }
   .stat, .viz-card, tr, .statement-notes { break-inside: avoid; }
   .viz-card, .stat, .table-wrap { border-color: #bbb; box-shadow: none; }
   .table-wrap { overflow: visible; }
-  .statement { border: 0; box-shadow: none; padding: 0; max-width: none; margin: 0; }
+  .statement { border: 0; box-shadow: none; max-width: none; margin: 0; border-radius: 0; }
+  .ledger-scroll { overflow: visible; }
+  .st-tile, .note-card, .ledger-total { break-inside: avoid; }
   .viz-grid { grid-template-columns: 1fr; }
+  /* Browsers drop backgrounds when printing, so the banner turns into dark text on white with a border. */
+  .net-hero, .net-hero.loss { background: none; color: #000; border: 1px solid #bbb; box-shadow: none; break-inside: avoid; }
+  .net-flow li:not(.op) { background: none; border-color: #bbb; }
+  .kpis .stat::before { display: none; }
 }
 
 /* ---- expenses ---- */
