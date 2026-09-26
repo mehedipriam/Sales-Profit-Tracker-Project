@@ -23,7 +23,7 @@ erDiagram
            bigint tenant_id FK
            string email
            string password_hash
-           string role "OWNER or STAFF" }
+           string role "OWNER, ADMIN or STAFF" }
     PLATFORM { bigint id PK
                bigint tenant_id FK
                string name

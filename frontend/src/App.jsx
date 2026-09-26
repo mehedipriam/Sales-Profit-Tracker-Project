@@ -37,7 +37,7 @@ export default function App() {
               <Route path="/orders/:id" element={<OrderForm />} />
               <Route path="/platforms" element={<Platforms />} />
               <Route path="/settings" element={<Settings />} />
-              {/* Financial/admin-only (Phase 7b): Staff never lands here, the api enforces it either way. */}
+              {/* Owner/Admin only: Staff never lands here, the api enforces it either way. */}
               <Route element={<OwnerRoute />}>
                 <Route path="/" element={<Dashboard />} />
                 <Route path="/expenses" element={<Expenses />} />

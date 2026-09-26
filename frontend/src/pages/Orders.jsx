@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import api, { errorMessage } from '../api/client'
 import { useAuth } from '../auth/AuthContext'
+import { seesFinancials } from '../auth/roles'
 import Pager from '../components/Pager'
 import RangePicker from '../components/RangePicker'
 import { resolveRange } from '../utils/dateRange'
@@ -9,7 +10,7 @@ import { STATUSES, STATUS_LABEL, dateTime, money } from '../utils/format'
 
 export default function Orders() {
   const { user } = useAuth()
-  const isOwner = user?.role === 'OWNER'
+  const showMoney = seesFinancials(user)
   const [platformId, setPlatformId] = useState('')
   const [status, setStatus] = useState('')
   const [range, setRange] = useState({ preset: 'all', from: '', to: '' })
@@ -83,7 +84,7 @@ export default function Orders() {
             <tr>
               <th>#</th><th>Date</th><th>Customer</th><th>Platform</th><th className="num">Items</th>
               <th className="num">Revenue</th>
-              {isOwner && <><th className="num">Cost</th><th className="num">Profit</th></>}
+              {showMoney && <><th className="num">Cost</th><th className="num">Profit</th></>}
               <th>Status</th><th />
             </tr>
           </thead>
@@ -96,7 +97,7 @@ export default function Orders() {
                 <td>{o.platformName}</td>
                 <td className="num">{o.itemCount}</td>
                 <td className="num">{money(o.revenue)}</td>
-                {isOwner && <>
+                {showMoney && <>
                   <td className="num">{money(o.cost)}</td>
                   <td className={`num ${o.profit < 0 ? 'neg' : 'pos'}`}>{money(o.profit)}</td>
                 </>}
@@ -108,13 +109,13 @@ export default function Orders() {
                 </td>
                 <td className="row-actions">
                   <Link className="link" to={`/orders/${o.id}`}>Edit</Link>
-                  {isOwner && <Link className="link" to={`/expenses?newFor=${o.id}`}>Expense</Link>}
+                  {showMoney && <Link className="link" to={`/expenses?newFor=${o.id}`}>Expense</Link>}
                   <button className="link danger" onClick={() => remove(o)}>Delete</button>
                 </td>
               </tr>
             ))}
             {data && data.content.length === 0 && (
-              <tr><td colSpan={isOwner ? 10 : 8} className="empty">No orders yet. Record your first sale.</td></tr>
+              <tr><td colSpan={showMoney ? 10 : 8} className="empty">No orders yet. Record your first sale.</td></tr>
             )}
           </tbody>
         </table>

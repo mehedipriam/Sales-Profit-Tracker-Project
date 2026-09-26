@@ -29,9 +29,15 @@ class RoleAccessIntegrationTest extends AbstractIntegrationTest {
 
     /** Creates a Staff account (a fresh email every call, like registerTenant()) and logs in as them. */
     private StaffAccount staffAccount() throws Exception {
-        String email = "staff%d-%d@example.com".formatted(SEQ.incrementAndGet(), System.nanoTime());
+        return account("STAFF");
+    }
+
+    /** Has the owner create an account with the given role (fresh email every call) and logs in as them. */
+    private StaffAccount account(String role) throws Exception {
+        String email = "member%d-%d@example.com".formatted(SEQ.incrementAndGet(), System.nanoTime());
         long id = post(owner, "/api/users",
-                "{\"fullName\":\"Staffer\",\"email\":\"%s\",\"password\":\"password123\"}".formatted(email), 201)
+                "{\"fullName\":\"Member\",\"email\":\"%s\",\"password\":\"password123\",\"role\":\"%s\"}"
+                        .formatted(email, role), 201)
                 .get("id").asLong();
         JsonNode login = postAnonymous("/api/auth/login",
                 "{\"email\":\"%s\",\"password\":\"password123\"}".formatted(email), 200);
@@ -64,6 +70,111 @@ class RoleAccessIntegrationTest extends AbstractIntegrationTest {
     void theOwnerAccountCannotBeDeactivated() throws Exception {
         JsonNode me = get(owner, "/api/auth/me", 200);
         delete(owner, "/api/users/" + me.get("id").asLong(), 409);
+    }
+
+    @Test
+    void anOwnerCanAddAnotherOwner() throws Exception {
+        String email = "co-owner-%d@example.com".formatted(System.nanoTime());
+        JsonNode created = post(owner, "/api/users",
+                "{\"fullName\":\"Co Owner\",\"email\":\"%s\",\"password\":\"password123\",\"role\":\"OWNER\"}".formatted(email), 201);
+        assertEquals("OWNER", created.get("role").asText());
+
+        JsonNode login = postAnonymous("/api/auth/login",
+                "{\"email\":\"%s\",\"password\":\"password123\"}".formatted(email), 200);
+        Tenant coOwner = new Tenant(login.at("/user/tenantId").asLong(), "Bearer " + login.get("token").asText());
+        get(coOwner, "/api/dashboard", 200);
+        get(coOwner, "/api/users", 200);
+    }
+
+    @Test
+    void changingARoleTakesEffectImmediatelyEvenWithAnExistingToken() throws Exception {
+        StaffAccount rina = staffAccount();
+        get(rina.session(), "/api/dashboard", 403);
+
+        JsonNode promoted = put(owner, "/api/users/" + rina.id(), "{\"fullName\":\"Rina\",\"role\":\"OWNER\"}", 200);
+        assertEquals("OWNER", promoted.get("role").asText());
+        get(rina.session(), "/api/dashboard", 200);
+
+        put(owner, "/api/users/" + rina.id(), "{\"fullName\":\"Rina\",\"role\":\"STAFF\"}", 200);
+        get(rina.session(), "/api/dashboard", 403);
+    }
+
+    @Test
+    void anOwnerCannotChangeTheirOwnRole() throws Exception {
+        long me = get(owner, "/api/auth/me", 200).get("id").asLong();
+        put(owner, "/api/users/" + me, "{\"fullName\":\"Me\",\"role\":\"STAFF\"}", 409);
+        // Saving with the same role (or none) is still fine.
+        put(owner, "/api/users/" + me, "{\"fullName\":\"Me\",\"role\":\"OWNER\"}", 200);
+        put(owner, "/api/users/" + me, "{\"fullName\":\"Me\"}", 200);
+    }
+
+    // ---- admin: the owner's access to the money and to Staff, minus the business and Owner/Admin accounts ----
+
+    @Test
+    void anAdminSeesTheFinancialsAndCanSetCommissionRates() throws Exception {
+        Tenant admin = account("ADMIN").session();
+        get(admin, "/api/dashboard", 200);
+        get(admin, "/api/reports/summary", 200);
+        get(admin, "/api/expenses", 200);
+        post(admin, "/api/expenses", "{\"type\":\"MISC\",\"amount\":10,\"expenseDate\":\"2026-01-01\"}", 201);
+
+        JsonNode product = post(admin, "/api/products", "{\"name\":\"Rice\",\"costPrice\":100,\"sellingPrice\":150}", 201);
+        assertEquals(0, new java.math.BigDecimal("100.00").compareTo(new java.math.BigDecimal(product.get("costPrice").asText())));
+
+        JsonNode platform = post(admin, "/api/platforms", "{\"name\":\"TikTok Shop\",\"commissionPct\":7}", 201);
+        assertEquals(0, new java.math.BigDecimal("7.00").compareTo(new java.math.BigDecimal(platform.get("commissionPct").asText())));
+    }
+
+    @Test
+    void anAdminCannotChangeTheBusinessSettings() throws Exception {
+        Tenant admin = account("ADMIN").session();
+        put(admin, "/api/account/business", "{\"name\":\"Hijacked\",\"currency\":\"EUR\"}", 403);
+    }
+
+    @Test
+    void anAdminManagesStaff() throws Exception {
+        Tenant admin = account("ADMIN").session();
+        get(admin, "/api/users", 200);
+        String email = "by-admin-%d@example.com".formatted(System.nanoTime());
+        JsonNode created = post(admin, "/api/users",
+                "{\"fullName\":\"New Staff\",\"email\":\"%s\",\"password\":\"password123\"}".formatted(email), 201);
+        assertEquals("STAFF", created.get("role").asText());
+        long id = created.get("id").asLong();
+        put(admin, "/api/users/" + id, "{\"fullName\":\"Renamed\",\"password\":\"newpassword1\"}", 200);
+        delete(admin, "/api/users/" + id, 204);
+    }
+
+    @Test
+    void anAdminCannotHandOutOrTouchOwnerAndAdminAccounts() throws Exception {
+        Tenant admin = account("ADMIN").session();
+        StaffAccount otherAdmin = account("ADMIN");
+        long ownerId = get(owner, "/api/auth/me", 200).get("id").asLong();
+
+        // Can't create an Owner or Admin...
+        post(admin, "/api/users", "{\"fullName\":\"X\",\"email\":\"x%d@example.com\",\"password\":\"password123\",\"role\":\"ADMIN\"}"
+                .formatted(System.nanoTime()), 403);
+        post(admin, "/api/users", "{\"fullName\":\"X\",\"email\":\"y%d@example.com\",\"password\":\"password123\",\"role\":\"OWNER\"}"
+                .formatted(System.nanoTime()), 403);
+        // ...or promote Staff to one...
+        long staffId = staffAccount().id();
+        put(admin, "/api/users/" + staffId, "{\"fullName\":\"S\",\"role\":\"ADMIN\"}", 403);
+        // ...or edit an Owner (least of all reset their password) or another Admin...
+        put(admin, "/api/users/" + ownerId, "{\"fullName\":\"Owner\",\"password\":\"takenover1\"}", 403);
+        put(admin, "/api/users/" + otherAdmin.id(), "{\"fullName\":\"A\"}", 403);
+        // ...or remove them.
+        delete(admin, "/api/users/" + ownerId, 403);
+        delete(admin, "/api/users/" + otherAdmin.id(), 403);
+
+        // The owner's password really is unchanged.
+        postAnonymous("/api/auth/login", "{\"email\":\"%s\",\"password\":\"takenover1\"}"
+                .formatted(get(owner, "/api/auth/me", 200).get("email").asText()), 401);
+    }
+
+    @Test
+    void anOwnerCanRemoveAnAdmin() throws Exception {
+        StaffAccount admin = account("ADMIN");
+        delete(owner, "/api/users/" + admin.id(), 204);
+        get(admin.session(), "/api/dashboard", 401);
     }
 
     @Test

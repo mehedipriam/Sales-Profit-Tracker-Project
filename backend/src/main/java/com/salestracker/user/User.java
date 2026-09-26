@@ -42,6 +42,7 @@ public class User implements TenantOwned {
     public void rename(String fullName) { this.fullName = fullName; }
     public void changeEmail(String email) { this.email = email; }
     public void changePassword(String passwordHash) { this.passwordHash = passwordHash; }
+    public void changeRole(Role role) { this.role = role; }
     public void deactivate() { this.active = false; }
 
     public Long getId() { return id; }

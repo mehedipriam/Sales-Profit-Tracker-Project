@@ -11,7 +11,7 @@ import org.springframework.web.bind.annotation.RestController;
 /** Totals and profit figures - Owner only (Phase 7b: Staff's access is "limited on settings/reports"). */
 @RestController
 @RequestMapping("/api/dashboard")
-@PreAuthorize("hasRole('OWNER')")
+@PreAuthorize("hasAnyRole('OWNER','ADMIN')")
 public class DashboardController {
     private final DashboardService service;
 

@@ -4,7 +4,6 @@ import com.salestracker.auth.AuthUser;
 import com.salestracker.common.PageResponse;
 import com.salestracker.product.ProductDtos.ProductRequest;
 import com.salestracker.product.ProductDtos.ProductResponse;
-import com.salestracker.user.Role;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -48,9 +47,9 @@ public class ProductController {
         return redaction(user).apply(service.update(user.tenantId(), id, req));
     }
 
-    /** Phase 7b: cost price (and margin) is Owner-only; Staff still needs the rest to run sales day to day. */
+    /** Phase 7b: cost price (and margin) is Owner/Admin-only; Staff still needs the rest to run sales day to day. */
     private static UnaryOperator<ProductResponse> redaction(AuthUser user) {
-        return user.role() == Role.OWNER ? r -> r : ProductResponse::hideCost;
+        return user.role().seesFinancials() ? r -> r : ProductResponse::hideCost;
     }
 
     @DeleteMapping("/{id}")

@@ -2,7 +2,6 @@ package com.salestracker.platform;
 
 import com.salestracker.auth.ApiException;
 import com.salestracker.auth.AuthUser;
-import com.salestracker.user.Role;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
@@ -78,12 +77,12 @@ public class PlatformController {
 
         BigDecimal requested = req.commissionPct() == null ? BigDecimal.ZERO : req.commissionPct();
         BigDecimal commissionPct;
-        if (user.role() == Role.OWNER) {
+        if (user.role().seesFinancials()) {
             commissionPct = requested;
         } else if (p.getId() == null) {
-            commissionPct = BigDecimal.ZERO; // a Staff-created platform starts at 0%; an Owner sets the real rate later
+            commissionPct = BigDecimal.ZERO; // a Staff-created platform starts at 0%; an Owner or Admin sets the real rate later
         } else if (requested.compareTo(p.getCommissionPct()) != 0) {
-            throw new ApiException(HttpStatus.FORBIDDEN, "Only an owner can change the commission rate");
+            throw new ApiException(HttpStatus.FORBIDDEN, "Only an owner or admin can change the commission rate");
         } else {
             commissionPct = p.getCommissionPct();
         }

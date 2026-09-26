@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import api, { errorMessage } from '../api/client'
 import { useAuth } from '../auth/AuthContext'
+import { seesFinancials } from '../auth/roles'
 import AsyncPicker from '../components/AsyncPicker'
 import { EXPENSE_LABEL, EXPENSE_TYPES, STATUSES, STATUS_LABEL, money, toLocalInput } from '../utils/format'
 
@@ -24,7 +25,7 @@ const newExpense = (type = 'DELIVERY') => ({ key: ++expenseKey, type, amount: ''
 
 export default function OrderForm() {
   const { user } = useAuth()
-  const isOwner = user?.role === 'OWNER'
+  const showMoney = seesFinancials(user)
   const { id } = useParams()
   const editing = Boolean(id)
   const navigate = useNavigate()
@@ -261,7 +262,7 @@ export default function OrderForm() {
                 <table>
                   <thead>
                     <tr><th>Product</th><th className="num">Qty</th><th className="num">Sold price</th>
-                        {isOwner && <><th className="num">Cost</th><th className="num">Line profit</th></>}<th /></tr>
+                        {showMoney && <><th className="num">Cost</th><th className="num">Line profit</th></>}<th /></tr>
                   </thead>
                   <tbody>
                     {lines.map((l) => (
@@ -275,7 +276,7 @@ export default function OrderForm() {
                           <input className="small" type="number" min="0" step="0.01" required aria-label={`Sold price of ${l.name}`}
                                  value={l.soldPrice} onChange={(e) => updateLine(l.key, { soldPrice: e.target.value })} />
                         </td>
-                        {isOwner && <>
+                        {showMoney && <>
                           <td className="num muted">{money(l.cost)}</td>
                           <td className={`num ${lineProfit(l) < 0 ? 'neg' : 'pos'}`}><b>{money(lineProfit(l))}</b></td>
                         </>}
@@ -307,7 +308,7 @@ export default function OrderForm() {
             </label>
           </div>
 
-          {isOwner && (
+          {showMoney && (
             <div className="of-card">
               <div className="of-card-head">
                 <h2 className="of-title"><span className="of-step">5</span>Expenses <span className="muted of-optional">optional</span></h2>
@@ -363,10 +364,10 @@ export default function OrderForm() {
             <h2 className="of-title">Summary</h2>
             <dl className="sum-rows">
               <div><dt>Revenue</dt><dd>{money(revenue)}</dd></div>
-              {isOwner && <div><dt>Cost</dt><dd>{money(cost)}</dd></div>}
+              {showMoney && <div><dt>Cost</dt><dd>{money(cost)}</dd></div>}
               {delivery > 0 && <div className="sum-strong"><dt>Customer pays</dt><dd>{money(revenue + delivery)}</dd></div>}
             </dl>
-            {isOwner && (
+            {showMoney && (
               <>
                 <dl className="sum-rows">
                   <div><dt>Gross profit</dt><dd className={profit < 0 ? 'neg' : ''}>{money(profit)}</dd></div>
@@ -380,7 +381,7 @@ export default function OrderForm() {
                 </div>
               </>
             )}
-            {isOwner && rate > 0 && (
+            {showMoney && rate > 0 && (
               <p className="hint">
                 {platform?.name} commission {rate}%
                 {accrues ? <> ≈ <b>{money(commission)}</b> will be added automatically as an expense.</> : ' is not charged while an order is returned or cancelled.'}

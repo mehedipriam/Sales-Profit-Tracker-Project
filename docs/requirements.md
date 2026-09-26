@@ -11,7 +11,7 @@
 | Entity | Purpose |
 |---|---|
 | Tenant (Business) | An isolated workspace; owns all other data |
-| User | Login account; role OWNER or STAFF |
+| User | Login account; role OWNER, ADMIN or STAFF |
 | Platform | Sales channel (Facebook Page, Daraz, ...) with optional commission % |
 | Product | Name, SKU, category, cost price, selling price, optional stock |
 | Customer | Name, phone, address, source platform, notes |

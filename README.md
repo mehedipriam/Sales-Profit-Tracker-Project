@@ -290,6 +290,12 @@ OWNER user, and seeds Facebook Page/Daraz). This phase is the Owner/Staff split 
   financials on both products and orders with the Owner's view of the identical rows proving the data isn't actually
   gone, full Staff CRUD access, the commission-rate boundary, and the cost-price-optional fix) - 69 backend tests
   pass in total, zero regressions from before this phase.
+- **Roles on the Team page, and Admin** (`V8__admin_role.sql`): `POST`/`PUT /api/users` take an optional `role`
+  (`OWNER`, `ADMIN`, `STAFF`; omitted = Staff on create, unchanged on edit). Nobody can change their own role, so a
+  business always keeps an Owner. **Admin** gets everything financial an Owner has (`hasAnyRole('OWNER','ADMIN')`,
+  `Role.seesFinancials()`) and can manage Staff, but can't change the business settings (`/api/account/business`),
+  can't create, edit, reset the password of, promote to, or remove an Owner or Admin (`403`). `JwtAuthFilter` now
+  takes the role from the database on every request, not from the token, so a role change applies immediately.
 
 ## Account settings
 The **Settings** page (the top-bar link, or click your name) lets the signed-in user manage their own account:

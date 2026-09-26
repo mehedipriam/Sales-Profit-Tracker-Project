@@ -19,7 +19,7 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.List;
 
-// Enables @PreAuthorize("hasRole('OWNER')") (Phase 7b: Owner vs. Staff).
+// Enables @PreAuthorize("hasAnyRole('OWNER','ADMIN')") and friends (Owner / Admin / Staff).
 @Configuration
 @EnableMethodSecurity
 public class SecurityConfig {

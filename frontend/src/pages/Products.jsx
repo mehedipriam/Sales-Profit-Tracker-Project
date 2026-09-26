@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import api, { errorMessage } from '../api/client'
 import { useAuth } from '../auth/AuthContext'
+import { seesFinancials } from '../auth/roles'
 import Modal from '../components/Modal'
 import Pager from '../components/Pager'
 import useDebounce from '../hooks/useDebounce'
@@ -9,7 +10,7 @@ import { money } from '../utils/format'
 
 const EMPTY = { name: '', sku: '', category: '', costPrice: '', sellingPrice: '', stockQty: '', lowStockThreshold: '' }
 
-function ProductForm({ product, categories, isOwner, onSaved, onCancel }) {
+function ProductForm({ product, categories, showMoney, onSaved, onCancel }) {
   const [form, setForm] = useState(
     product ? { ...EMPTY, ...Object.fromEntries(Object.entries(product).map(([k, v]) => [k, v ?? ''])) } : EMPTY,
   )
@@ -27,7 +28,7 @@ function ProductForm({ product, categories, isOwner, onSaved, onCancel }) {
       category: form.category,
       // Staff never sees a cost price to resubmit - omit it and the backend leaves the real one untouched
       // (or starts a brand new product at 0, for an owner to price properly later).
-      costPrice: isOwner ? form.costPrice : undefined,
+      costPrice: showMoney ? form.costPrice : undefined,
       sellingPrice: form.sellingPrice,
       stockQty: form.stockQty === '' ? null : Number(form.stockQty),
       lowStockThreshold: form.lowStockThreshold === '' ? null : Number(form.lowStockThreshold),
@@ -54,7 +55,7 @@ function ProductForm({ product, categories, isOwner, onSaved, onCancel }) {
         </label>
       </div>
       <div className="row">
-        {isOwner && (
+        {showMoney && (
           <label>
             Cost price
             <input required type="number" min="0" step="0.01" value={form.costPrice} onChange={set('costPrice')} />
@@ -91,7 +92,7 @@ const PAGE_SIZE = 20
 
 export default function Products() {
   const { user } = useAuth()
-  const isOwner = user?.role === 'OWNER'
+  const showMoney = seesFinancials(user)
   const [q, setQ] = useState('')
   const [category, setCategory] = useState('')
   const [page, setPage] = useState(0)
@@ -151,9 +152,9 @@ export default function Products() {
           <thead>
             <tr>
               <th className="serial">#</th><th>Name</th><th>SKU</th><th>Category</th>
-              {isOwner && <th className="num">Cost</th>}
+              {showMoney && <th className="num">Cost</th>}
               <th className="num">Price</th>
-              {isOwner && <th className="num">Margin</th>}
+              {showMoney && <th className="num">Margin</th>}
               <th className="num">Stock</th><th />
             </tr>
           </thead>
@@ -167,9 +168,9 @@ export default function Products() {
                   <td>{p.name}</td>
                   <td>{p.sku || '—'}</td>
                   <td>{p.category || '—'}</td>
-                  {isOwner && <td className="num">{money(p.costPrice)}</td>}
+                  {showMoney && <td className="num">{money(p.costPrice)}</td>}
                   <td className="num">{money(p.sellingPrice)}</td>
-                  {isOwner && <td className={`num ${margin < 0 ? 'neg' : 'pos'}`}>{money(margin)}</td>}
+                  {showMoney && <td className={`num ${margin < 0 ? 'neg' : 'pos'}`}>{money(margin)}</td>}
                   <td className="num">
                     {p.stockQty == null ? '—' : (
                       <Link to={`/stock?productId=${p.id}`} title="View stock history">{p.stockQty}</Link>
@@ -186,7 +187,7 @@ export default function Products() {
               )
             })}
             {data && data.content.length === 0 && (
-              <tr><td colSpan={isOwner ? 9 : 7} className="empty">No products found.</td></tr>
+              <tr><td colSpan={showMoney ? 9 : 7} className="empty">No products found.</td></tr>
             )}
           </tbody>
         </table>
@@ -198,7 +199,7 @@ export default function Products() {
           <ProductForm
             product={editing.id ? editing : null}
             categories={categories}
-            isOwner={isOwner}
+            showMoney={showMoney}
             onSaved={onSaved}
             onCancel={() => setEditing(null)}
           />

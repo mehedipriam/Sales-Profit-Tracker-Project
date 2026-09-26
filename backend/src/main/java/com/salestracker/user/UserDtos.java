@@ -7,16 +7,18 @@ import jakarta.validation.constraints.Size;
 public final class UserDtos {
     private UserDtos() {}
 
-    /** Always creates a Staff account - Owner accounts only come from registering a new business. */
+    /** role is optional - omitted creates a Staff account. */
     public record StaffRequest(
             @NotBlank @Size(max = 150) String fullName,
             @NotBlank @Email @Size(max = 190) String email,
-            @NotBlank @Size(min = 8, max = 72) String password) {}
+            @NotBlank @Size(min = 8, max = 72) String password,
+            Role role) {}
 
-    /** password is optional - blank/omitted leaves it unchanged. */
+    /** password and role are optional - blank/omitted leaves them unchanged. */
     public record StaffUpdateRequest(
             @NotBlank @Size(max = 150) String fullName,
-            @Size(max = 72) String password) {}
+            @Size(max = 72) String password,
+            Role role) {}
 
     public record StaffResponse(Long id, String fullName, String email, Role role, boolean active) {
         static StaffResponse of(User u) {

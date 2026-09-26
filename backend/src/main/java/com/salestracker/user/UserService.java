@@ -1,6 +1,7 @@
 package com.salestracker.user;
 
 import com.salestracker.auth.ApiException;
+import com.salestracker.auth.AuthUser;
 import com.salestracker.user.UserDtos.StaffRequest;
 import com.salestracker.user.UserDtos.StaffResponse;
 import com.salestracker.user.UserDtos.StaffUpdateRequest;
@@ -11,7 +12,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
-/** Staff accounts within a tenant. Owner accounts are never created here - only by registering a business. */
+/**
+ * Team accounts within a tenant. An Owner manages everyone (any role). An Admin manages Staff only: they can't
+ * create, edit, promote or remove an Owner or Admin, so they can't take over an Owner's account or raise their own.
+ */
 @Service
 @Transactional
 public class UserService {
@@ -28,17 +32,29 @@ public class UserService {
         return users.findByTenantIdOrderByFullName(tenantId).stream().map(StaffResponse::of).toList();
     }
 
-    public StaffResponse create(Long tenantId, StaffRequest req) {
+    public StaffResponse create(AuthUser actor, StaffRequest req) {
+        Role role = req.role() == null ? Role.STAFF : req.role();
+        requireCanAssign(actor, role);
         String email = req.email().trim().toLowerCase();
         if (users.existsByEmail(email)) {
             throw new ApiException(HttpStatus.CONFLICT, "Email already registered");
         }
-        User u = new User(tenantId, email, encoder.encode(req.password()), req.fullName().trim(), Role.STAFF);
+        User u = new User(actor.tenantId(), email, encoder.encode(req.password()), req.fullName().trim(), role);
         return StaffResponse.of(users.save(u));
     }
 
-    public StaffResponse update(Long tenantId, Long id, StaffUpdateRequest req) {
-        User u = find(tenantId, id);
+    public StaffResponse update(AuthUser actor, Long id, StaffUpdateRequest req) {
+        User u = find(actor.tenantId(), id);
+        boolean self = u.getId().equals(actor.userId());
+        if (!self) requireCanManage(actor, u);
+        if (req.role() != null && req.role() != u.getRole()) {
+            // Blocking a change to your own role also guarantees the business always keeps at least one Owner.
+            if (self) {
+                throw new ApiException(HttpStatus.CONFLICT, "You can't change your own role");
+            }
+            requireCanAssign(actor, req.role());
+            u.changeRole(req.role());
+        }
         u.rename(req.fullName().trim());
         if (req.password() != null && !req.password().isBlank()) {
             if (req.password().length() < 8) {
@@ -50,12 +66,30 @@ public class UserService {
     }
 
     /** Revokes access; the account and its history (orders recorded, etc.) stay. */
-    public void deactivate(Long tenantId, Long id) {
-        User u = find(tenantId, id);
+    public void deactivate(AuthUser actor, Long id) {
+        User u = find(actor.tenantId(), id);
+        if (u.getId().equals(actor.userId())) {
+            throw new ApiException(HttpStatus.CONFLICT, "You can't remove your own access");
+        }
+        requireCanManage(actor, u);
         if (u.getRole() == Role.OWNER) {
-            throw new ApiException(HttpStatus.CONFLICT, "The owner account cannot be deactivated");
+            throw new ApiException(HttpStatus.CONFLICT, "An Owner account cannot be deactivated - change their role to Staff first");
         }
         u.deactivate();
+    }
+
+    /** An Admin may only act on Staff accounts; an Owner may act on anyone. */
+    private static void requireCanManage(AuthUser actor, User target) {
+        if (actor.role() != Role.OWNER && target.getRole() != Role.STAFF) {
+            throw new ApiException(HttpStatus.FORBIDDEN, "Only an owner can manage owner and admin accounts");
+        }
+    }
+
+    /** An Admin may only hand out the Staff role; an Owner may hand out any. */
+    private static void requireCanAssign(AuthUser actor, Role role) {
+        if (actor.role() != Role.OWNER && role != Role.STAFF) {
+            throw new ApiException(HttpStatus.FORBIDDEN, "Only an owner can give someone the owner or admin role");
+        }
     }
 
     private User find(Long tenantId, Long id) {

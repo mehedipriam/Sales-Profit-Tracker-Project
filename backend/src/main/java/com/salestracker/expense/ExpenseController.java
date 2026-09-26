@@ -18,7 +18,7 @@ import java.time.LocalDate;
 /** Owner only (Phase 7b): expenses are financial detail, same bracket as Dashboard/Reports. */
 @RestController
 @RequestMapping("/api/expenses")
-@PreAuthorize("hasRole('OWNER')")
+@PreAuthorize("hasAnyRole('OWNER','ADMIN')")
 public class ExpenseController {
     private final ExpenseService service;
 

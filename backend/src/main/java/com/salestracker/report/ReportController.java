@@ -19,7 +19,7 @@ import java.time.LocalDate;
 /** Owner only (Phase 7b): reports, the CSV export and the monthly statement all read through here. */
 @RestController
 @RequestMapping("/api/reports")
-@PreAuthorize("hasRole('OWNER')")
+@PreAuthorize("hasAnyRole('OWNER','ADMIN')")
 public class ReportController {
     private final ReportService service;
     private final ReportExportService exportService;
