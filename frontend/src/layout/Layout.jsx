@@ -2,6 +2,7 @@ import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 import { ROLE_LABELS, seesFinancials } from '../auth/roles'
 import ErrorBoundary from '../components/ErrorBoundary'
+import ThemeToggle from '../components/ThemeToggle'
 import { logoUrl } from '../components/logo'
 import { currencySymbol } from '../utils/format'
 
@@ -34,6 +35,7 @@ export default function Layout() {
           {showMoney && <NavLink to="/team">Team</NavLink>}
         </nav>
         <div className="account">
+          <ThemeToggle />
           <NavLink className="who" to="/settings" title="Store name, profile and password">
             <span className="who-store">{user.businessName}</span>
             <span className="who-user">{user.fullName} · {ROLE_LABELS[user.role]}</span>

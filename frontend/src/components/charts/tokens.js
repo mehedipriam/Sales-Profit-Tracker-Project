@@ -19,6 +19,14 @@ export const MUTED = '#898781'
 export const TEXT_SECONDARY = '#52514e'
 export const INK = '#0b0b0b'
 
+// The neutrals of a chart drawn on the dark surface. Series hues stay the same in both themes; only the net
+// profit line changes, from ink to near-white, so it still reads as "not a colour".
+const DARK = { NET: '#e6ebf4', SURFACE: '#131c2e', GRID: '#26324a', BASELINE: '#3a4760', MUTED: '#8b97ab', TEXT_SECONDARY: '#b4bfd0' }
+const LIGHT = { NET, SURFACE, GRID, BASELINE, MUTED, TEXT_SECONDARY }
+
+/** Chart neutrals (grid, axis, labels, dot rims, net line) for the 'light' or 'dark' theme. */
+export const chartInk = (theme) => (theme === 'dark' ? DARK : LIGHT)
+
 /** Stable color per platform: by position among the business's platforms ordered by id (not by rank in a report). */
 export function platformColorMap(platforms) {
   const map = new Map()

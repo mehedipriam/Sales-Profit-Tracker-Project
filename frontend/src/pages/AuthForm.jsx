@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { errorMessage } from '../api/client'
 import { lastSymbol, logoUrl } from '../components/logo'
+import ThemeToggle from '../components/ThemeToggle'
 import { useAuth } from '../auth/AuthContext'
 
 const FIELDS = {
@@ -47,6 +48,7 @@ export default function AuthForm({ mode }) {
 
   return (
     <div className="auth-page">
+      <ThemeToggle className="corner" />
       <form className="card" onSubmit={onSubmit}>
         <div className="auth-brand"><img src={logoUrl(lastSymbol())} alt="" />Sales &amp; Profit Tracker</div>
         <h1>{isLogin ? 'Log in' : 'Create your workspace'}</h1>

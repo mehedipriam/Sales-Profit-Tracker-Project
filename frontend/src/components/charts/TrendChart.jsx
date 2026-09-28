@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { CartesianGrid, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { money } from '../../utils/format'
-import { BASELINE, GRID, MUTED, NET, PROFIT, REVENUE, SURFACE, TEXT_SECONDARY, compact } from './tokens'
+import { useTheme } from '../../theme'
+import { PROFIT, REVENUE, chartInk, compact } from './tokens'
 import { TipBody } from './ChartTip'
 
 const parse = (s) => new Date(`${s}T00:00:00`)
@@ -11,12 +12,12 @@ const longLabel = (s, g) =>
   parse(s).toLocaleDateString('en-GB', g === 'month' ? { month: 'long', year: 'numeric' } : { dateStyle: 'medium' })
 
 /** Direct label at the last point of a line. Text wears the secondary text color; the line carries the hue. */
-function EndLabel({ x, y, index, last, text }) {
+function EndLabel({ x, y, index, last, text, fill }) {
   if (index !== last) return null
-  return <text x={x + 10} y={y} dy={4} fontSize={12} fill={TEXT_SECONDARY}>{text}</text>
+  return <text x={x + 10} y={y} dy={4} fontSize={12} fill={fill}>{text}</text>
 }
 
-function TrendTip({ active, payload, granularity }) {
+function TrendTip({ active, payload, granularity, ink: { NET, MUTED } }) {
   if (!active || !payload?.length) return null
   const p = payload[0].payload
   return (
@@ -38,6 +39,8 @@ function TrendTip({ active, payload, granularity }) {
 
 export default function TrendChart({ trend }) {
   const [view, setView] = useState('chart')
+  const ink = chartInk(useTheme())
+  const { BASELINE, GRID, MUTED, NET, SURFACE, TEXT_SECONDARY } = ink
   const { granularity, points } = trend
   const empty = points.length === 0 || points.every((p) => Number(p.revenue) === 0 && Number(p.cost) === 0 && Number(p.expenses) === 0)
   const title = granularity === 'month' ? 'Revenue, gross and net profit by month' : 'Revenue, gross and net profit by day'
@@ -61,7 +64,7 @@ export default function TrendChart({ trend }) {
       strokeLinejoin="round"
       dot={showDots ? { r: 4, fill: color, stroke: SURFACE, strokeWidth: 2 } : false}
       activeDot={{ r: 5, fill: color, stroke: SURFACE, strokeWidth: 2 }}
-      label={labelsFit && text ? (props) => <EndLabel {...props} last={last} text={text} /> : false}
+      label={labelsFit && text ? (props) => <EndLabel {...props} last={last} text={text} fill={TEXT_SECONDARY} /> : false}
       isAnimationActive={false}
     />
   )
@@ -109,7 +112,7 @@ export default function TrendChart({ trend }) {
                   width={48}
                 />
                 <ReferenceLine y={0} stroke={BASELINE} strokeWidth={1} />
-                <Tooltip content={<TrendTip granularity={granularity} />} cursor={{ stroke: BASELINE, strokeWidth: 1 }} isAnimationActive={false} />
+                <Tooltip content={<TrendTip granularity={granularity} ink={ink} />} cursor={{ stroke: BASELINE, strokeWidth: 1 }} isAnimationActive={false} />
                 {line('revenue', REVENUE, 'Revenue')}
                 {line('profit', PROFIT, 'Profit')}
                 {line('netProfit', NET, null, true)}
