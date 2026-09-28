@@ -1,3 +1,5 @@
 # nginx/init-letsencrypt.sh runs as bash on the Linux server; a CRLF-mangled shebang breaks it,
 # so force LF regardless of a checkout's core.autocrlf.
 *.sh text eol=lf
+# PDFs are binary: line-ending conversion would shift their byte offsets and corrupt them.
+*.pdf binary
