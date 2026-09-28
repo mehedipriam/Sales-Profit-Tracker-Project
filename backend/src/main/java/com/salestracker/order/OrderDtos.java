@@ -61,7 +61,8 @@ public final class OrderDtos {
     }
 
     public record OrderDetail(Long id, LocalDateTime orderedAt, Long platformId, String platformName,
-                              Long customerId, String customerName, String customerPhone, OrderStatus status,
+                              Long customerId, String customerName, String customerPhone, String customerAddress,
+                              OrderStatus status,
                               BigDecimal commissionPct, BigDecimal deliveryCharge, CourierInfo courier, String notes,
                               List<ItemResponse> items,
                               BigDecimal revenue, BigDecimal cost, BigDecimal profit,
@@ -69,7 +70,7 @@ public final class OrderDtos {
         /** Phase 7b: same boundary as the dashboard/reports - Staff records the sale, not its margin. */
         public OrderDetail hideFinancials() {
             return new OrderDetail(id, orderedAt, platformId, platformName, customerId, customerName, customerPhone,
-                    status, null, deliveryCharge, courier, notes, items.stream().map(ItemResponse::hideFinancials).toList(),
+                    customerAddress, status, null, deliveryCharge, courier, notes, items.stream().map(ItemResponse::hideFinancials).toList(),
                     revenue, null, null, List.of());
         }
     }

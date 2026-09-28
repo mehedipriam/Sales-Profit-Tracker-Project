@@ -220,7 +220,7 @@ public class OrderService {
                 i.getCostPriceSnapshot(), i.getSoldPrice(), i.lineRevenue(), i.lineCost(), i.lineProfit())).toList();
 
         return new OrderDetail(o.getId(), o.getOrderedAt(), platform.getId(), platform.getName(),
-                customer.getId(), customer.getName(), customer.getPhone(), o.getStatus(), o.getCommissionPct(),
+                customer.getId(), customer.getName(), customer.getPhone(), customer.getAddress(), o.getStatus(), o.getCommissionPct(),
                 o.getDeliveryCharge(), courierInfo(o, courier), o.getNotes(), items,
                 sum(o, OrderItem::lineRevenue), sum(o, OrderItem::lineCost), sum(o, OrderItem::lineProfit),
                 o.getId() == null ? List.of() : expenses.linesFor(o.getTenantId(), o.getId()));

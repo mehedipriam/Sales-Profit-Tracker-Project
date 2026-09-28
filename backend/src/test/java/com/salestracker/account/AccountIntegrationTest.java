@@ -96,6 +96,27 @@ class AccountIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void storeContactDetailsForInvoicesAreOptional() throws Exception {
+        JsonNode me = get(owner, "/api/auth/me", 200);
+        assertTrue(me.get("businessPhone").isNull());
+        assertTrue(me.get("businessAddress").isNull());
+        assertTrue(me.get("invoiceNote").isNull());
+
+        JsonNode info = put(owner, "/api/account/business", """
+                {"name":"Shop","currency":"BDT","phone":" 01711-000000 ","address":"House 5, Road 2, Dhaka",
+                 "invoiceNote":"Thanks for shopping with us!"}
+                """, 200);
+        assertEquals("01711-000000", info.get("businessPhone").asText());
+        assertEquals("House 5, Road 2, Dhaka", info.get("businessAddress").asText());
+        assertEquals("Thanks for shopping with us!", get(owner, "/api/auth/me", 200).get("invoiceNote").asText());
+
+        // Blank clears a detail.
+        info = put(owner, "/api/account/business", "{\"name\":\"Shop\",\"currency\":\"BDT\",\"phone\":\"  \"}", 200);
+        assertTrue(info.get("businessPhone").isNull());
+        assertTrue(info.get("businessAddress").isNull());
+    }
+
+    @Test
     void anUnknownCurrencyIsRejected() throws Exception {
         put(owner, "/api/account/business", "{\"name\":\"Shop\",\"currency\":\"ABC\"}", 400);
         put(owner, "/api/account/business", "{\"name\":\"Shop\",\"currency\":\"DOLLARS\"}", 400);

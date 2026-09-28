@@ -75,7 +75,7 @@ public class AuthService {
 
     public UserInfo toInfo(User u) {
         Tenant tenant = tenants.findById(u.getTenantId()).orElseThrow();
-        return new UserInfo(u.getId(), u.getTenantId(), tenant.getName(), tenant.getCurrency(), u.getEmail(),
-                u.getFullName(), u.getRole());
+        return new UserInfo(u.getId(), u.getTenantId(), tenant.getName(), tenant.getCurrency(), tenant.getPhone(),
+                tenant.getAddress(), tenant.getInvoiceNote(), u.getEmail(), u.getFullName(), u.getRole());
     }
 }

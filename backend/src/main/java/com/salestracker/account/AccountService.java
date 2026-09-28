@@ -8,6 +8,7 @@ import com.salestracker.auth.AuthDtos.AuthResponse;
 import com.salestracker.auth.AuthDtos.UserInfo;
 import com.salestracker.auth.AuthService;
 import com.salestracker.auth.AuthUser;
+import com.salestracker.common.Search;
 import com.salestracker.tenant.Tenant;
 import com.salestracker.tenant.TenantRepository;
 import com.salestracker.user.User;
@@ -70,6 +71,8 @@ public class AccountService {
         }
         tenant.rename(req.name().trim());
         tenant.changeCurrency(currency);
+        tenant.changeContact(Search.blankToNull(req.phone()), Search.blankToNull(req.address()),
+                Search.blankToNull(req.invoiceNote()));
         return auth.toInfo(current(principal));
     }
 

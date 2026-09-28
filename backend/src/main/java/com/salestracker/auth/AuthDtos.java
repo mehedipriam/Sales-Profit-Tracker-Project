@@ -17,8 +17,9 @@ public final class AuthDtos {
     /** rememberMe keeps the user signed in for days (app.jwt.remember-me-days) instead of one working day. */
     public record LoginRequest(@NotBlank @Email String email, @NotBlank String password, boolean rememberMe) {}
 
-    public record UserInfo(Long id, Long tenantId, String businessName, String currency, String email, String fullName,
-                           Role role) {}
+    /** businessPhone, businessAddress and invoiceNote are the store's details for invoices; each may be null. */
+    public record UserInfo(Long id, Long tenantId, String businessName, String currency, String businessPhone,
+                           String businessAddress, String invoiceNote, String email, String fullName, Role role) {}
 
     public record AuthResponse(String token, UserInfo user) {}
 }

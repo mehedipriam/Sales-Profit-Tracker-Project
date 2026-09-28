@@ -9,6 +9,7 @@ import Couriers from './pages/Couriers'
 import Customers from './pages/Customers'
 import Dashboard from './pages/Dashboard'
 import Expenses from './pages/Expenses'
+import Invoice from './pages/Invoice'
 import OrderForm from './pages/OrderForm'
 import Orders from './pages/Orders'
 import Platforms from './pages/Platforms'
@@ -36,6 +37,7 @@ export default function App() {
               <Route path="/orders" element={<Orders />} />
               <Route path="/orders/new" element={<OrderForm />} />
               <Route path="/orders/:id" element={<OrderForm />} />
+              <Route path="/orders/:id/invoice" element={<Invoice />} />
               <Route path="/platforms" element={<Platforms />} />
               <Route path="/couriers" element={<Couriers />} />
               <Route path="/settings" element={<Settings />} />

@@ -24,7 +24,7 @@ class CourierIntegrationTest extends AbstractIntegrationTest {
         tenant = registerTenant();
         facebook = get(tenant, "/api/platforms", 200).get(0).get("id").asLong();
         pathao = courierId(tenant, "Pathao");
-        customer = post(tenant, "/api/customers", "{\"name\":\"Buyer\"}", 201).get("id").asLong();
+        customer = post(tenant, "/api/customers", "{\"name\":\"Buyer\",\"address\":\"Mirpur 10, Dhaka\"}", 201).get("id").asLong();
         rice = post(tenant, "/api/products", "{\"name\":\"Rice\",\"costPrice\":100,\"sellingPrice\":150}", 201).get("id").asLong();
     }
 
@@ -124,6 +124,7 @@ class CourierIntegrationTest extends AbstractIntegrationTest {
         put(tenant, "/api/couriers/" + pathao,
                 "{\"name\":\"Pathao\",\"trackingUrl\":\"https://example.com/t/{tracking}\"}", 200);
         JsonNode o = post(tenant, "/api/orders", orderBody("PENDING", pathao, " DA 12/34 ", "null"), 201);
+        assertEquals("Mirpur 10, Dhaka", o.get("customerAddress").asText()); // for the packing slip
         JsonNode courier = o.get("courier");
         assertEquals("Pathao", courier.get("courierName").asText());
         assertEquals("DA 12/34", courier.get("trackingNumber").asText());

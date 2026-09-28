@@ -26,6 +26,9 @@ export const money = (n) => formatter.format(Number(n ?? 0))
 /** The current currency's symbol, e.g. ৳, $, €; for the logo. */
 export const currencySymbol = () => formatter.formatToParts(0).find((p) => p.type === 'currency')?.value ?? '৳'
 
+/** An order's invoice number: INV-00042. */
+export const invoiceNumber = (id) => `INV-${String(id).padStart(5, '0')}`
+
 export const dateTime = (iso) =>
   new Date(iso).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })
 

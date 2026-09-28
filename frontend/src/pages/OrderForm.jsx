@@ -203,7 +203,13 @@ export default function OrderForm() {
           <p className="eyebrow">{editing ? 'Orders' : 'Record a sale'}</p>
           <h1>{editing ? `Edit order #${id}` : 'New sale'}</h1>
         </div>
-        <Link className="btn secondary" to="/orders">← Back to orders</Link>
+        <div className="export-buttons">
+          {editing && <>
+            <Link className="btn secondary" to={`/orders/${id}/invoice`}>Invoice</Link>
+            <Link className="btn secondary" to={`/orders/${id}/invoice?type=slip`}>Packing slip</Link>
+          </>}
+          <Link className="btn secondary" to="/orders">← Back to orders</Link>
+        </div>
       </div>
 
       <form className="of-grid" onSubmit={submit}>

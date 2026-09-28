@@ -40,10 +40,13 @@ function Feedback({ save }) {
 function BusinessCard({ user, setSession }) {
   const [name, setName] = useState(user.businessName)
   const [currency, setCurrencyCode] = useState(user.currency ?? 'BDT')
+  const [phone, setPhone] = useState(user.businessPhone ?? '')
+  const [address, setAddress] = useState(user.businessAddress ?? '')
+  const [invoiceNote, setInvoiceNote] = useState(user.invoiceNote ?? '')
   const known = CURRENCIES.some(([code]) => code === currency)
   const save = useSave()
   const submit = (e) => save.run(e, async () => {
-    const { data } = await api.put('/account/business', { name, currency })
+    const { data } = await api.put('/account/business', { name, currency, phone, address, invoiceNote })
     setSession({ user: data })
   }, 'Store settings saved.')
 
@@ -62,6 +65,19 @@ function BusinessCard({ user, setSession }) {
           are not converted - only the symbol changes.
         </span>
       </label>
+      <fieldset>
+        <legend>On invoices &amp; packing slips</legend>
+        <label>Shop phone <input maxLength={32} value={phone} placeholder="e.g. 01711-000000"
+                                 onChange={(e) => setPhone(e.target.value)} /></label>
+        <label>Shop address
+          <textarea rows={2} maxLength={500} value={address} onChange={(e) => setAddress(e.target.value)} />
+        </label>
+        <label>Invoice note
+          <textarea rows={2} maxLength={500} value={invoiceNote} placeholder="e.g. Thanks for shopping with us! Exchange within 7 days."
+                    onChange={(e) => setInvoiceNote(e.target.value)} />
+          <span className="hint">Printed at the bottom of every invoice. All three are optional.</span>
+        </label>
+      </fieldset>
       <Feedback save={save} />
       <div className="actions"><button className="btn" disabled={save.busy}>{save.busy ? 'Saving…' : 'Save'}</button></div>
     </form>

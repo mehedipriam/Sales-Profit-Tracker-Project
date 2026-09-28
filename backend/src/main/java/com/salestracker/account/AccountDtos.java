@@ -16,7 +16,10 @@ public final class AccountDtos {
     public record PasswordRequest(@NotBlank String currentPassword,
                                   @NotBlank @Size(min = 8, max = 72) String newPassword) {}
 
-    /** currency is an ISO 4217 code such as BDT, USD or EUR. */
+    /** currency is an ISO 4217 code such as BDT, USD or EUR; phone, address and invoiceNote are optional. */
     public record BusinessRequest(@NotBlank @Size(max = 150) String name,
-                                  @NotBlank @Pattern(regexp = "[A-Za-z]{3}") String currency) {}
+                                  @NotBlank @Pattern(regexp = "[A-Za-z]{3}") String currency,
+                                  @Size(max = 32) String phone,
+                                  @Size(max = 500) String address,
+                                  @Size(max = 500) String invoiceNote) {}
 }
