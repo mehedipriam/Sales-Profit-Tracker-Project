@@ -1,6 +1,8 @@
 package com.salestracker.auth;
 
 import com.salestracker.auth.AuthDtos.*;
+import com.salestracker.courier.Courier;
+import com.salestracker.courier.CourierRepository;
 import com.salestracker.platform.Platform;
 import com.salestracker.platform.PlatformRepository;
 import com.salestracker.tenant.Tenant;
@@ -20,11 +22,13 @@ public class AuthService {
     private final TenantRepository tenants;
     private final UserRepository users;
     private final PlatformRepository platforms;
+    private final CourierRepository couriers;
     private final PasswordEncoder encoder;
     private final JwtService jwt;
 
     public AuthService(TenantRepository tenants, UserRepository users, PlatformRepository platforms,
-                       PasswordEncoder encoder, JwtService jwt) {
+                       CourierRepository couriers, PasswordEncoder encoder, JwtService jwt) {
+        this.couriers = couriers;
         this.tenants = tenants;
         this.users = users;
         this.platforms = platforms;
@@ -41,6 +45,7 @@ public class AuthService {
         Tenant tenant = tenants.save(new Tenant(req.businessName().trim()));
         platforms.saveAll(List.of(new Platform(tenant.getId(), "Facebook Page"),
                 new Platform(tenant.getId(), "Daraz")));
+        couriers.saveAll(Courier.DEFAULTS.stream().map(name -> new Courier(tenant.getId(), name)).toList());
         User user = users.save(new User(tenant.getId(), email, encoder.encode(req.password()),
                 req.fullName().trim(), Role.OWNER));
         return toResponse(user, false);

@@ -525,6 +525,22 @@ select.status.RETURNED, select.status.CANCELLED { color: var(--danger); }
 .alert-card ul { list-style: none; margin: 0; padding: 0; }
 .alert-card li { display: flex; justify-content: space-between; gap: 1rem; padding: 0.2rem 0; font-size: 0.92rem; }
 
+/* ---- couriers ---- */
+.via { display: block; font-size: 0.8rem; color: var(--muted); white-space: nowrap; }
+.check-col { width: 2.5rem; text-align: center; }
+.check-col input { width: 1rem; height: 1rem; margin: 0; accent-color: var(--primary); }
+table.striped tbody tr.picked td { background: var(--primary-soft); }
+.pick-table tbody tr { cursor: pointer; }
+.payout-bar {
+  display: flex; align-items: center; justify-content: flex-end; gap: 0.75rem 1rem; flex-wrap: wrap;
+  margin-top: 0.9rem; padding-top: 0.9rem; border-top: 1px solid var(--border);
+}
+.payout-sum { margin-right: auto; color: var(--muted); }
+.payout-sum b { color: var(--text); font-size: 1.1rem; font-variant-numeric: tabular-nums; }
+.courier-paid { font-size: 0.85rem; font-weight: 600; color: var(--success); }
+.link.strong { font-weight: 600; padding: 0; }
+.hint code { font-size: 0.85em; padding: 0.05rem 0.3rem; border-radius: 4px; background: var(--surface-2); color: var(--text); }
+
 /* ---- net profit ---- */
 .key-line.dashed { height: 0; border-top: 2px dashed currentColor; background: none !important; border-radius: 0; }
 .expense-line { margin: 0.5rem 0 0; font-size: 0.88rem; }

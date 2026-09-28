@@ -5,6 +5,7 @@ import jakarta.persistence.*;
 import org.hibernate.annotations.BatchSize;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -38,6 +39,25 @@ public class SaleOrder implements TenantOwned {
     @Column(name = "delivery_charge", nullable = false)
     private BigDecimal deliveryCharge = BigDecimal.ZERO;
 
+    /** The courier carrying the order; null when it is delivered some other way (by hand, pickup...). */
+    @Column(name = "courier_id")
+    private Long courierId;
+
+    /** The courier's parcel / consignment ID for this order. */
+    @Column(name = "consignment_id")
+    private String consignmentId;
+
+    @Column(name = "tracking_number")
+    private String trackingNumber;
+
+    /** Cash the courier collects from the customer on delivery (0 when the customer paid in advance). */
+    @Column(name = "cod_amount")
+    private BigDecimal codAmount;
+
+    /** The day the courier paid that cash out to the business; null while the courier still holds it. */
+    @Column(name = "courier_paid_on")
+    private LocalDate courierPaidOn;
+
     @Column(name = "ordered_at", nullable = false)
     private LocalDateTime orderedAt;
 
@@ -65,6 +85,19 @@ public class SaleOrder implements TenantOwned {
         this.notes = notes;
     }
 
+    /** A different courier (or none) means a different parcel, so any recorded payout no longer applies. */
+    public void applyCourier(Long courierId, String consignmentId, String trackingNumber, BigDecimal codAmount) {
+        if (courierId == null || !courierId.equals(this.courierId)) {
+            this.courierPaidOn = null;
+        }
+        this.courierId = courierId;
+        this.consignmentId = courierId == null ? null : consignmentId;
+        this.trackingNumber = courierId == null ? null : trackingNumber;
+        this.codAmount = courierId == null ? null : codAmount;
+    }
+
+    public void setCourierPaidOn(LocalDate courierPaidOn) { this.courierPaidOn = courierPaidOn; }
+
     public void setStatus(OrderStatus status) { this.status = status; }
 
     public Long getId() { return id; }
@@ -74,6 +107,13 @@ public class SaleOrder implements TenantOwned {
     public OrderStatus getStatus() { return status; }
     public BigDecimal getCommissionPct() { return commissionPct; }
     public BigDecimal getDeliveryCharge() { return deliveryCharge; }
+    public Long getCourierId() { return courierId; }
+    public String getConsignmentId() { return consignmentId; }
+    public String getTrackingNumber() { return trackingNumber; }
+    /** What the courier's tracking link is built from: the tracking code, or else the consignment ID. */
+    public String getTrackingRef() { return trackingNumber != null ? trackingNumber : consignmentId; }
+    public BigDecimal getCodAmount() { return codAmount; }
+    public LocalDate getCourierPaidOn() { return courierPaidOn; }
     public LocalDateTime getOrderedAt() { return orderedAt; }
     public String getNotes() { return notes; }
     public List<OrderItem> getItems() { return items; }

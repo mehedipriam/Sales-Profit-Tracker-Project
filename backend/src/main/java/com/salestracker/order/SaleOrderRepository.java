@@ -127,5 +127,42 @@ public interface SaleOrderRepository extends JpaRepository<SaleOrder, Long> {
                                     @Param("platformId") long platformId,
                                     @Param("from") LocalDateTime from, @Param("to") LocalDateTime to);
 
+    // ---- courier payouts: cash a courier collected (or will collect) and hasn't paid out yet ----
+
+    /** Unpaid courier cash per courier and status (PENDING = still on the way, PAID = delivered, cash collected). */
+    @Query("""
+            select new com.salestracker.order.CourierTotals(o.courierId, o.status, count(o), sum(o.codAmount))
+            from SaleOrder o
+            where o.tenantId = :tenantId
+              and o.courierId is not null and o.courierPaidOn is null and o.codAmount > 0
+              and o.status in :statuses
+            group by o.courierId, o.status
+            """)
+    List<CourierTotals> unpaidCourierTotals(@Param("tenantId") Long tenantId,
+                                            @Param("statuses") Collection<OrderStatus> statuses);
+
+    /** Delivered orders whose cash the courier still holds, oldest first; courierId 0 means every courier. */
+    @Query("""
+            select o from SaleOrder o
+            where o.tenantId = :tenantId
+              and o.courierId is not null and o.courierPaidOn is null and o.codAmount > 0
+              and o.status = com.salestracker.order.OrderStatus.PAID
+              and (:courierId = 0L or o.courierId = :courierId)
+            order by o.orderedAt, o.id
+            """)
+    List<SaleOrder> payoutsDue(@Param("tenantId") Long tenantId, @Param("courierId") long courierId, Pageable pageable);
+
+    /** Orders a courier has paid out, latest payout first. */
+    @Query("""
+            select o from SaleOrder o
+            where o.tenantId = :tenantId
+              and o.courierPaidOn is not null
+              and (:courierId = 0L or o.courierId = :courierId)
+            order by o.courierPaidOn desc, o.id desc
+            """)
+    List<SaleOrder> recentPayouts(@Param("tenantId") Long tenantId, @Param("courierId") long courierId, Pageable pageable);
+
+    List<SaleOrder> findByTenantIdAndIdIn(Long tenantId, Collection<Long> ids);
+
     Optional<SaleOrder> findByIdAndTenantId(Long id, Long tenantId);
 }

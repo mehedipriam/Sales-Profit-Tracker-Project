@@ -39,6 +39,12 @@ export default function OrderForm() {
   const [orderedAt, setOrderedAt] = useState(toLocalInput())
   const [notes, setNotes] = useState('')
   const [deliveryCharge, setDeliveryCharge] = useState('')
+  const [couriers, setCouriers] = useState([])
+  const [courierId, setCourierId] = useState('')
+  const [consignmentId, setConsignmentId] = useState('')
+  const [trackingNumber, setTrackingNumber] = useState('')
+  const [codAmount, setCodAmount] = useState('') // empty: the courier collects everything the customer pays
+  const [savedCourier, setSavedCourier] = useState(null) // the edited order's courier block as stored
   const [lines, setLines] = useState([])
   const [original, setOriginal] = useState(null) // { platformId, rate, expenses } of the order being edited
   const [newExpenses, setNewExpenses] = useState([]) // expense rows typed here, saved with the order
@@ -53,6 +59,7 @@ export default function OrderForm() {
       setPlatforms(res.data)
       if (!editing && res.data.length) setPlatformId(String(res.data[0].id))
     }).catch(() => {})
+    api.get('/couriers').then((res) => setCouriers(res.data)).catch(() => {})
   }, [editing])
 
   useEffect(() => {
@@ -65,6 +72,15 @@ export default function OrderForm() {
       setOrderedAt(o.orderedAt.slice(0, 16))
       setNotes(o.notes ?? '')
       setDeliveryCharge(Number(o.deliveryCharge) > 0 ? o.deliveryCharge : '')
+      if (o.courier) {
+        setSavedCourier(o.courier)
+        setCourierId(String(o.courier.courierId))
+        setConsignmentId(o.courier.consignmentId ?? '')
+        setTrackingNumber(o.courier.trackingNumber ?? '')
+        // Still the full amount the customer pays: leave it empty so it keeps following the order total.
+        const full = Number(o.revenue) + Number(o.deliveryCharge)
+        setCodAmount(Math.abs(Number(o.courier.codAmount) - full) < 0.005 ? '' : o.courier.codAmount)
+      }
       setLines(o.items.map((i) => newLine(
         { id: i.productId, name: i.productName, costPrice: i.costPrice },
         { quantity: i.quantity, soldPrice: i.soldPrice },
@@ -90,6 +106,13 @@ export default function OrderForm() {
   const profit = revenue - cost
   const margin = revenue > 0 ? Math.round((profit / revenue) * 100) : 0
   const units = lines.reduce((s, l) => s + Number(l.quantity || 0), 0)
+  const customerPays = revenue + delivery
+  const collects = codAmount === '' ? customerPays : Number(codAmount)
+  // A courier removed from the list still shows on the orders that already use it.
+  const courierOptions = savedCourier && !couriers.some((c) => c.id === savedCourier.courierId)
+    ? [...couriers, { id: savedCourier.courierId, name: `${savedCourier.courierName} (removed)` }]
+    : couriers
+  const payoutKept = savedCourier?.paidOn && String(savedCourier.courierId) === courierId
 
   // The rate a sale is charged: an edited order keeps the rate it was recorded at unless its platform changes.
   const platform = platforms.find((p) => String(p.id) === platformId)
@@ -127,6 +150,9 @@ export default function OrderForm() {
     e.preventDefault()
     setError('')
     if (lines.length === 0) return setError('Add at least one product.')
+    if ((consignmentId.trim() || trackingNumber.trim()) && !courierId) {
+      return setError('Pick the courier for this parcel ID or tracking code, or clear them.')
+    }
     if (!isNewCustomer && !customer) return setError('Pick a customer or add a new one.')
     if (newExpenses.some((x) => !(Number(x.amount) > 0))) return setError('Enter an amount for every expense, or remove it.')
 
@@ -138,6 +164,10 @@ export default function OrderForm() {
       orderedAt,
       notes,
       deliveryCharge: deliveryCharge === '' ? 0 : deliveryCharge,
+      courierId: courierId ? Number(courierId) : null,
+      consignmentId: courierId ? consignmentId : null,
+      trackingNumber: courierId ? trackingNumber : null,
+      codAmount: courierId && codAmount !== '' ? codAmount : null,
       items: lines.map((l) => ({ productId: l.productId, quantity: Number(l.quantity), soldPrice: l.soldPrice })),
     }
     setBusy(true)
@@ -293,7 +323,57 @@ export default function OrderForm() {
           </div>
 
           <div className="of-card">
-            <h2 className="of-title"><span className="of-step">4</span>Delivery &amp; notes</h2>
+            <div className="of-card-head">
+              <h2 className="of-title"><span className="of-step">4</span>Courier <span className="muted of-optional">optional</span></h2>
+              <Link className="small-text" to="/couriers">Manage couriers</Link>
+            </div>
+            <p className="hint of-lead">
+              Sending this by courier? Pick it and add its parcel ID and tracking code or link. Every field here is
+              optional; skip it all for hand delivery or pickup.
+            </p>
+            <div className="row">
+              <label>
+                Courier
+                <select value={courierId} onChange={(e) => setCourierId(e.target.value)}>
+                  <option value="">No courier</option>
+                  {courierOptions.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+              </label>
+              <label>
+                Parcel / Consignment ID
+                <input maxLength={64} value={consignmentId} placeholder="e.g. CN-240928-0012"
+                       onChange={(e) => setConsignmentId(e.target.value)} />
+              </label>
+            </div>
+            <label>
+              Tracking code or link
+              <input maxLength={300} value={trackingNumber} placeholder="e.g. DA2409281234 or https://…"
+                     onChange={(e) => setTrackingNumber(e.target.value)} />
+            </label>
+            {courierId && (
+              <label>
+                Cash the courier collects
+                <input type="number" min="0" step="0.01" value={codAmount} placeholder={customerPays.toFixed(2)}
+                       onChange={(e) => setCodAmount(e.target.value)} />
+                <span className="hint">
+                  Leave empty for cash on delivery of the full {money(customerPays)}. Enter 0 if the customer paid in
+                  advance, or the amount still due if they paid part. It shows under <Link to="/couriers">Couriers</Link> until
+                  the courier pays you.
+                </span>
+                {payoutKept && (
+                  <span className="courier-paid">
+                    ✓ The courier paid this out on {new Date(`${savedCourier.paidOn}T00:00:00`).toLocaleDateString('en-GB', { dateStyle: 'medium' })}
+                  </span>
+                )}
+                {savedCourier?.paidOn && !payoutKept && (
+                  <span className="hint">Changing the courier clears the payout recorded for {savedCourier.courierName}.</span>
+                )}
+              </label>
+            )}
+          </div>
+
+          <div className="of-card">
+            <h2 className="of-title"><span className="of-step">5</span>Delivery charge &amp; notes</h2>
             <label>
               Delivery charge paid by the customer
               <input type="number" min="0" step="0.01" placeholder="0" value={deliveryCharge}
@@ -303,7 +383,7 @@ export default function OrderForm() {
             </label>
             <label>
               Notes
-              <textarea rows={3} value={notes} placeholder="Order number, tracking, anything worth remembering…"
+              <textarea rows={3} value={notes} placeholder="Order number, anything worth remembering…"
                         onChange={(e) => setNotes(e.target.value)} />
             </label>
           </div>
@@ -311,7 +391,7 @@ export default function OrderForm() {
           {showMoney && (
             <div className="of-card">
               <div className="of-card-head">
-                <h2 className="of-title"><span className="of-step">5</span>Expenses <span className="muted of-optional">optional</span></h2>
+                <h2 className="of-title"><span className="of-step">6</span>Expenses <span className="muted of-optional">optional</span></h2>
               </div>
               <p className="hint of-lead">What this sale cost you beyond the product: courier, packaging, a boost… They come off the net profit.</p>
 
@@ -365,7 +445,8 @@ export default function OrderForm() {
             <dl className="sum-rows">
               <div><dt>Revenue</dt><dd>{money(revenue)}</dd></div>
               {showMoney && <div><dt>Cost</dt><dd>{money(cost)}</dd></div>}
-              {delivery > 0 && <div className="sum-strong"><dt>Customer pays</dt><dd>{money(revenue + delivery)}</dd></div>}
+              {delivery > 0 && <div className="sum-strong"><dt>Customer pays</dt><dd>{money(customerPays)}</dd></div>}
+              {courierId && <div><dt>Courier collects</dt><dd>{money(collects)}</dd></div>}
             </dl>
             {showMoney && (
               <>

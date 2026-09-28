@@ -5,7 +5,7 @@ import { useAuth } from '../auth/AuthContext'
 import NetHero from '../components/NetHero'
 import Stat from '../components/Stat'
 import {
-  BoxIcon, CancelIcon, ChartIcon, ClockIcon, ReceiptIcon, ReturnIcon, TrendUpIcon, TruckIcon,
+  BoxIcon, CancelIcon, ChartIcon, ClockIcon, ReceiptIcon, ReturnIcon, TrendUpIcon, TruckIcon, WalletIcon,
 } from '../components/icons'
 import { STATUS_LABEL, dateTime, money } from '../utils/format'
 
@@ -25,7 +25,7 @@ export default function Dashboard() {
   if (error) return <p className="error" role="alert">{error}</p>
   if (!data) return <p className="center-note">Loading…</p>
 
-  const { realized, pending, returnedOrders, cancelledOrders, recentOrders, lowStock, expenses, netProfit } = data
+  const { realized, pending, returnedOrders, cancelledOrders, withCouriers, recentOrders, lowStock, expenses, netProfit } = data
   const tone = (n) => (n < 0 ? 'neg' : 'pos')
   const noOrders = recentOrders.length === 0
 
@@ -74,6 +74,13 @@ export default function Dashboard() {
           hint={`${pending.orders} unpaid orders · ${money(pending.revenue)} revenue, e.g. cash on delivery`}
           icon={<ClockIcon />}
           accent="amber"
+        />
+        <Stat
+          label="Cash with couriers"
+          value={money(withCouriers.amount)}
+          hint={<>{withCouriers.orders} delivered order{withCouriers.orders === 1 ? '' : 's'} not paid out yet · <Link to="/couriers">see payouts</Link></>}
+          icon={<WalletIcon />}
+          accent="blue"
         />
         <Stat label="Returned / refunded" value={returnedOrders} hint="excluded from totals"
               icon={<ReturnIcon />} accent="red" />

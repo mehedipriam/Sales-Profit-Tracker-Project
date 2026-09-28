@@ -1,6 +1,8 @@
 package com.salestracker.dashboard;
 
 import com.salestracker.common.DateRange;
+import com.salestracker.courier.CourierPayoutService;
+import com.salestracker.courier.CourierPayoutService.CashWithCouriers;
 import com.salestracker.order.OrderDtos.OrderSummary;
 import com.salestracker.expense.ExpenseRepository;
 import com.salestracker.expense.ExpenseTypeTotals;
@@ -39,9 +41,10 @@ public class DashboardService {
     /**
      * realized = PAID orders; pending = PENDING orders (expected, e.g. cash on delivery);
      * RETURNED and CANCELLED orders are excluded from money totals and only counted.
+     * withCouriers is cash couriers collected on delivered orders and haven't paid out yet.
      */
     public record DashboardResponse(Totals realized, Totals pending, long returnedOrders, long cancelledOrders,
-                                    BigDecimal expenses, BigDecimal netProfit,
+                                    CashWithCouriers withCouriers, BigDecimal expenses, BigDecimal netProfit,
                                     List<OrderSummary> recentOrders, List<LowStockItem> lowStock) {}
 
     /** A product whose stock has fallen to or below its own low-stock threshold. */
@@ -55,9 +58,11 @@ public class DashboardService {
     private final OrderService orderService;
     private final ProductRepository products;
     private final ExpenseRepository expenseRepository;
+    private final CourierPayoutService courierPayouts;
 
     public DashboardService(SaleOrderRepository orders, OrderService orderService, ProductRepository products,
-                            ExpenseRepository expenseRepository) {
+                            ExpenseRepository expenseRepository, CourierPayoutService courierPayouts) {
+        this.courierPayouts = courierPayouts;
         this.orders = orders;
         this.orderService = orderService;
         this.products = products;
@@ -83,6 +88,7 @@ public class DashboardService {
                 totals(byStatus, delivery, OrderStatus.PENDING),
                 totals(byStatus, delivery, OrderStatus.RETURNED).orders(),
                 totals(byStatus, delivery, OrderStatus.CANCELLED).orders(),
+                courierPayouts.cashWithCouriers(tenantId),
                 expenses, netProfit(realized, expenses),
                 orderService.list(tenantId, null, null, allTime, 0, RECENT_ORDERS).content(),
                 products.lowStock(tenantId, PageRequest.of(0, LOW_STOCK_LIMIT)).stream().map(LowStockItem::of).toList());

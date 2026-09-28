@@ -4,6 +4,8 @@ import com.salestracker.auth.ApiException;
 import com.salestracker.common.DateRange;
 import com.salestracker.common.PageResponse;
 import com.salestracker.common.Search;
+import com.salestracker.courier.Courier;
+import com.salestracker.courier.CourierRepository;
 import com.salestracker.customer.Customer;
 import com.salestracker.expense.ExpenseService;
 import com.salestracker.customer.CustomerRepository;
@@ -36,10 +38,12 @@ public class OrderService {
     private final ProductRepository products;
     private final ExpenseService expenses;
     private final StockService stock;
+    private final CourierRepository couriers;
 
     public OrderService(SaleOrderRepository orders, PlatformRepository platforms,
                         CustomerRepository customers, ProductRepository products, ExpenseService expenses,
-                        StockService stock) {
+                        StockService stock, CourierRepository couriers) {
+        this.couriers = couriers;
         this.orders = orders;
         this.platforms = platforms;
         this.customers = customers;
@@ -61,12 +65,15 @@ public class OrderService {
                 result.stream().map(SaleOrder::getPlatformId).collect(Collectors.toSet())), Platform::getId);
         Map<Long, Customer> customerById = byId(customers.findAllById(
                 result.stream().map(SaleOrder::getCustomerId).collect(Collectors.toSet())), Customer::getId);
+        Map<Long, Courier> courierById = byId(couriers.findAllById(
+                result.stream().map(SaleOrder::getCourierId).filter(Objects::nonNull).collect(Collectors.toSet())),
+                Courier::getId);
 
         List<OrderSummary> content = result.getContent().stream().map(o -> new OrderSummary(
                 o.getId(), o.getOrderedAt(),
                 platformById.get(o.getPlatformId()).getName(),
                 customerById.get(o.getCustomerId()).getName(),
-                o.getStatus(), o.getItems().size(),
+                o.getStatus(), o.getItems().size(), courierInfo(o, courierById.get(o.getCourierId())),
                 sum(o, OrderItem::lineRevenue), o.getDeliveryCharge(),
                 sum(o, OrderItem::lineCost), sum(o, OrderItem::lineProfit))).toList();
         return new PageResponse<>(content, result.getNumber(), result.getTotalPages(), result.getTotalElements());
@@ -157,7 +164,33 @@ public class OrderService {
                 Search.blankToNull(req.notes()));
         order.getItems().clear();
         order.getItems().addAll(newItems);
+        applyCourier(order, req);
         return order;
+    }
+
+    /**
+     * An inactive (removed) courier is accepted only if the order already had it, like platforms. Without a stated
+     * cash amount the courier collects everything the customer pays: the products plus the delivery charge.
+     */
+    private void applyCourier(SaleOrder order, OrderRequest req) {
+        if (req.courierId() == null) {
+            order.applyCourier(null, null, null, null);
+            return;
+        }
+        Courier courier = couriers.findByIdAndTenantId(req.courierId(), order.getTenantId())
+                .filter(c -> c.isActive() || req.courierId().equals(order.getCourierId()))
+                .orElseThrow(() -> new ApiException(HttpStatus.BAD_REQUEST, "Unknown courier"));
+        BigDecimal cod = req.codAmount() != null ? req.codAmount()
+                : sum(order, OrderItem::lineRevenue).add(order.getDeliveryCharge());
+        order.applyCourier(courier.getId(), Search.blankToNull(req.consignmentId()),
+                Search.blankToNull(req.trackingNumber()), cod);
+    }
+
+    /** The courier block of an order response; null when the order has no courier. */
+    public static CourierInfo courierInfo(SaleOrder o, Courier courier) {
+        if (o.getCourierId() == null || courier == null) return null;
+        return new CourierInfo(courier.getId(), courier.getName(), o.getConsignmentId(), o.getTrackingNumber(),
+                courier.trackingLink(o.getTrackingRef()), o.getCodAmount(), o.getCourierPaidOn());
     }
 
     private Long resolveCustomer(Long tenantId, Platform platform, OrderRequest req) {
@@ -178,6 +211,7 @@ public class OrderService {
     private OrderDetail detail(SaleOrder o) {
         Platform platform = platforms.findById(o.getPlatformId()).orElseThrow();
         Customer customer = customers.findById(o.getCustomerId()).orElseThrow();
+        Courier courier = o.getCourierId() == null ? null : couriers.findById(o.getCourierId()).orElse(null);
         Map<Long, Product> productById = byId(products.findAllById(
                 o.getItems().stream().map(OrderItem::getProductId).toList()), Product::getId);
 
@@ -187,7 +221,7 @@ public class OrderService {
 
         return new OrderDetail(o.getId(), o.getOrderedAt(), platform.getId(), platform.getName(),
                 customer.getId(), customer.getName(), customer.getPhone(), o.getStatus(), o.getCommissionPct(),
-                o.getDeliveryCharge(), o.getNotes(), items,
+                o.getDeliveryCharge(), courierInfo(o, courier), o.getNotes(), items,
                 sum(o, OrderItem::lineRevenue), sum(o, OrderItem::lineCost), sum(o, OrderItem::lineProfit),
                 o.getId() == null ? List.of() : expenses.linesFor(o.getTenantId(), o.getId()));
     }

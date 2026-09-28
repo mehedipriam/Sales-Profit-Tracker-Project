@@ -32,6 +32,7 @@ export default function Layout() {
           <NavLink to="/stock">Stock</NavLink>
           <NavLink to="/customers">Customers</NavLink>
           <NavLink to="/platforms">Platforms</NavLink>
+          <NavLink to="/couriers">Couriers</NavLink>
           {showMoney && <NavLink to="/team">Team</NavLink>}
         </nav>
         <div className="account">

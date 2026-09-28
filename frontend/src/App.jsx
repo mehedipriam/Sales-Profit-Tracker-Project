@@ -5,6 +5,7 @@ import OwnerRoute from './auth/OwnerRoute'
 import ProtectedRoute from './auth/ProtectedRoute'
 import Layout from './layout/Layout'
 import AuthForm from './pages/AuthForm'
+import Couriers from './pages/Couriers'
 import Customers from './pages/Customers'
 import Dashboard from './pages/Dashboard'
 import Expenses from './pages/Expenses'
@@ -36,6 +37,7 @@ export default function App() {
               <Route path="/orders/new" element={<OrderForm />} />
               <Route path="/orders/:id" element={<OrderForm />} />
               <Route path="/platforms" element={<Platforms />} />
+              <Route path="/couriers" element={<Couriers />} />
               <Route path="/settings" element={<Settings />} />
               {/* Owner/Admin only: Staff never lands here, the api enforces it either way. */}
               <Route element={<OwnerRoute />}>

@@ -5,6 +5,7 @@ import { useAuth } from '../auth/AuthContext'
 import { seesFinancials } from '../auth/roles'
 import Pager from '../components/Pager'
 import RangePicker from '../components/RangePicker'
+import Tracking from '../components/Tracking'
 import { resolveRange } from '../utils/dateRange'
 import { STATUSES, STATUS_LABEL, dateTime, money } from '../utils/format'
 
@@ -82,7 +83,7 @@ export default function Orders() {
         <table>
           <thead>
             <tr>
-              <th>#</th><th>Date</th><th>Customer</th><th>Platform</th><th className="num">Items</th>
+              <th>#</th><th>Date</th><th>Customer</th><th>Platform / courier</th><th className="num">Items</th>
               <th className="num">Revenue</th>
               {showMoney && <><th className="num">Cost</th><th className="num">Profit</th></>}
               <th>Status</th><th />
@@ -94,7 +95,18 @@ export default function Orders() {
                 <td>{o.id}</td>
                 <td>{dateTime(o.orderedAt)}</td>
                 <td>{o.customerName}</td>
-                <td>{o.platformName}</td>
+                <td>
+                  {o.platformName}
+                  {o.courier && (
+                    <span className="via">
+                      via {o.courier.courierName}
+                      {o.courier.consignmentId && <> · {o.courier.consignmentId}</>}
+                      {o.courier.trackingNumber
+                        ? <> · <Tracking number={o.courier.trackingNumber} link={o.courier.trackingLink} /></>
+                        : o.courier.trackingLink && <> · <a href={o.courier.trackingLink} target="_blank" rel="noopener noreferrer">Track ↗</a></>}
+                    </span>
+                  )}
+                </td>
                 <td className="num">{o.itemCount}</td>
                 <td className="num">{money(o.revenue)}</td>
                 {showMoney && <>
