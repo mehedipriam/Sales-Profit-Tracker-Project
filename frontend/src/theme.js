@@ -1,9 +1,8 @@
-// Light / dark theme. The choice is remembered on this browser; until someone picks one, the app follows the
-// system setting. The theme is set as <html data-theme="..."> so index.css can swap its colour tokens.
+// Light / dark theme. Light by default; a switch to dark is remembered on this browser. The theme is set as
+// <html data-theme="..."> so index.css can swap its colour tokens.
 import { useSyncExternalStore } from 'react'
 
 const KEY = 'spt_theme'
-const systemDark = window.matchMedia('(prefers-color-scheme: dark)')
 const listeners = new Set()
 
 function stored() {
@@ -15,7 +14,7 @@ function stored() {
   }
 }
 
-let theme = stored() ?? (systemDark.matches ? 'dark' : 'light')
+let theme = stored() ?? 'light'
 
 function apply(next) {
   theme = next
@@ -24,9 +23,6 @@ function apply(next) {
 }
 
 apply(theme)
-systemDark.addEventListener('change', (e) => {
-  if (!stored()) apply(e.matches ? 'dark' : 'light')
-})
 
 export function toggleTheme() {
   const next = theme === 'dark' ? 'light' : 'dark'
