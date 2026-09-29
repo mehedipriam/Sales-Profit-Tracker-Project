@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import api, { errorMessage } from '../api/client'
 import Modal from '../components/Modal'
 import Pager from '../components/Pager'
 import useDebounce from '../hooks/useDebounce'
+import { dateTime, money } from '../utils/format'
 
 const EMPTY = { name: '', phone: '', address: '', sourcePlatformId: '', notes: '' }
 
@@ -60,6 +62,10 @@ function CustomerForm({ customer, platforms, onSaved, onCancel }) {
 }
 
 const PAGE_SIZE = 20
+
+/** "2 of 5 orders" style breakdown of the returned / cancelled ones, for the return-rate tooltip. */
+const problemsText = (ins) =>
+  `${ins.returned} returned, ${ins.cancelled} cancelled out of ${ins.paid + ins.returned + ins.cancelled} settled orders`
 
 export default function Customers() {
   const [q, setQ] = useState('')
@@ -123,17 +129,38 @@ export default function Customers() {
       <div className="table-wrap">
         <table className="striped">
           <thead>
-            <tr><th className="serial">#</th><th>Name</th><th>Phone</th><th>Address</th><th>Platform</th><th>Notes</th><th /></tr>
+            <tr>
+              <th className="serial">#</th><th>Name</th><th>Phone</th><th>Address</th><th>Platform</th>
+              <th className="num">Orders</th><th className="num">Spent</th><th className="num">Returns</th><th>Notes</th><th />
+            </tr>
           </thead>
           <tbody>
             {data?.content.map((c, i) => (
               <tr key={c.id}>
                 {/* Counts on from the previous page, so page 2 starts at 21. */}
                 <td className="serial">{data.page * PAGE_SIZE + i + 1}</td>
-                <td>{c.name}</td>
+                <td>
+                  {c.name}
+                  {c.insights.flagged && (
+                    <span className="badge risk" title={problemsText(c.insights)}>Often returns</span>
+                  )}
+                </td>
                 <td>{c.phone || '—'}</td>
                 <td>{c.address || '—'}</td>
                 <td>{platformName(c.sourcePlatformId)}</td>
+                <td className="num">
+                  {c.insights.orders > 0 ? (
+                    <Link to={`/orders?customerId=${c.id}&customer=${encodeURIComponent(c.name)}`}
+                          title={`Last order ${dateTime(c.insights.lastOrderAt)}`}>
+                      {c.insights.orders}
+                    </Link>
+                  ) : '0'}
+                </td>
+                <td className="num">{money(c.insights.spent)}</td>
+                <td className={`num${c.insights.flagged ? ' neg' : ''}`}
+                    title={c.insights.returnRatePct == null ? 'No settled orders yet' : problemsText(c.insights)}>
+                  {c.insights.returnRatePct == null ? '—' : `${c.insights.returnRatePct}%`}
+                </td>
                 <td className="notes">{c.notes || '—'}</td>
                 <td className="row-actions">
                   <button className="link" onClick={() => setEditing(c)}>Edit</button>
@@ -142,7 +169,7 @@ export default function Customers() {
               </tr>
             ))}
             {data && data.content.length === 0 && (
-              <tr><td colSpan={7} className="empty">No customers found.</td></tr>
+              <tr><td colSpan={10} className="empty">No customers found.</td></tr>
             )}
           </tbody>
         </table>

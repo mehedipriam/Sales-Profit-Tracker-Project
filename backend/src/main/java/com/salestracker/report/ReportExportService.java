@@ -85,7 +85,7 @@ public class ReportExportService {
         Pageable pageable = PageRequest.of(0, pageSize, Sort.by(Sort.Order.asc("orderedAt"), Sort.Order.asc("id")));
         Page<SaleOrder> page;
         do {
-            page = orders.search(tenantId, filters.platformId(), List.of(OrderStatus.values()),
+            page = orders.search(tenantId, filters.platformId(), 0L, List.of(OrderStatus.values()),
                     filters.range().from(), filters.range().toExclusive(), pageable);
 
             Map<Long, Platform> platformById = byId(platforms.findAllById(ids(page, SaleOrder::getPlatformId)), Platform::getId);

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import api, { errorMessage } from '../api/client'
 import { useAuth } from '../auth/AuthContext'
 import { seesFinancials } from '../auth/roles'
@@ -12,6 +12,10 @@ import { STATUSES, STATUS_LABEL, dateTime, money } from '../utils/format'
 export default function Orders() {
   const { user } = useAuth()
   const showMoney = seesFinancials(user)
+  // Set by the order count on the Customers page: that customer's orders only.
+  const [params, setParams] = useSearchParams()
+  const customerId = params.get('customerId') ?? ''
+  const customerName = params.get('customer') || `customer #${customerId}`
   const [platformId, setPlatformId] = useState('')
   const [status, setStatus] = useState('')
   const [range, setRange] = useState({ preset: 'all', from: '', to: '' })
@@ -30,11 +34,14 @@ export default function Orders() {
     if (resolved.error) return
     api
       .get('/orders', {
-        params: { platformId: platformId || undefined, status: status || undefined, from: resolved.from, to: resolved.to, page },
+        params: {
+          platformId: platformId || undefined, customerId: customerId || undefined, status: status || undefined,
+          from: resolved.from, to: resolved.to, page,
+        },
       })
       .then((res) => { setData(res.data); setError('') })
       .catch((err) => setError(errorMessage(err)))
-  }, [platformId, status, resolved, page])
+  }, [platformId, customerId, status, resolved, page])
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { load() }, [load])
 
@@ -74,6 +81,12 @@ export default function Orders() {
           {STATUSES.map((s) => <option key={s} value={s}>{STATUS_LABEL[s]}</option>)}
         </select>
         <RangePicker value={range} onChange={(r) => { setRange(r); setPage(0) }} />
+        {customerId && (
+          <button type="button" className="btn secondary small" title="Show every customer's orders"
+                  onClick={() => { setParams({}); setPage(0) }}>
+            {customerName} ✕
+          </button>
+        )}
       </div>
 
       {resolved.error && <p className="error" role="alert">{resolved.error}</p>}

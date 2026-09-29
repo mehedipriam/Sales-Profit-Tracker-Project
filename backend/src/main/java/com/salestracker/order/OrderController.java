@@ -24,12 +24,13 @@ public class OrderController {
     @GetMapping
     public PageResponse<OrderSummary> list(@AuthenticationPrincipal AuthUser user,
                                            @RequestParam(required = false) Long platformId,
+                                           @RequestParam(required = false) Long customerId,
                                            @RequestParam(required = false) OrderStatus status,
                                            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
                                            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
                                            @RequestParam(defaultValue = "0") int page,
                                            @RequestParam(defaultValue = "20") int size) {
-        PageResponse<OrderSummary> result = service.list(user.tenantId(), platformId, status, DateRange.of(from, to), page, size);
+        PageResponse<OrderSummary> result = service.list(user.tenantId(), platformId, customerId, status, DateRange.of(from, to), page, size);
         return seesFinancials(user) ? result : result.map(OrderSummary::hideFinancials);
     }
 

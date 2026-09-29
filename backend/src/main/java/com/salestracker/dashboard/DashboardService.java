@@ -90,7 +90,7 @@ public class DashboardService {
                 totals(byStatus, delivery, OrderStatus.CANCELLED).orders(),
                 courierPayouts.cashWithCouriers(tenantId),
                 expenses, netProfit(realized, expenses),
-                orderService.list(tenantId, null, null, allTime, 0, RECENT_ORDERS).content(),
+                orderService.list(tenantId, null, null, null, allTime, 0, RECENT_ORDERS).content(),
                 products.lowStock(tenantId, PageRequest.of(0, LOW_STOCK_LIMIT)).stream().map(LowStockItem::of).toList());
     }
 

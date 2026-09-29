@@ -520,6 +520,11 @@ select.status.RETURNED, select.status.CANCELLED { color: var(--danger); }
 .reason { display: inline-flex; align-items: center; gap: 0.4rem; white-space: nowrap; }
 .reason .badge.auto { margin-left: 0; line-height: 1.4; }
 .badge.low { margin-left: 0.4rem; background: var(--danger-tint); color: var(--danger); }
+.badge.risk { margin-left: 0.4rem; background: var(--danger-soft); color: var(--danger); font-weight: 600; }
+/* A customer who often returns or cancels, shown on the sale form so a risky cash-on-delivery order is a choice. */
+.risk-note { margin: 0.6rem 0 0; padding: 0.55rem 0.75rem; border: 1px solid var(--danger-line); border-radius: 8px;
+  background: var(--danger-tint); color: var(--danger); font-size: 0.875rem; }
+.risk-note.info { border-color: var(--border); background: var(--surface-2); color: var(--text); }
 .alert-card { border: 1px solid var(--danger-line); background: var(--danger-tint); border-radius: 8px; padding: 0.75rem 1rem; margin: 1rem 0; }
 .alert-card h2 { margin: 0 0 0.4rem; font-size: 1rem; color: var(--danger); }
 .alert-card ul { list-style: none; margin: 0; padding: 0; }

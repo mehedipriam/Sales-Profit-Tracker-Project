@@ -4,10 +4,27 @@ import api, { errorMessage } from '../api/client'
 import { useAuth } from '../auth/AuthContext'
 import { seesFinancials } from '../auth/roles'
 import AsyncPicker from '../components/AsyncPicker'
+import useDebounce from '../hooks/useDebounce'
 import { EXPENSE_LABEL, EXPENSE_TYPES, STATUSES, STATUS_LABEL, money, toLocalInput } from '../utils/format'
 
 const searchProducts = (q) => api.get('/products', { params: { q, size: 10 } }).then((r) => r.data.content)
 const searchCustomers = (q) => api.get('/customers', { params: { q, size: 10 } }).then((r) => r.data.content)
+
+/** The last 10 digits, so 01712-345678 and +880 1712 345678 count as the same number. */
+const phoneKey = (phone) => (phone ?? '').replace(/\D/g, '').slice(-10)
+
+/** Warns about a customer who often returns or cancels, before another cash-on-delivery order goes out to them. */
+function RiskNote({ customer }) {
+  const ins = customer?.insights
+  if (!ins?.flagged) return null
+  return (
+    <p className="risk-note" role="status">
+      <b>Often returns or cancels.</b> {ins.returned} returned and {ins.cancelled} cancelled
+      of {ins.paid + ins.returned + ins.cancelled} settled orders ({ins.returnRatePct}%).
+      Consider asking for payment in advance.
+    </p>
+  )
+}
 
 let lineKey = 0
 const newLine = (product, extra = {}) => ({
@@ -35,6 +52,7 @@ export default function OrderForm() {
   const [customer, setCustomer] = useState(null) // picked existing customer
   const [isNewCustomer, setIsNewCustomer] = useState(false)
   const [nc, setNc] = useState({ name: '', phone: '', address: '' })
+  const [phoneMatch, setPhoneMatch] = useState(null) // an existing customer with the phone typed for a new one
   const [status, setStatus] = useState('PAID')
   const [orderedAt, setOrderedAt] = useState(toLocalInput())
   const [notes, setNotes] = useState('')
@@ -61,6 +79,20 @@ export default function OrderForm() {
     }).catch(() => {})
     api.get('/couriers').then((res) => setCouriers(res.data)).catch(() => {})
   }, [editing])
+
+  // A new customer whose phone is already on file is usually a returning one, sometimes one with a bad record.
+  const typedPhone = useDebounce(isNewCustomer ? phoneKey(nc.phone) : '')
+  useEffect(() => {
+    let current = true
+    if (typedPhone.length < 10) {
+      setPhoneMatch(null) // eslint-disable-line react-hooks/set-state-in-effect
+      return
+    }
+    searchCustomers(typedPhone.slice(-8))
+      .then((found) => { if (current) setPhoneMatch(found.find((c) => phoneKey(c.phone) === typedPhone) ?? null) })
+      .catch(() => {})
+    return () => { current = false }
+  }, [typedPhone])
 
   useEffect(() => {
     if (!editing) return
@@ -249,7 +281,7 @@ export default function OrderForm() {
                 : <button type="button" className="link" onClick={() => setIsNewCustomer(true)}>+ New customer</button>}
             </div>
             {!isNewCustomer ? (
-              customer ? (
+              customer ? (<>
                 <div className="chosen-card">
                   <span className="avatar">{customer.name?.trim()?.[0]?.toUpperCase() ?? '?'}</span>
                   <div className="chosen-text">
@@ -258,7 +290,8 @@ export default function OrderForm() {
                   </div>
                   <button type="button" className="btn secondary small" onClick={() => setCustomer(null)}>Change</button>
                 </div>
-              ) : (
+                <RiskNote customer={customer} />
+              </>) : (
                 <AsyncPicker search={searchCustomers} placeholder="Search customer by name or phone…"
                              label={(c) => `${c.name}${c.phone ? ' · ' + c.phone : ''}`} onPick={setCustomer} />
               )
@@ -269,6 +302,19 @@ export default function OrderForm() {
                   <label>Phone<input value={nc.phone} onChange={(e) => setNc({ ...nc, phone: e.target.value })} /></label>
                 </div>
                 <label>Address<input value={nc.address} onChange={(e) => setNc({ ...nc, address: e.target.value })} /></label>
+                {phoneMatch && (
+                  <>
+                    <p className="risk-note info" role="status">
+                      <b>{phoneMatch.name}</b> already has this phone number
+                      ({phoneMatch.insights.orders} {phoneMatch.insights.orders === 1 ? 'order' : 'orders'}).{' '}
+                      <button type="button" className="link"
+                              onClick={() => { setCustomer(phoneMatch); setIsNewCustomer(false) }}>
+                        Use this customer
+                      </button>
+                    </p>
+                    <RiskNote customer={phoneMatch} />
+                  </>
+                )}
               </>
             )}
           </div>

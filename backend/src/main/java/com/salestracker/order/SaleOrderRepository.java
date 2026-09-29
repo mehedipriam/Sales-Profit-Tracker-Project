@@ -17,10 +17,12 @@ public interface SaleOrderRepository extends JpaRepository<SaleOrder, Long> {
             select o from SaleOrder o
             where o.tenantId = :tenantId
               and (:platformId = 0L or o.platformId = :platformId)
+              and (:customerId = 0L or o.customerId = :customerId)
               and o.status in :statuses
               and o.orderedAt >= :from and o.orderedAt < :to
             """)
     Page<SaleOrder> search(@Param("tenantId") Long tenantId, @Param("platformId") long platformId,
+                           @Param("customerId") long customerId,
                            @Param("statuses") Collection<OrderStatus> statuses,
                            @Param("from") LocalDateTime from, @Param("to") LocalDateTime to, Pageable pageable);
 
@@ -161,6 +163,30 @@ public interface SaleOrderRepository extends JpaRepository<SaleOrder, Long> {
             order by o.courierPaidOn desc, o.id desc
             """)
     List<SaleOrder> recentPayouts(@Param("tenantId") Long tenantId, @Param("courierId") long courierId, Pageable pageable);
+
+    // ---- customer insights: each customer's orders over all time ----
+
+    /** Order count, delivery charges and latest order per customer and status. */
+    @Query("""
+            select new com.salestracker.order.CustomerStatusTotals(
+                o.customerId, o.status, count(o), sum(o.deliveryCharge), max(o.orderedAt))
+            from SaleOrder o
+            where o.tenantId = :tenantId and o.customerId in :customerIds
+            group by o.customerId, o.status
+            """)
+    List<CustomerStatusTotals> totalsByCustomer(@Param("tenantId") Long tenantId,
+                                                @Param("customerIds") Collection<Long> customerIds);
+
+    /** What each customer paid for products on their PAID orders. */
+    @Query("""
+            select new com.salestracker.order.CustomerRevenue(o.customerId, sum(i.soldPrice * i.quantity))
+            from OrderItem i join i.order o
+            where o.tenantId = :tenantId and o.customerId in :customerIds
+              and o.status = com.salestracker.order.OrderStatus.PAID
+            group by o.customerId
+            """)
+    List<CustomerRevenue> paidRevenueByCustomer(@Param("tenantId") Long tenantId,
+                                                @Param("customerIds") Collection<Long> customerIds);
 
     List<SaleOrder> findByTenantIdAndIdIn(Long tenantId, Collection<Long> ids);
 
