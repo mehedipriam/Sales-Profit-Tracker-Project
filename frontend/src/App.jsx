@@ -4,6 +4,7 @@ import { AuthProvider } from './auth/AuthContext'
 import OwnerRoute from './auth/OwnerRoute'
 import ProtectedRoute from './auth/ProtectedRoute'
 import Layout from './layout/Layout'
+import Activity from './pages/Activity'
 import AuthForm from './pages/AuthForm'
 import Couriers from './pages/Couriers'
 import Customers from './pages/Customers'
@@ -47,6 +48,7 @@ export default function App() {
                 <Route path="/expenses" element={<Expenses />} />
                 <Route path="/statement" element={<Statement />} />
                 <Route path="/team" element={<Team />} />
+                <Route path="/activity" element={<Activity />} />
                 <Route path="/reports" element={<Suspense fallback={<p className="center-note">Loading…</p>}><Reports /></Suspense>} />
               </Route>
             </Route>

@@ -128,6 +128,25 @@ a:hover { filter: brightness(0.85); }
 }
 .topbar nav a:hover { color: var(--text); background: var(--bg); filter: none; }
 .topbar nav a.active { color: var(--primary); background: var(--primary-soft); font-weight: 600; }
+/* "More" looks like the other page links; its menu drops below it. */
+.more { position: relative; }
+.more-btn {
+  display: flex; align-items: center; gap: 0.25rem; padding: 0.35rem 0.6rem; border: 0; border-radius: 999px;
+  background: transparent; color: var(--muted); font: inherit; font-size: 0.9rem; cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.more-btn:hover, .more-btn[aria-expanded="true"] { color: var(--text); background: var(--bg); }
+.more-btn.active { color: var(--primary); background: var(--primary-soft); font-weight: 600; }
+.more-btn svg { transition: transform 0.15s; }
+.more-btn[aria-expanded="true"] svg { transform: rotate(180deg); }
+.more-menu {
+  position: absolute; top: calc(100% + 0.4rem); right: 0; z-index: 20; min-width: 10rem; padding: 0.3rem;
+  display: flex; flex-direction: column; gap: 0.1rem; background: var(--surface); border: 1px solid var(--border);
+  border-radius: 10px; box-shadow: 0 8px 24px rgba(16, 24, 40, 0.12);
+}
+.topbar nav .more-menu a { border-radius: 6px; padding: 0.45rem 0.7rem; }
+/* An invisible strip over the gap above the menu, so the mouse stays "inside" on its way down to it. */
+.more-menu::before { content: ""; position: absolute; left: 0; right: 0; top: -0.5rem; height: 0.5rem; }
 .account { justify-self: end; display: flex; align-items: center; gap: 0.5rem; }
 .theme-toggle {
   display: grid; place-items: center; width: 2rem; height: 2rem; padding: 0; border-radius: 50%; flex: none;
@@ -526,6 +545,10 @@ select.status.RETURNED, select.status.CANCELLED { color: var(--danger); }
 .reason { display: inline-flex; align-items: center; gap: 0.4rem; white-space: nowrap; }
 .reason .badge.auto { margin-left: 0; line-height: 1.4; }
 .badge.low { margin-left: 0.4rem; background: var(--danger-tint); color: var(--danger); }
+/* Activity log actions: new and paid out read as good news, deleted as bad, the rest neutral. */
+.badge.act.CREATED, .badge.act.PAID_OUT { background: var(--success-soft); color: var(--success); }
+.badge.act.DELETED { background: var(--danger-soft); color: var(--danger); }
+.badge.act.EDITED, .badge.act.STATUS_CHANGED, .badge.act.PAYOUT_UNDONE { background: var(--info-soft); color: var(--info); }
 .badge.risk { margin-left: 0.4rem; background: var(--danger-soft); color: var(--danger); font-weight: 600; }
 /* A customer who often returns or cancels, shown on the sale form so a risky cash-on-delivery order is a choice. */
 .risk-note { margin: 0.6rem 0 0; padding: 0.55rem 0.75rem; border: 1px solid var(--danger-line); border-radius: 8px;

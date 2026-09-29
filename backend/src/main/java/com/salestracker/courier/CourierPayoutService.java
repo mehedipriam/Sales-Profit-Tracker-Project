@@ -1,6 +1,8 @@
 package com.salestracker.courier;
 
+import com.salestracker.activity.OrderActivityService;
 import com.salestracker.auth.ApiException;
+import com.salestracker.auth.AuthUser;
 import com.salestracker.customer.Customer;
 import com.salestracker.customer.CustomerRepository;
 import com.salestracker.order.CourierTotals;
@@ -51,9 +53,11 @@ public class CourierPayoutService {
     private final CourierRepository couriers;
     private final CustomerRepository customers;
     private final OrderService orderService;
+    private final OrderActivityService activity;
 
     public CourierPayoutService(SaleOrderRepository orders, CourierRepository couriers, CustomerRepository customers,
-                                OrderService orderService) {
+                                OrderService orderService, OrderActivityService activity) {
+        this.activity = activity;
         this.orders = orders;
         this.couriers = couriers;
         this.customers = customers;
@@ -101,8 +105,8 @@ public class CourierPayoutService {
      * Records that the courier paid out these orders' cash on paidOn. A still-pending order counts as delivered
      * (the courier could only pay what it collected), so it becomes PAID through the normal order path.
      */
-    public void markPaid(Long tenantId, Collection<Long> orderIds, LocalDate paidOn) {
-        for (SaleOrder o : load(tenantId, orderIds)) {
+    public void markPaid(AuthUser actor, Collection<Long> orderIds, LocalDate paidOn) {
+        for (SaleOrder o : load(actor.tenantId(), orderIds)) {
             boolean payable = o.getCourierId() != null && o.getCourierPaidOn() == null
                     && o.getCodAmount() != null && o.getCodAmount().signum() > 0
                     && (o.getStatus() == OrderStatus.PAID || o.getStatus() == OrderStatus.PENDING);
@@ -111,15 +115,20 @@ public class CourierPayoutService {
                         "Order #" + o.getId() + " has no courier cash waiting to be paid out");
             }
             if (o.getStatus() == OrderStatus.PENDING) {
-                orderService.changeStatus(tenantId, o.getId(), OrderStatus.PAID);
+                orderService.changeStatus(actor, o.getId(), OrderStatus.PAID);
             }
             o.setCourierPaidOn(paidOn);
+            activity.payout(actor, o, false);
         }
     }
 
     /** Undo a payout recorded by mistake: the cash counts as still with the courier again. */
-    public void markUnpaid(Long tenantId, Collection<Long> orderIds) {
-        load(tenantId, orderIds).forEach(o -> o.setCourierPaidOn(null));
+    public void markUnpaid(AuthUser actor, Collection<Long> orderIds) {
+        for (SaleOrder o : load(actor.tenantId(), orderIds)) {
+            if (o.getCourierPaidOn() == null) continue;
+            o.setCourierPaidOn(null);
+            activity.payout(actor, o, true);
+        }
     }
 
     // ---- internals ----

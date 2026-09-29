@@ -1,6 +1,9 @@
 package com.salestracker.order;
 
+import com.salestracker.activity.OrderActivityService;
+import com.salestracker.activity.OrderSnapshot;
 import com.salestracker.auth.ApiException;
+import com.salestracker.auth.AuthUser;
 import com.salestracker.common.DateRange;
 import com.salestracker.common.PageResponse;
 import com.salestracker.common.Search;
@@ -39,11 +42,13 @@ public class OrderService {
     private final ExpenseService expenses;
     private final StockService stock;
     private final CourierRepository couriers;
+    private final OrderActivityService activity;
 
     public OrderService(SaleOrderRepository orders, PlatformRepository platforms,
                         CustomerRepository customers, ProductRepository products, ExpenseService expenses,
-                        StockService stock, CourierRepository couriers) {
+                        StockService stock, CourierRepository couriers, OrderActivityService activity) {
         this.couriers = couriers;
+        this.activity = activity;
         this.orders = orders;
         this.platforms = platforms;
         this.customers = customers;
@@ -85,17 +90,27 @@ public class OrderService {
         return detail(find(tenantId, id));
     }
 
-    public OrderDetail create(Long tenantId, OrderRequest req) {
-        return saved(orders.save(fill(new SaleOrder(tenantId), req)));
+    // Every write takes the signed-in user, who goes into the activity log.
+
+    public OrderDetail create(AuthUser actor, OrderRequest req) {
+        SaleOrder order = orders.save(fill(new SaleOrder(actor.tenantId()), req));
+        activity.created(actor, order);
+        return saved(order);
     }
 
-    public OrderDetail update(Long tenantId, Long id, OrderRequest req) {
-        return saved(orders.save(fill(find(tenantId, id), req)));
+    public OrderDetail update(AuthUser actor, Long id, OrderRequest req) {
+        SaleOrder order = find(actor.tenantId(), id);
+        OrderSnapshot before = OrderSnapshot.of(order);
+        orders.save(fill(order, req));
+        activity.edited(actor, before, order);
+        return saved(order);
     }
 
-    public OrderDetail changeStatus(Long tenantId, Long id, OrderStatus status) {
-        SaleOrder order = find(tenantId, id);
+    public OrderDetail changeStatus(AuthUser actor, Long id, OrderStatus status) {
+        SaleOrder order = find(actor.tenantId(), id);
+        OrderStatus from = order.getStatus();
         order.setStatus(status);
+        activity.statusChanged(actor, order, from);
         return saved(order);
     }
 
@@ -106,8 +121,9 @@ public class OrderService {
         return detail(order);
     }
 
-    public void delete(Long tenantId, Long id) {
-        SaleOrder order = find(tenantId, id);
+    public void delete(AuthUser actor, Long id) {
+        SaleOrder order = find(actor.tenantId(), id);
+        activity.deleted(actor, order);
         stock.releaseOrder(order);
         orders.delete(order);
     }

@@ -136,6 +136,7 @@ export default function Orders() {
                   <Link className="link" to={`/orders/${o.id}`}>Edit</Link>
                   <Link className="link" to={`/orders/${o.id}/invoice`}>Invoice</Link>
                   {showMoney && <Link className="link" to={`/expenses?newFor=${o.id}`}>Expense</Link>}
+                  {showMoney && <Link className="link" to={`/activity?orderId=${o.id}`}>History</Link>}
                   <button className="link danger" onClick={() => remove(o)}>Delete</button>
                 </td>
               </tr>

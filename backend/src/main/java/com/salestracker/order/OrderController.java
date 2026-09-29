@@ -43,28 +43,28 @@ public class OrderController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public OrderDetail create(@AuthenticationPrincipal AuthUser user, @Valid @RequestBody OrderRequest req) {
-        OrderDetail result = service.create(user.tenantId(), req);
+        OrderDetail result = service.create(user, req);
         return seesFinancials(user) ? result : result.hideFinancials();
     }
 
     @PutMapping("/{id}")
     public OrderDetail update(@AuthenticationPrincipal AuthUser user, @PathVariable Long id,
                               @Valid @RequestBody OrderRequest req) {
-        OrderDetail result = service.update(user.tenantId(), id, req);
+        OrderDetail result = service.update(user, id, req);
         return seesFinancials(user) ? result : result.hideFinancials();
     }
 
     @PatchMapping("/{id}/status")
     public OrderDetail changeStatus(@AuthenticationPrincipal AuthUser user, @PathVariable Long id,
                                     @Valid @RequestBody StatusRequest req) {
-        OrderDetail result = service.changeStatus(user.tenantId(), id, req.status());
+        OrderDetail result = service.changeStatus(user, id, req.status());
         return seesFinancials(user) ? result : result.hideFinancials();
     }
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(@AuthenticationPrincipal AuthUser user, @PathVariable Long id) {
-        service.delete(user.tenantId(), id);
+        service.delete(user, id);
     }
 
     /** Phase 7b: cost/profit figures are Owner/Admin-only; Staff still records and manages the sale itself. */

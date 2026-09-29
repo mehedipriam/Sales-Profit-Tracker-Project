@@ -90,14 +90,14 @@ public class CourierController {
     @PreAuthorize("hasAnyRole('OWNER','ADMIN')")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void markPaid(@AuthenticationPrincipal AuthUser user, @Valid @RequestBody PayoutRequest req) {
-        payouts.markPaid(user.tenantId(), req.orderIds(), req.paidOn() != null ? req.paidOn() : LocalDate.now());
+        payouts.markPaid(user, req.orderIds(), req.paidOn() != null ? req.paidOn() : LocalDate.now());
     }
 
     @PostMapping("/payouts/undo")
     @PreAuthorize("hasAnyRole('OWNER','ADMIN')")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void markUnpaid(@AuthenticationPrincipal AuthUser user, @Valid @RequestBody UndoRequest req) {
-        payouts.markUnpaid(user.tenantId(), req.orderIds());
+        payouts.markUnpaid(user, req.orderIds());
     }
 
     private Courier find(AuthUser user, Long id) {
