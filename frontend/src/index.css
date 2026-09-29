@@ -268,6 +268,12 @@ select.status.RETURNED, select.status.CANCELLED { color: var(--danger); }
 .stat-value.pos { color: var(--success); }
 .stat-value.neg { color: var(--danger); }
 .stat-hint { color: var(--muted); font-size: 0.8rem; }
+/* A figure's move against the period before; green or red only where the direction is clearly good or bad. */
+.change { font-size: 0.8rem; font-weight: 600; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.change.good { color: var(--success); }
+.change.bad { color: var(--danger); }
+.change .vs { font-weight: 400; color: var(--muted); }
+.net-hero .change, .net-hero .change .vs { color: inherit; opacity: 0.85; }
 .stat-head { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
 
 /* Accented figure cards (Dashboard): a coloured icon chip, a matching top edge and a gentle lift on hover. */

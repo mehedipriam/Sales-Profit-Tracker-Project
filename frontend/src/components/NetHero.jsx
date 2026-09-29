@@ -1,8 +1,8 @@
 import { money } from '../utils/format'
 import { WalletIcon } from './icons'
 
-/** The headline net profit banner (Dashboard, Reports), with how it's worked out alongside. */
-export default function NetHero({ realized, expenses, netProfit }) {
+/** The headline net profit banner (Dashboard, Reports), with how it's worked out alongside; `change` as on Stat. */
+export default function NetHero({ realized, expenses, netProfit, change }) {
   const revenue = Number(realized.revenue)
   const margin = revenue > 0 ? (Number(netProfit) / revenue) * 100 : null
   const loss = netProfit < 0
@@ -12,6 +12,7 @@ export default function NetHero({ realized, expenses, netProfit }) {
       <div className="net-hero-main">
         <span className="net-hero-label"><WalletIcon /> {loss ? 'Net loss' : 'Net profit'}</span>
         <span className="net-hero-value">{money(netProfit)}</span>
+        {change}
         <span className="net-hero-sub">
           {margin === null ? 'No paid sales yet' : `${margin.toFixed(1)}% of revenue`}
           {' · '}{realized.orders} paid order{realized.orders === 1 ? '' : 's'}

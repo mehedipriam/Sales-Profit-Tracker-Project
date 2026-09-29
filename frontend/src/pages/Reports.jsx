@@ -5,13 +5,14 @@ import { BestSellers, LowestMargin } from '../components/charts/ProductLists'
 import ExportButtons from '../components/ExportButtons'
 import ShareBars from '../components/charts/ShareBars'
 import TrendChart from '../components/charts/TrendChart'
+import Change from '../components/Change'
 import RangePicker from '../components/RangePicker'
 import NetHero from '../components/NetHero'
 import Stat from '../components/Stat'
 import {
   BoxIcon, CancelIcon, ChartIcon, ClockIcon, ReceiptIcon, ReturnIcon, TrendUpIcon, TruckIcon,
 } from '../components/icons'
-import { describeRange, resolveRange } from '../utils/dateRange'
+import { describeRange, previousRange, resolveRange } from '../utils/dateRange'
 import { EXPENSE_LABEL, money } from '../utils/format'
 
 const pct = (part, whole) => (Number(whole) > 0 ? `${((Number(part) / Number(whole)) * 100).toFixed(1)}%` : '—')
@@ -21,11 +22,12 @@ export default function Reports() {
   const [range, setRange] = useState({ preset: 'this_month', from: '', to: '' })
   const [platformId, setPlatformId] = useState('')
   const [platforms, setPlatforms] = useState([])
-  const [data, setData] = useState(null) // last good { key, summary, trend, products }
+  const [data, setData] = useState(null) // last good { key, summary, trend, products, previous }
   const [failure, setFailure] = useState(null) // { key, message }
 
   const resolved = useMemo(() => resolveRange(range), [range])
-  const key = `${resolved.from ?? ''}|${resolved.to ?? ''}|${platformId}`
+  const prior = useMemo(() => previousRange(range), [range])
+  const key = `${resolved.from ?? ''}|${resolved.to ?? ''}|${platformId}|${prior?.from ?? ''}`
   // Loading is derived: the slice on screen is not yet the slice that was asked for. The previous render stays put.
   const loading = !resolved.error && data?.key !== key && failure?.key !== key
   const error = failure?.key === key ? failure.message : ''
@@ -43,17 +45,25 @@ export default function Reports() {
       api.get('/reports/summary', { params }),
       api.get('/reports/trend', { params }),
       api.get('/reports/products', { params }),
+      prior && api.get('/reports/summary', { params: { ...params, from: prior.from, to: prior.to } }),
     ])
-      .then(([summary, trend, products]) => {
-        if (live) setData({ key, summary: summary.data, trend: trend.data, products: products.data })
+      .then(([summary, trend, products, previous]) => {
+        if (!live) return
+        setData({ key, summary: summary.data, trend: trend.data, products: products.data,
+                  previous: previous && { ...previous.data, label: prior.label } })
       })
       .catch((err) => live && setFailure({ key, message: errorMessage(err) }))
     return () => { live = false }
-  }, [key, resolved.from, resolved.to, resolved.error, platformId])
+  }, [key, resolved.from, resolved.to, resolved.error, platformId, prior])
 
   const tone = (n) => (n < 0 ? 'neg' : 'pos')
   const summary = data?.summary
   const realized = summary?.realized
+  // The period before, for the "▲ 12% vs last month" lines; none for all time or open-ended ranges.
+  const previous = data?.previous
+  const compare = previous && { label: previous.label, period: describeRange(previous) }
+  const change = (now, before, better, count) =>
+    previous && <Change now={now} before={before} compare={compare} better={better} count={count} />
 
   const soldRows = summary?.byPlatform.filter((r) => r.orders > 0) ?? []
   const platformName = platforms.find((p) => String(p.id) === platformId)?.name
@@ -94,24 +104,30 @@ export default function Reports() {
             {' · paid orders, less expenses'}
           </p>
 
-          <NetHero realized={realized} expenses={summary.expenses.total} netProfit={summary.netProfit} />
+          <NetHero realized={realized} expenses={summary.expenses.total} netProfit={summary.netProfit}
+                   change={change(summary.netProfit, previous?.netProfit, 'up')} />
 
           <div className="stats kpis">
             <Stat label="Revenue" value={money(realized.revenue)} hint={`${realized.orders} paid orders`}
+                  change={change(realized.revenue, previous?.realized.revenue, 'up')}
                   icon={<TrendUpIcon />} accent="blue" />
             <Stat label="Cost of goods" value={money(realized.cost)} hint="what the stock cost you"
+                  change={change(realized.cost, previous?.realized.cost)}
                   icon={<BoxIcon />} accent="slate" />
             <Stat
               label={realized.profit < 0 ? 'Gross loss' : 'Gross profit'}
               value={money(realized.profit)}
               tone={tone(realized.profit)}
               hint={`revenue − cost · ${pct(realized.profit, realized.revenue)} margin`}
+              change={change(realized.profit, previous?.realized.profit, 'up')}
               icon={<ChartIcon />}
               accent={realized.profit < 0 ? 'red' : 'green'}
             />
             <Stat label="Delivery charged" value={money(realized.delivery)} hint="paid by customers"
+                  change={change(realized.delivery, previous?.realized.delivery, 'up')}
                   icon={<TruckIcon />} accent="teal" />
             <Stat label="Expenses" value={money(summary.expenses.total)} hint="delivery, commission, ads…"
+                  change={change(summary.expenses.total, previous?.expenses.total, 'down')}
                   icon={<ReceiptIcon />} accent="violet" />
           </div>
 
@@ -139,8 +155,10 @@ export default function Reports() {
               accent="amber"
             />
             <Stat label="Returned / refunded" value={summary.returnedOrders} hint="excluded from totals"
+                  change={change(summary.returnedOrders, previous?.returnedOrders, 'down', true)}
                   icon={<ReturnIcon />} accent="red" />
             <Stat label="Cancelled" value={summary.cancelledOrders} hint="excluded from totals"
+                  change={change(summary.cancelledOrders, previous?.cancelledOrders, 'down', true)}
                   icon={<CancelIcon />} accent="slate" />
           </div>
 
