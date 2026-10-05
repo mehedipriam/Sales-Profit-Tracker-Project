@@ -277,6 +277,11 @@ select.status { padding: 0.25rem 0.4rem; font-size: 0.85rem; }
 select.status.PAID { color: var(--success); }
 select.status.PENDING { color: var(--warning); }
 select.status.RETURNED, select.status.CANCELLED { color: var(--danger); }
+/* Orders list: every column centred; the row's links sit under its status so the table fits without scrolling sideways. */
+.orders-table th, .orders-table td, .orders-table .num { text-align: center; vertical-align: middle; }
+.orders-table select.status { width: 7rem; }
+.orders-table .row-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.15rem 0; margin-top: 0.35rem; font-size: 0.82rem; white-space: normal; }
+.orders-table .row-actions .link { padding: 0 0.3rem; }
 @media (max-width: 700px) { .card .row { flex-direction: column; } }
 
 .section-title { font-size: 1.1rem; margin: 1.5rem 0 0.75rem; }

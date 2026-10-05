@@ -93,13 +93,13 @@ export default function Orders() {
       {error &&<p className="error" role="alert">{error}</p>}
 
       <div className="table-wrap">
-        <table>
+        <table className="orders-table">
           <thead>
             <tr>
               <th>#</th><th>Date</th><th>Customer</th><th>Platform / courier</th><th className="num">Items</th>
               <th className="num">Revenue</th>
               {showMoney && <><th className="num">Cost</th><th className="num">Profit</th></>}
-              <th>Status</th><th />
+              <th>Status</th>
             </tr>
           </thead>
           <tbody>
@@ -131,18 +131,18 @@ export default function Orders() {
                           onChange={(e) => changeStatus(o, e.target.value)}>
                     {STATUSES.map((s) => <option key={s} value={s}>{STATUS_LABEL[s]}</option>)}
                   </select>
-                </td>
-                <td className="row-actions">
-                  <Link className="link" to={`/orders/${o.id}`}>Edit</Link>
-                  <Link className="link" to={`/orders/${o.id}/invoice`}>Invoice</Link>
-                  {showMoney && <Link className="link" to={`/expenses?newFor=${o.id}`}>Expense</Link>}
-                  {showMoney && <Link className="link" to={`/activity?orderId=${o.id}`}>History</Link>}
-                  <button className="link danger" onClick={() => remove(o)}>Delete</button>
+                  <div className="row-actions">
+                    <Link className="link" to={`/orders/${o.id}`}>Edit</Link>
+                    <Link className="link" to={`/orders/${o.id}/invoice`}>Invoice</Link>
+                    {showMoney && <Link className="link" to={`/expenses?newFor=${o.id}`}>Expense</Link>}
+                    {showMoney && <Link className="link" to={`/activity?orderId=${o.id}`}>History</Link>}
+                    <button className="link danger" onClick={() => remove(o)}>Delete</button>
+                  </div>
                 </td>
               </tr>
             ))}
             {data && data.content.length === 0 && (
-              <tr><td colSpan={showMoney ? 10 : 8} className="empty">No orders yet. Record your first sale.</td></tr>
+              <tr><td colSpan={showMoney ? 9 : 7} className="empty">No orders yet. Record your first sale.</td></tr>
             )}
           </tbody>
         </table>
