@@ -16,6 +16,9 @@ public final class AccountDtos {
     public record PasswordRequest(@NotBlank String currentPassword,
                                   @NotBlank @Size(min = 8, max = 72) String newPassword) {}
 
+    /** Re-entering the login password to reveal cost prices on screen. */
+    public record VerifyPasswordRequest(@NotBlank String password) {}
+
     /** currency is an ISO 4217 code such as BDT, USD or EUR; phone, address and invoiceNote are optional. */
     public record BusinessRequest(@NotBlank @Size(max = 150) String name,
                                   @NotBlank @Pattern(regexp = "[A-Za-z]{3}") String currency,

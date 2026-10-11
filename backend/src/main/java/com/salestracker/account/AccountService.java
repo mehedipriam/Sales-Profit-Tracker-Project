@@ -3,6 +3,7 @@ package com.salestracker.account;
 import com.salestracker.account.AccountDtos.BusinessRequest;
 import com.salestracker.account.AccountDtos.PasswordRequest;
 import com.salestracker.account.AccountDtos.ProfileRequest;
+import com.salestracker.account.AccountDtos.VerifyPasswordRequest;
 import com.salestracker.auth.ApiException;
 import com.salestracker.auth.AuthDtos.AuthResponse;
 import com.salestracker.auth.AuthDtos.UserInfo;
@@ -59,6 +60,14 @@ public class AccountService {
         User user = current(principal);
         checkPassword(user, req.currentPassword());
         user.changePassword(encoder.encode(req.newPassword()));
+    }
+
+    @Transactional(readOnly = true)
+    public void verifyPassword(AuthUser principal, VerifyPasswordRequest req) {
+        User user = current(principal);
+        if (!encoder.matches(req.password(), user.getPasswordHash())) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "Incorrect password");
+        }
     }
 
     public UserInfo renameBusiness(AuthUser principal, BusinessRequest req) {

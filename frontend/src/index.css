@@ -798,3 +798,20 @@ table.striped tbody tr.picked td { background: var(--primary-soft); }
 .crash { max-width: 34rem; margin: 3rem auto; padding: 1.25rem 1.5rem; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); }
 .crash h2 { margin-top: 0; }
 .crash-detail { font-family: monospace; font-size: 0.82rem; background: var(--surface-3); padding: 0.5rem 0.75rem; border-radius: 6px; overflow-wrap: anywhere; }
+
+/* Cost and margin are masked until the user re-enters their password (Products page). */
+.reveal {
+  display: inline-grid; place-items: center; vertical-align: text-bottom; margin-left: 0.3rem; padding: 0 0.1rem;
+  border: 0; border-radius: 4px; background: transparent; color: inherit; cursor: pointer; opacity: 0.85;
+}
+.reveal:hover { opacity: 1; background: rgba(255, 255, 255, 0.15); }
+.reveal:focus-visible { outline: 2px solid currentColor; outline-offset: 1px; }
+.reveal svg { width: 16px; height: 16px; }
+.masked { color: var(--muted); letter-spacing: 0.12em; }
+/* The Cost and Margin headings (each with its eye) sit centred over the column, and so do the masked dots under it. */
+table.striped thead th.hide-col, td.masked.hide-col { text-align: center; }
+/* Only the word is centred; the eye hangs just to its right so it doesn't pull the word off-centre. */
+table.striped thead th.hide-col { padding-left: 1.75rem; padding-right: 1.75rem; } /* room for the eye on both sides keeps the centre */
+.hide-head { position: relative; }
+.hide-head .reveal { position: absolute; left: 100%; top: 50%; transform: translateY(-50%); margin-left: 0.25rem; }
+.masked.hide-col { text-indent: 0.12em; } /* balance the trailing letter-spacing after the last dot */

@@ -3,14 +3,19 @@ import api, { errorMessage } from '../api/client'
 import { useAuth } from '../auth/AuthContext'
 import { seesFinancials } from '../auth/roles'
 import Modal from '../components/Modal'
+import { EyeIcon, EyeOffIcon } from '../components/icons'
 import Pager from '../components/Pager'
 import useDebounce from '../hooks/useDebounce'
 import { Link } from 'react-router-dom'
 import { money } from '../utils/format'
 
+const MASK = '••••••'
+// Revealed costs hide themselves again after this long, in case the screen is left unattended.
+const REVEAL_MS = 5 * 60 * 1000
+
 const EMPTY = { name: '', sku: '', category: '', costPrice: '', sellingPrice: '', stockQty: '', lowStockThreshold: '' }
 
-function ProductForm({ product, categories, showMoney, onSaved, onCancel }) {
+function ProductForm({ product, categories, showMoney, costHidden, onSaved, onCancel }) {
   const [form, setForm] = useState(
     product ? { ...EMPTY, ...Object.fromEntries(Object.entries(product).map(([k, v]) => [k, v ?? ''])) } : EMPTY,
   )
@@ -55,12 +60,17 @@ function ProductForm({ product, categories, showMoney, onSaved, onCancel }) {
         </label>
       </div>
       <div className="row">
-        {showMoney && (
+        {showMoney && (product && costHidden ? (
+          <label>
+            Cost price
+            <input disabled value={MASK} title="Show costs with the eye in the table to change this" />
+          </label>
+        ) : (
           <label>
             Cost price
             <input required type="number" min="0" step="0.01" value={form.costPrice} onChange={set('costPrice')} />
           </label>
-        )}
+        ))}
         <label>
           Selling price
           <input required type="number" min="0" step="0.01" value={form.sellingPrice} onChange={set('sellingPrice')} />
@@ -88,6 +98,43 @@ function ProductForm({ product, categories, showMoney, onSaved, onCancel }) {
   )
 }
 
+// Asks for the signed-in user's login password before costs or margins are shown.
+function RevealPrompt({ what, onRevealed, onCancel }) {
+  const [password, setPassword] = useState('')
+  const [error, setError] = useState('')
+  const [busy, setBusy] = useState(false)
+
+  const submit = async (e) => {
+    e.preventDefault()
+    setError('')
+    setBusy(true)
+    try {
+      await api.post('/account/verify-password', { password })
+      onRevealed()
+    } catch (err) {
+      setError(errorMessage(err))
+      setPassword('')
+      setBusy(false)
+    }
+  }
+
+  return (
+    <form className="form" onSubmit={submit}>
+      <label>
+        Your password
+        <input required autoFocus type="password" autoComplete="current-password" value={password}
+               onChange={(e) => setPassword(e.target.value)} />
+        <span className="hint">{what === 'costs' ? 'Cost prices stay' : 'Margins stay'} hidden until you enter the password you log in with.</span>
+      </label>
+      {error && <p className="error" role="alert">{error}</p>}
+      <div className="actions">
+        <button type="button" className="btn secondary" onClick={onCancel}>Cancel</button>
+        <button className="btn" disabled={busy}>{busy ? 'Checking…' : `Show ${what}`}</button>
+      </div>
+    </form>
+  )
+}
+
 const PAGE_SIZE = 20
 
 export default function Products() {
@@ -100,7 +147,33 @@ export default function Products() {
   const [categories, setCategories] = useState([])
   const [editing, setEditing] = useState(null) // null = closed, {} = new, product = edit
   const [error, setError] = useState('')
+  // Cost and margin each have their own eye, so one can be shown while the other stays hidden.
+  const [revealed, setRevealed] = useState({ cost: false, margin: false })
+  const [asking, setAsking] = useState(null) // null, 'cost' or 'margin'
   const dq = useDebounce(q)
+
+  useEffect(() => {
+    if (!revealed.cost) return undefined
+    const timer = setTimeout(() => setRevealed((r) => ({ ...r, cost: false })), REVEAL_MS)
+    return () => clearTimeout(timer)
+  }, [revealed.cost])
+
+  useEffect(() => {
+    if (!revealed.margin) return undefined
+    const timer = setTimeout(() => setRevealed((r) => ({ ...r, margin: false })), REVEAL_MS)
+    return () => clearTimeout(timer)
+  }, [revealed.margin])
+
+  const revealButton = (col, label) => {
+    const shown = revealed[col]
+    const text = `${shown ? 'Hide' : 'Show'} ${label}`
+    return (
+      <button type="button" className="reveal" title={text} aria-label={text}
+              onClick={() => (shown ? setRevealed((r) => ({ ...r, [col]: false })) : setAsking(col))}>
+        {shown ? <EyeOffIcon /> : <EyeIcon />}
+      </button>
+    )
+  }
 
   const load = useCallback(() => {
     api
@@ -152,9 +225,9 @@ export default function Products() {
           <thead>
             <tr>
               <th className="serial">#</th><th>Name</th><th>SKU</th><th>Category</th>
-              {showMoney && <th className="num">Cost</th>}
+              {showMoney && <th className="num hide-col"><span className="hide-head">Cost{revealButton('cost', 'costs')}</span></th>}
               <th className="num">Price</th>
-              {showMoney && <th className="num">Margin</th>}
+              {showMoney && <th className="num hide-col"><span className="hide-head">Margin{revealButton('margin', 'margins')}</span></th>}
               <th className="num">Stock</th><th />
             </tr>
           </thead>
@@ -168,9 +241,13 @@ export default function Products() {
                   <td>{p.name}</td>
                   <td>{p.sku || '—'}</td>
                   <td>{p.category || '—'}</td>
-                  {showMoney && <td className="num">{money(p.costPrice)}</td>}
+                  {showMoney && (
+                    <td className={`num ${revealed.cost ? '' : 'masked hide-col'}`}>{revealed.cost ? money(p.costPrice) : MASK}</td>
+                  )}
                   <td className="num">{money(p.sellingPrice)}</td>
-                  {showMoney && <td className={`num ${margin < 0 ? 'neg' : 'pos'}`}>{money(margin)}</td>}
+                  {showMoney && (revealed.margin
+                    ? <td className={`num ${margin < 0 ? 'neg' : 'pos'}`}>{money(margin)}</td>
+                    : <td className="num masked hide-col">{MASK}</td>)}
                   <td className="num">
                     {p.stockQty == null ? '—' : (
                       <Link to={`/stock?productId=${p.id}`} title="View stock history">{p.stockQty}</Link>
@@ -200,8 +277,19 @@ export default function Products() {
             product={editing.id ? editing : null}
             categories={categories}
             showMoney={showMoney}
+            costHidden={!revealed.cost}
             onSaved={onSaved}
             onCancel={() => setEditing(null)}
+          />
+        </Modal>
+      )}
+
+      {asking && (
+        <Modal title={asking === 'cost' ? 'Show cost prices' : 'Show margins'} onClose={() => setAsking(null)}>
+          <RevealPrompt
+            what={asking === 'cost' ? 'costs' : 'margins'}
+            onRevealed={() => { setRevealed((r) => ({ ...r, [asking]: true })); setAsking(null) }}
+            onCancel={() => setAsking(null)}
           />
         </Modal>
       )}

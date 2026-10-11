@@ -3,6 +3,7 @@ package com.salestracker.account;
 import com.salestracker.account.AccountDtos.BusinessRequest;
 import com.salestracker.account.AccountDtos.PasswordRequest;
 import com.salestracker.account.AccountDtos.ProfileRequest;
+import com.salestracker.account.AccountDtos.VerifyPasswordRequest;
 import com.salestracker.auth.AuthDtos.AuthResponse;
 import com.salestracker.auth.AuthDtos.UserInfo;
 import com.salestracker.auth.AuthUser;
@@ -31,6 +32,13 @@ public class AccountController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void changePassword(@AuthenticationPrincipal AuthUser user, @Valid @RequestBody PasswordRequest req) {
         service.changePassword(user, req);
+    }
+
+    /** 204 when the password is the signed-in user's own; 400 otherwise (not 401, which would sign them out). */
+    @PostMapping("/verify-password")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void verifyPassword(@AuthenticationPrincipal AuthUser user, @Valid @RequestBody VerifyPasswordRequest req) {
+        service.verifyPassword(user, req);
     }
 
     @PutMapping("/business")

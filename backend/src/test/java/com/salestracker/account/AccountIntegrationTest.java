@@ -74,6 +74,13 @@ class AccountIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void verifyingThePasswordAcceptsOnlyTheUsersOwn() throws Exception {
+        post(owner, "/api/account/verify-password", "{\"password\":\"password123\"}", 204);
+        post(owner, "/api/account/verify-password", "{\"password\":\"wrong-pass\"}", 400);
+        post(owner, "/api/account/verify-password", "{\"password\":\"\"}", 400);
+    }
+
+    @Test
     void theOwnerRenamesTheBusinessButStaffCannot() throws Exception {
         assertEquals("BDT", get(owner, "/api/auth/me", 200).get("currency").asText()); // the default
         JsonNode info = put(owner, "/api/account/business", "{\"name\":\" Rina's Store \",\"currency\":\"usd\"}", 200);
