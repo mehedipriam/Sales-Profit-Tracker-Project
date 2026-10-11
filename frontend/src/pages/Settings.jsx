@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import api, { errorMessage } from '../api/client'
 import { useAuth } from '../auth/AuthContext'
+import { seesFinancials } from '../auth/roles'
 import { CURRENCIES, money } from '../utils/format'
 
 /** A settings card: its own error/success message and busy state around one save. */
@@ -160,6 +161,77 @@ function PasswordCard() {
   )
 }
 
+// A short PIN that unlocks cost prices and margins instead of the login password. It is stored hashed, so it can
+// only be set, changed or removed (each with the login password), never shown.
+function PinCard() {
+  const [status, setStatus] = useState(null) // { set, locked } once loaded
+  const [currentPassword, setCurrentPassword] = useState('')
+  const [pin, setPin] = useState('')
+  const [confirm, setConfirm] = useState('')
+  const save = useSave()
+
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { api.get('/account/pin').then((res) => setStatus(res.data)).catch(() => {}) }, [])
+
+  const send = (e, newPin, message) => save.run(e, async () => {
+    const { data } = await api.put('/account/pin', { currentPassword, pin: newPin })
+    setStatus(data)
+    setCurrentPassword('')
+    setPin('')
+    setConfirm('')
+  }, message)
+
+  const submit = (e) => {
+    if (pin !== confirm) {
+      e.preventDefault()
+      save.fail('The PINs do not match.')
+      return
+    }
+    send(e, pin, status?.set ? 'PIN changed.' : 'PIN set. Use it to show costs and margins on the Products page.')
+  }
+  const remove = (e) => {
+    if (!currentPassword) {
+      save.fail('Enter your current password to remove the PIN.')
+      return
+    }
+    send(e, null, 'PIN removed.')
+  }
+  const digits = (setter) => (e) => setter(e.target.value.replace(/\D/g, ''))
+
+  return (
+    <form className="card" onSubmit={submit}>
+      <h2>PIN for costs</h2>
+      <p className="hint">
+        {status?.set
+          ? (status.locked ? 'Your PIN is locked after too many wrong tries - enter your password once on the Products page, or set a new PIN here.'
+            : 'You have a PIN. It is stored securely and cannot be shown - you can change or remove it.')
+          : 'A 4 to 6 digit PIN you can type instead of your password to show cost prices and margins.'}
+      </p>
+      <label>Current password
+        <input required type="password" autoComplete="current-password" value={currentPassword}
+               onChange={(e) => setCurrentPassword(e.target.value)} />
+        <span className="hint">Needed to set, change or remove the PIN.</span>
+      </label>
+      <label>{status?.set ? 'New PIN' : 'PIN'}
+        <input required type="password" inputMode="numeric" autoComplete="new-password" minLength={4} maxLength={6}
+               pattern="\d{4,6}" title="4 to 6 digits" value={pin} onChange={digits(setPin)} />
+        <span className="hint">4 to 6 digits.</span>
+      </label>
+      <label>Confirm PIN
+        <input required type="password" inputMode="numeric" autoComplete="new-password" minLength={4} maxLength={6}
+               pattern="\d{4,6}" title="4 to 6 digits" value={confirm} onChange={digits(setConfirm)} />
+      </label>
+      <Feedback save={save} />
+      <div className="actions">
+        {status?.set && (
+          <button type="button" className="btn secondary" disabled={save.busy} onClick={remove}>Remove PIN</button>
+        )}
+        <button className="btn" disabled={save.busy}>{save.busy ? 'Saving…' : status?.set ? 'Change PIN' : 'Set PIN'}</button>
+      </div>
+    </form>
+  )
+}
+
 export default function Settings() {
   const { user, setSession } = useAuth()
   return (
@@ -169,6 +241,7 @@ export default function Settings() {
         {user.role === 'OWNER' && <BusinessCard user={user} setSession={setSession} />}
         <ProfileCard user={user} setSession={setSession} />
         <PasswordCard />
+        {seesFinancials(user) && <PinCard />}
       </div>
     </section>
   )

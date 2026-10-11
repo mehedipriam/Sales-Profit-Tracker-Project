@@ -2,6 +2,8 @@ package com.salestracker.account;
 
 import com.salestracker.account.AccountDtos.BusinessRequest;
 import com.salestracker.account.AccountDtos.PasswordRequest;
+import com.salestracker.account.AccountDtos.PinRequest;
+import com.salestracker.account.AccountDtos.PinStatus;
 import com.salestracker.account.AccountDtos.ProfileRequest;
 import com.salestracker.account.AccountDtos.VerifyPasswordRequest;
 import com.salestracker.auth.AuthDtos.AuthResponse;
@@ -34,11 +36,26 @@ public class AccountController {
         service.changePassword(user, req);
     }
 
-    /** 204 when the password is the signed-in user's own; 400 otherwise (not 401, which would sign them out). */
+    /**
+     * Takes the login password or the PIN: 204 when it is the signed-in user's own; 400 otherwise (not 401, which
+     * would sign them out).
+     */
     @PostMapping("/verify-password")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void verifyPassword(@AuthenticationPrincipal AuthUser user, @Valid @RequestBody VerifyPasswordRequest req) {
+    public void verifyPassword(@AuthenticationPrincipal AuthUser user, @RequestBody VerifyPasswordRequest req) {
         service.verifyPassword(user, req);
+    }
+
+    /** Whether the user has a PIN (never the PIN itself, which is stored hashed) and whether wrong guesses locked it. */
+    @GetMapping("/pin")
+    public PinStatus pinStatus(@AuthenticationPrincipal AuthUser user) {
+        return service.pinStatus(user);
+    }
+
+    /** Sets, changes or (with a null pin) removes the PIN; the login password is required either way. */
+    @PutMapping("/pin")
+    public PinStatus changePin(@AuthenticationPrincipal AuthUser user, @Valid @RequestBody PinRequest req) {
+        return service.changePin(user, req);
     }
 
     @PutMapping("/business")

@@ -98,34 +98,64 @@ function ProductForm({ product, categories, showMoney, costHidden, onSaved, onCa
   )
 }
 
-// Asks for the signed-in user's login password before costs or margins are shown.
+// Asks for the signed-in user's login password, or their PIN if they set one, before costs or margins are shown.
+// Only one is sent: typing in either box disables the other.
 function RevealPrompt({ what, onRevealed, onCancel }) {
   const [password, setPassword] = useState('')
+  const [pin, setPin] = useState('')
+  const [pinStatus, setPinStatus] = useState(null) // { set, locked } once loaded
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+
+  const loadPin = () => api.get('/account/pin').then((res) => setPinStatus(res.data)).catch(() => {})
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { loadPin() }, [])
+
+  const pinUsable = pinStatus?.set && !pinStatus.locked
+  const pinNote = !pinStatus ? '' : !pinStatus.set ? 'No PIN yet - set one in Settings'
+    : pinStatus.locked ? 'Locked after wrong tries - use your password' : ''
 
   const submit = async (e) => {
     e.preventDefault()
     setError('')
+    if (!password && !pin) {
+      setError('Enter your password or your PIN.')
+      return
+    }
     setBusy(true)
     try {
-      await api.post('/account/verify-password', { password })
+      await api.post('/account/verify-password', password ? { password } : { pin })
       onRevealed()
     } catch (err) {
       setError(errorMessage(err))
       setPassword('')
+      setPin('')
       setBusy(false)
+      if (pin) loadPin() // a wrong PIN may have just locked it
     }
   }
 
   return (
     <form className="form" onSubmit={submit}>
-      <label>
-        Your password
-        <input required autoFocus type="password" autoComplete="current-password" value={password}
-               onChange={(e) => setPassword(e.target.value)} />
-        <span className="hint">{what === 'costs' ? 'Cost prices stay' : 'Margins stay'} hidden until you enter the password you log in with.</span>
-      </label>
+      <div className="unlock-row">
+        <label>
+          Your password
+          <input autoFocus type="password" autoComplete="current-password" value={password} disabled={!!pin}
+                 onChange={(e) => setPassword(e.target.value)} />
+        </label>
+        <span className="unlock-or">or</span>
+        <label>
+          PIN
+          <input type="password" inputMode="numeric" autoComplete="off" maxLength={6} value={pin}
+                 disabled={!pinUsable || !!password} placeholder={pinUsable ? '4-6 digits' : ''}
+                 title={pinNote || undefined}
+                 onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))} />
+        </label>
+      </div>
+      <span className="hint">
+        {what === 'costs' ? 'Cost prices stay' : 'Margins stay'} hidden until you enter the password you log in with
+        or your PIN.{pinNote && <> {pinNote}.</>}
+      </span>
       {error && <p className="error" role="alert">{error}</p>}
       <div className="actions">
         <button type="button" className="btn secondary" onClick={onCancel}>Cancel</button>

@@ -81,6 +81,40 @@ class AccountIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void aPinCanStandInForThePasswordOnceSetWithThePassword() throws Exception {
+        assertFalse(get(owner, "/api/account/pin", 200).get("set").asBoolean());
+        post(owner, "/api/account/verify-password", "{\"pin\":\"1234\"}", 400); // none set yet
+
+        put(owner, "/api/account/pin", "{\"currentPassword\":\"wrong-pass\",\"pin\":\"1234\"}", 400);
+        put(owner, "/api/account/pin", "{\"currentPassword\":\"password123\",\"pin\":\"12\"}", 400);
+        put(owner, "/api/account/pin", "{\"currentPassword\":\"password123\",\"pin\":\"12ab\"}", 400);
+        assertTrue(put(owner, "/api/account/pin", "{\"currentPassword\":\"password123\",\"pin\":\"1234\"}", 200)
+                .get("set").asBoolean());
+
+        post(owner, "/api/account/verify-password", "{\"pin\":\"1234\"}", 204);
+        post(owner, "/api/account/verify-password", "{\"pin\":\"9999\"}", 400);
+        post(owner, "/api/account/verify-password", "{\"password\":\"password123\",\"pin\":\"1234\"}", 400); // one, not both
+
+        assertFalse(put(owner, "/api/account/pin", "{\"currentPassword\":\"password123\",\"pin\":null}", 200)
+                .get("set").asBoolean());
+        post(owner, "/api/account/verify-password", "{\"pin\":\"1234\"}", 400);
+    }
+
+    @Test
+    void fiveWrongPinsLockThePinUntilThePasswordIsUsed() throws Exception {
+        put(owner, "/api/account/pin", "{\"currentPassword\":\"password123\",\"pin\":\"482915\"}", 200);
+        for (int i = 0; i < AccountService.PIN_TRIES; i++) {
+            post(owner, "/api/account/verify-password", "{\"pin\":\"000000\"}", 400);
+        }
+        assertTrue(get(owner, "/api/account/pin", 200).get("locked").asBoolean());
+        post(owner, "/api/account/verify-password", "{\"pin\":\"482915\"}", 400); // even the right one
+
+        post(owner, "/api/account/verify-password", "{\"password\":\"password123\"}", 204);
+        assertFalse(get(owner, "/api/account/pin", 200).get("locked").asBoolean());
+        post(owner, "/api/account/verify-password", "{\"pin\":\"482915\"}", 204);
+    }
+
+    @Test
     void theOwnerRenamesTheBusinessButStaffCannot() throws Exception {
         assertEquals("BDT", get(owner, "/api/auth/me", 200).get("currency").asText()); // the default
         JsonNode info = put(owner, "/api/account/business", "{\"name\":\" Rina's Store \",\"currency\":\"usd\"}", 200);

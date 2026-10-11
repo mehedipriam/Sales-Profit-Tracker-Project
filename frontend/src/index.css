@@ -814,4 +814,9 @@ table.striped thead th.hide-col, td.masked.hide-col { text-align: center; }
 table.striped thead th.hide-col { padding-left: 1.75rem; padding-right: 1.75rem; } /* room for the eye on both sides keeps the centre */
 .hide-head { position: relative; }
 .hide-head .reveal { position: absolute; left: 100%; top: 50%; transform: translateY(-50%); margin-left: 0.25rem; }
+/* Unlock prompt: the password takes about two thirds of the row and the PIN the rest; either one is enough. */
+.unlock-row { display: grid; grid-template-columns: 13fr auto 7fr; gap: 0.6rem; align-items: end; }
+.unlock-row > label { min-width: 0; }
+.unlock-or { padding-bottom: 0.6rem; color: var(--muted); font-size: 0.85rem; }
+@media (max-width: 480px) { .unlock-row { grid-template-columns: 1fr; } .unlock-or { padding: 0; text-align: center; } }
 .masked.hide-col { text-indent: 0.12em; } /* balance the trailing letter-spacing after the last dot */

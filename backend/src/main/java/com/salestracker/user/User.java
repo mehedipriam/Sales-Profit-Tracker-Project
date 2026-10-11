@@ -19,6 +19,13 @@ public class User implements TenantOwned {
     @Column(name = "password_hash", nullable = false)
     private String passwordHash;
 
+    /** Null when the user has not set a PIN. */
+    @Column(name = "pin_hash")
+    private String pinHash;
+
+    @Column(name = "pin_failures", nullable = false)
+    private int pinFailures;
+
     @Column(name = "full_name", nullable = false)
     private String fullName;
 
@@ -42,6 +49,10 @@ public class User implements TenantOwned {
     public void rename(String fullName) { this.fullName = fullName; }
     public void changeEmail(String email) { this.email = email; }
     public void changePassword(String passwordHash) { this.passwordHash = passwordHash; }
+    /** Setting, changing or removing (null) the PIN also clears any lock from wrong guesses. */
+    public void changePin(String pinHash) { this.pinHash = pinHash; this.pinFailures = 0; }
+    public void pinFailed() { this.pinFailures++; }
+    public void pinSucceeded() { this.pinFailures = 0; }
     public void changeRole(Role role) { this.role = role; }
     public void deactivate() { this.active = false; }
 
@@ -49,6 +60,8 @@ public class User implements TenantOwned {
     @Override public Long getTenantId() { return tenantId; }
     public String getEmail() { return email; }
     public String getPasswordHash() { return passwordHash; }
+    public String getPinHash() { return pinHash; }
+    public int getPinFailures() { return pinFailures; }
     public String getFullName() { return fullName; }
     public Role getRole() { return role; }
     public boolean isActive() { return active; }

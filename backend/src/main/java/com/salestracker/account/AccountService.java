@@ -2,6 +2,8 @@ package com.salestracker.account;
 
 import com.salestracker.account.AccountDtos.BusinessRequest;
 import com.salestracker.account.AccountDtos.PasswordRequest;
+import com.salestracker.account.AccountDtos.PinRequest;
+import com.salestracker.account.AccountDtos.PinStatus;
 import com.salestracker.account.AccountDtos.ProfileRequest;
 import com.salestracker.account.AccountDtos.VerifyPasswordRequest;
 import com.salestracker.auth.ApiException;
@@ -28,6 +30,9 @@ import java.util.Currency;
 @Service
 @Transactional
 public class AccountService {
+    /** Wrong PINs in a row before the PIN stops working until the login password is entered. */
+    static final int PIN_TRIES = 5;
+
     private final UserRepository users;
     private final TenantRepository tenants;
     private final PasswordEncoder encoder;
@@ -62,12 +67,52 @@ public class AccountService {
         user.changePassword(encoder.encode(req.newPassword()));
     }
 
-    @Transactional(readOnly = true)
+    /**
+     * Checks the login password or the PIN. A wrong PIN is counted (so the transaction must not roll back on the
+     * error); after {@link #PIN_TRIES} in a row only the password works, and a correct password lifts that lock.
+     */
+    @Transactional(noRollbackFor = ApiException.class)
     public void verifyPassword(AuthUser principal, VerifyPasswordRequest req) {
         User user = current(principal);
-        if (!encoder.matches(req.password(), user.getPasswordHash())) {
-            throw new ApiException(HttpStatus.BAD_REQUEST, "Incorrect password");
+        boolean byPassword = req.password() != null && !req.password().isEmpty();
+        boolean byPin = req.pin() != null && !req.pin().isEmpty();
+        if (byPassword == byPin) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "Enter your password or your PIN");
         }
+        if (byPassword) {
+            if (!encoder.matches(req.password(), user.getPasswordHash())) {
+                throw new ApiException(HttpStatus.BAD_REQUEST, "Incorrect password");
+            }
+            user.pinSucceeded();
+            return;
+        }
+        if (user.getPinHash() == null) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "You have not set a PIN - set one in Settings");
+        }
+        if (user.getPinFailures() >= PIN_TRIES) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "Too many wrong PINs - enter your password instead");
+        }
+        if (!encoder.matches(req.pin(), user.getPinHash())) {
+            user.pinFailed();
+            int left = PIN_TRIES - user.getPinFailures();
+            throw new ApiException(HttpStatus.BAD_REQUEST, left > 0
+                    ? "Incorrect PIN (%d %s left)".formatted(left, left == 1 ? "try" : "tries")
+                    : "Too many wrong PINs - enter your password instead");
+        }
+        user.pinSucceeded();
+    }
+
+    @Transactional(readOnly = true)
+    public PinStatus pinStatus(AuthUser principal) {
+        User user = current(principal);
+        return new PinStatus(user.getPinHash() != null, user.getPinFailures() >= PIN_TRIES);
+    }
+
+    public PinStatus changePin(AuthUser principal, PinRequest req) {
+        User user = current(principal);
+        checkPassword(user, req.currentPassword());
+        user.changePin(req.pin() == null ? null : encoder.encode(req.pin()));
+        return new PinStatus(req.pin() != null, false);
     }
 
     public UserInfo renameBusiness(AuthUser principal, BusinessRequest req) {
