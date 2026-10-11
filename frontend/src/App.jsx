@@ -3,6 +3,7 @@ import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import { AuthProvider } from './auth/AuthContext'
 import OwnerRoute from './auth/OwnerRoute'
 import ProtectedRoute from './auth/ProtectedRoute'
+import { RevealProvider } from './components/Reveal'
 import Layout from './layout/Layout'
 import Activity from './pages/Activity'
 import AuthForm from './pages/AuthForm'
@@ -27,33 +28,35 @@ export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <Routes>
-          <Route path="/login" element={<AuthForm mode="login" />} />
-          <Route path="/register" element={<AuthForm mode="register" />} />
-          <Route element={<ProtectedRoute />}>
-            <Route element={<Layout />}>
-              <Route path="/products" element={<Products />} />
-              <Route path="/stock" element={<Stock />} />
-              <Route path="/customers" element={<Customers />} />
-              <Route path="/orders" element={<Orders />} />
-              <Route path="/orders/new" element={<OrderForm />} />
-              <Route path="/orders/:id" element={<OrderForm />} />
-              <Route path="/orders/:id/invoice" element={<Invoice />} />
-              <Route path="/platforms" element={<Platforms />} />
-              <Route path="/couriers" element={<Couriers />} />
-              <Route path="/settings" element={<Settings />} />
-              {/* Owner/Admin only: Staff never lands here, the api enforces it either way. */}
-              <Route element={<OwnerRoute />}>
-                <Route path="/" element={<Dashboard />} />
-                <Route path="/expenses" element={<Expenses />} />
-                <Route path="/statement" element={<Statement />} />
-                <Route path="/team" element={<Team />} />
-                <Route path="/activity" element={<Activity />} />
-                <Route path="/reports" element={<Suspense fallback={<p className="center-note">Loading…</p>}><Reports /></Suspense>} />
+        <RevealProvider>
+          <Routes>
+            <Route path="/login" element={<AuthForm mode="login" />} />
+            <Route path="/register" element={<AuthForm mode="register" />} />
+            <Route element={<ProtectedRoute />}>
+              <Route element={<Layout />}>
+                <Route path="/products" element={<Products />} />
+                <Route path="/stock" element={<Stock />} />
+                <Route path="/customers" element={<Customers />} />
+                <Route path="/orders" element={<Orders />} />
+                <Route path="/orders/new" element={<OrderForm />} />
+                <Route path="/orders/:id" element={<OrderForm />} />
+                <Route path="/orders/:id/invoice" element={<Invoice />} />
+                <Route path="/platforms" element={<Platforms />} />
+                <Route path="/couriers" element={<Couriers />} />
+                <Route path="/settings" element={<Settings />} />
+                {/* Owner/Admin only: Staff never lands here, the api enforces it either way. */}
+                <Route element={<OwnerRoute />}>
+                  <Route path="/" element={<Dashboard />} />
+                  <Route path="/expenses" element={<Expenses />} />
+                  <Route path="/statement" element={<Statement />} />
+                  <Route path="/team" element={<Team />} />
+                  <Route path="/activity" element={<Activity />} />
+                  <Route path="/reports" element={<Suspense fallback={<p className="center-note">Loading…</p>}><Reports /></Suspense>} />
+                </Route>
               </Route>
             </Route>
-          </Route>
-        </Routes>
+          </Routes>
+        </RevealProvider>
       </AuthProvider>
     </BrowserRouter>
   )

@@ -4,6 +4,7 @@ import api, { errorMessage } from '../api/client'
 import { useAuth } from '../auth/AuthContext'
 import { seesFinancials } from '../auth/roles'
 import Pager from '../components/Pager'
+import { EyeHead, MASK, useReveal } from '../components/Reveal'
 import RangePicker from '../components/RangePicker'
 import Tracking from '../components/Tracking'
 import { resolveRange } from '../utils/dateRange'
@@ -12,6 +13,8 @@ import { STATUSES, STATUS_LABEL, dateTime, money } from '../utils/format'
 export default function Orders() {
   const { user } = useAuth()
   const showMoney = seesFinancials(user)
+  // Cost and profit each have their own eye, like on Products.
+  const { shown, eye, prompt } = useReveal()
   // Set by the order count on the Customers page: that customer's orders only.
   const [params, setParams] = useSearchParams()
   const customerId = params.get('customerId') ?? ''
@@ -98,7 +101,10 @@ export default function Orders() {
             <tr>
               <th>#</th><th>Date</th><th>Customer</th><th>Platform / courier</th><th className="num">Items</th>
               <th className="num">Revenue</th>
-              {showMoney && <><th className="num">Cost</th><th className="num">Profit</th></>}
+              {showMoney && <>
+                <th className="num hide-col"><EyeHead eye={eye('cost', 'costs')}>Cost</EyeHead></th>
+                <th className="num hide-col"><EyeHead eye={eye('profit', 'profits')}>Profit</EyeHead></th>
+              </>}
               <th>Status</th>
             </tr>
           </thead>
@@ -123,8 +129,10 @@ export default function Orders() {
                 <td className="num">{o.itemCount}</td>
                 <td className="num">{money(o.revenue)}</td>
                 {showMoney && <>
-                  <td className="num">{money(o.cost)}</td>
-                  <td className={`num ${o.profit < 0 ? 'neg' : 'pos'}`}>{money(o.profit)}</td>
+                  {shown.cost ? <td className="num">{money(o.cost)}</td> : <td className="num masked hide-col">{MASK}</td>}
+                  {shown.profit
+                    ? <td className={`num ${o.profit < 0 ? 'neg' : 'pos'}`}>{money(o.profit)}</td>
+                    : <td className="num masked hide-col">{MASK}</td>}
                 </>}
                 <td>
                   <select className={`status ${o.status}`} value={o.status} aria-label={`Status of order ${o.id}`}
@@ -148,6 +156,7 @@ export default function Orders() {
         </table>
       </div>
       <Pager data={data} onPage={setPage} />
+      {prompt}
     </section>
   )
 }

@@ -4,6 +4,7 @@ import api, { errorMessage } from '../api/client'
 import { useAuth } from '../auth/AuthContext'
 import { seesFinancials } from '../auth/roles'
 import AsyncPicker from '../components/AsyncPicker'
+import { EyeHead, MASK, useReveal } from '../components/Reveal'
 import useDebounce from '../hooks/useDebounce'
 import { EXPENSE_LABEL, EXPENSE_TYPES, STATUSES, STATUS_LABEL, money, toLocalInput } from '../utils/format'
 
@@ -43,6 +44,8 @@ const newExpense = (type = 'DELIVERY') => ({ key: ++expenseKey, type, amount: ''
 export default function OrderForm() {
   const { user } = useAuth()
   const showMoney = seesFinancials(user)
+  // Cost and profit figures are masked until shown with their eye; the order still adds up and saves as normal.
+  const { shown, eye, prompt } = useReveal()
   const { id } = useParams()
   const editing = Boolean(id)
   const navigate = useNavigate()
@@ -344,7 +347,10 @@ export default function OrderForm() {
                 <table>
                   <thead>
                     <tr><th>Product</th><th className="num">Qty</th><th className="num">Sold price</th>
-                        {showMoney && <><th className="num">Cost</th><th className="num">Line profit</th></>}<th /></tr>
+                        {showMoney && <>
+                          <th className="num hide-col"><EyeHead eye={eye('cost', 'costs')}>Cost</EyeHead></th>
+                          <th className="num hide-col"><EyeHead eye={eye('profit', 'profits')}>Line profit</EyeHead></th>
+                        </>}<th /></tr>
                   </thead>
                   <tbody>
                     {lines.map((l) => (
@@ -359,8 +365,12 @@ export default function OrderForm() {
                                  value={l.soldPrice} onChange={(e) => updateLine(l.key, { soldPrice: e.target.value })} />
                         </td>
                         {showMoney && <>
-                          <td className="num muted">{money(l.cost)}</td>
-                          <td className={`num ${lineProfit(l) < 0 ? 'neg' : 'pos'}`}><b>{money(lineProfit(l))}</b></td>
+                          {shown.cost
+                            ? <td className="num muted">{money(l.cost)}</td>
+                            : <td className="num masked hide-col">{MASK}</td>}
+                          {shown.profit
+                            ? <td className={`num ${lineProfit(l) < 0 ? 'neg' : 'pos'}`}><b>{money(lineProfit(l))}</b></td>
+                            : <td className="num masked hide-col">{MASK}</td>}
                         </>}
                         <td className="row-actions">
                           <button type="button" className="icon-btn" aria-label={`Remove ${l.name}`} title="Remove"
@@ -496,21 +506,31 @@ export default function OrderForm() {
             <h2 className="of-title">Summary</h2>
             <dl className="sum-rows">
               <div><dt>Revenue</dt><dd>{money(revenue)}</dd></div>
-              {showMoney && <div><dt>Cost</dt><dd>{money(cost)}</dd></div>}
+              {showMoney && (
+                <div><dt>Cost{eye('cost', 'costs')}</dt><dd className={shown.cost ? '' : 'masked'}>{shown.cost ? money(cost) : MASK}</dd></div>
+              )}
               {delivery > 0 && <div className="sum-strong"><dt>Customer pays</dt><dd>{money(customerPays)}</dd></div>}
               {courierId && <div><dt>Courier collects</dt><dd>{money(collects)}</dd></div>}
             </dl>
             {showMoney && (
               <>
                 <dl className="sum-rows">
-                  <div><dt>Gross profit</dt><dd className={profit < 0 ? 'neg' : ''}>{money(profit)}</dd></div>
+                  <div>
+                    <dt>Gross profit{eye('profit', 'profits')}</dt>
+                    {shown.profit
+                      ? <dd className={profit < 0 ? 'neg' : ''}>{money(profit)}</dd>
+                      : <dd className="masked">{MASK}</dd>}
+                  </div>
                   {delivery > 0 && <div><dt>+ Delivery charge</dt><dd>{money(delivery)}</dd></div>}
                   <div><dt>− Expenses</dt><dd>{money(expenseTotal)}</dd></div>
                 </dl>
-                <div className={`profit-box ${netProfit < 0 ? 'neg' : 'pos'}`}>
-                  <span>Net profit</span>
-                  <b>{money(netProfit)}</b>
-                  {revenue > 0 && <small>{Math.round((netProfit / revenue) * 100)}% of revenue · gross margin {margin}%</small>}
+                {/* While hidden the box stays neutral, since its green or red would give away a loss. */}
+                <div className={`profit-box ${!shown.profit ? 'masked-box' : netProfit < 0 ? 'neg' : 'pos'}`}>
+                  <span>Net profit{eye('profit', 'profits')}</span>
+                  <b>{shown.profit ? money(netProfit) : MASK}</b>
+                  {shown.profit && revenue > 0 && (
+                    <small>{Math.round((netProfit / revenue) * 100)}% of revenue · gross margin {margin}%</small>
+                  )}
                 </div>
               </>
             )}
@@ -526,6 +546,8 @@ export default function OrderForm() {
           </div>
         </aside>
       </form>
+      {/* Outside the order form: the prompt is a form of its own. */}
+      {prompt}
     </section>
   )
 }

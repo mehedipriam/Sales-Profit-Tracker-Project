@@ -799,19 +799,19 @@ table.striped tbody tr.picked td { background: var(--primary-soft); }
 .crash h2 { margin-top: 0; }
 .crash-detail { font-family: monospace; font-size: 0.82rem; background: var(--surface-3); padding: 0.5rem 0.75rem; border-radius: 6px; overflow-wrap: anywhere; }
 
-/* Cost and margin are masked until the user re-enters their password (Products page). */
+/* Cost and profit figures are masked until the user re-enters their password or PIN (Products, Orders, order form). */
 .reveal {
   display: inline-grid; place-items: center; vertical-align: text-bottom; margin-left: 0.3rem; padding: 0 0.1rem;
   border: 0; border-radius: 4px; background: transparent; color: inherit; cursor: pointer; opacity: 0.85;
 }
-.reveal:hover { opacity: 1; background: rgba(255, 255, 255, 0.15); }
+.reveal:hover { opacity: 1; background: color-mix(in srgb, currentColor 15%, transparent); }
 .reveal:focus-visible { outline: 2px solid currentColor; outline-offset: 1px; }
 .reveal svg { width: 16px; height: 16px; }
 .masked { color: var(--muted); letter-spacing: 0.12em; }
-/* The Cost and Margin headings (each with its eye) sit centred over the column, and so do the masked dots under it. */
-table.striped thead th.hide-col, td.masked.hide-col { text-align: center; }
+/* A masked column's heading (with its eye) sits centred over the column, and so do the masked dots under it. */
+thead th.hide-col, td.masked.hide-col { text-align: center; }
 /* Only the word is centred; the eye hangs just to its right so it doesn't pull the word off-centre. */
-table.striped thead th.hide-col { padding-left: 1.75rem; padding-right: 1.75rem; } /* room for the eye on both sides keeps the centre */
+thead th.hide-col { padding-left: 1.75rem; padding-right: 1.75rem; } /* room for the eye on both sides keeps the centre */
 .hide-head { position: relative; }
 .hide-head .reveal { position: absolute; left: 100%; top: 50%; transform: translateY(-50%); margin-left: 0.25rem; }
 /* Unlock prompt: the password takes about two thirds of the row and the PIN the rest; either one is enough. */
@@ -820,3 +820,6 @@ table.striped thead th.hide-col { padding-left: 1.75rem; padding-right: 1.75rem;
 .unlock-or { padding-bottom: 0.6rem; color: var(--muted); font-size: 0.85rem; }
 @media (max-width: 480px) { .unlock-row { grid-template-columns: 1fr; } .unlock-or { padding: 0; text-align: center; } }
 .masked.hide-col { text-indent: 0.12em; } /* balance the trailing letter-spacing after the last dot */
+/* The order form's net profit box goes neutral while hidden: green or red would give away a loss. */
+.profit-box.masked-box { background: var(--surface-3); color: var(--muted); }
+.profit-box .reveal svg, .sum-rows .reveal svg { width: 15px; height: 15px; }
