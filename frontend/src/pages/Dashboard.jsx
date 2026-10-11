@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import api, { errorMessage } from '../api/client'
 import { useAuth } from '../auth/AuthContext'
 import NetHero from '../components/NetHero'
+import { MASK, useReveal } from '../components/Reveal'
 import Stat from '../components/Stat'
 import {
   BoxIcon, CancelIcon, ChartIcon, ClockIcon, ReceiptIcon, ReturnIcon, TrendUpIcon, TruckIcon, WalletIcon,
@@ -16,6 +17,9 @@ export default function Dashboard() {
   // Guided first-run flow: platforms already exist (seeded at registration), so the one real gap for a
   // brand new workspace is having no products yet to actually sell.
   const [productCount, setProductCount] = useState(null)
+  // One eye for the whole page: every money figure stays masked until it is shown. Counts are left visible.
+  const { shown, eye, prompt } = useReveal()
+  const show = !!shown.all
 
   useEffect(() => {
     api.get('/dashboard').then((res) => setData(res.data)).catch((err) => setError(errorMessage(err)))
@@ -26,12 +30,19 @@ export default function Dashboard() {
   if (!data) return <p className="center-note">Loading…</p>
 
   const { realized, pending, returnedOrders, cancelledOrders, withCouriers, recentOrders, lowStock, expenses, netProfit } = data
-  const tone = (n) => (n < 0 ? 'neg' : 'pos')
+  // While hidden, no green or red and no "loss" wording either, since those would give the figures away.
+  const tone = (n) => (!show ? 'masked' : n < 0 ? 'neg' : 'pos')
+  const plain = show ? '' : 'masked' // figures that are never red or green
+  const m = (n) => (show ? money(n) : MASK)
+  const loss = show && realized.profit < 0
   const noOrders = recentOrders.length === 0
 
   return (
     <section>
-      <h1>Welcome, {user.fullName}</h1>
+      <div className="page-head">
+        <h1>Welcome, {user.fullName}</h1>
+        <span className="page-eye">{show ? 'Hide' : 'Show'} figures{eye('all', 'figures')}</span>
+      </div>
 
       {productCount === 0 && (
         <div className="alert-card getting-started">
@@ -44,24 +55,24 @@ export default function Dashboard() {
       )}
 
       <h2 className="section-title">All-time results <span className="muted">(paid orders)</span></h2>
-      <NetHero realized={realized} expenses={expenses} netProfit={netProfit} />
+      <NetHero realized={realized} expenses={expenses} netProfit={netProfit} hidden={!show} />
 
       <div className="stats kpis">
-        <Stat label="Revenue" value={money(realized.revenue)} hint={`${realized.orders} paid orders`}
+        <Stat label="Revenue" value={m(realized.revenue)} tone={plain} hint={`${realized.orders} paid orders`}
               icon={<TrendUpIcon />} accent="blue" />
-        <Stat label="Cost of goods" value={money(realized.cost)} hint="what the stock cost you"
+        <Stat label="Cost of goods" value={m(realized.cost)} tone={plain} hint="what the stock cost you"
               icon={<BoxIcon />} accent="slate" />
         <Stat
-          label={realized.profit < 0 ? 'Gross loss' : 'Gross profit'}
-          value={money(realized.profit)}
+          label={loss ? 'Gross loss' : 'Gross profit'}
+          value={m(realized.profit)}
           tone={tone(realized.profit)}
           hint="revenue − cost"
           icon={<ChartIcon />}
-          accent={realized.profit < 0 ? 'red' : 'green'}
+          accent={!show ? 'slate' : loss ? 'red' : 'green'}
         />
-        <Stat label="Delivery charged" value={money(realized.delivery)} hint="paid by customers"
+        <Stat label="Delivery charged" value={m(realized.delivery)} tone={plain} hint="paid by customers"
               icon={<TruckIcon />} accent="teal" />
-        <Stat label="Expenses" value={money(expenses)} hint="delivery, commission, ads…"
+        <Stat label="Expenses" value={m(expenses)} tone={plain} hint="delivery, commission, ads…"
               icon={<ReceiptIcon />} accent="violet" />
       </div>
 
@@ -69,15 +80,16 @@ export default function Dashboard() {
       <div className="stats kpis">
         <Stat
           label="Pending (expected)"
-          value={money(pending.profit)}
+          value={m(pending.profit)}
           tone={tone(pending.profit)}
-          hint={`${pending.orders} unpaid orders · ${money(pending.revenue)} revenue, e.g. cash on delivery`}
+          hint={`${pending.orders} unpaid orders · ${m(pending.revenue)} revenue, e.g. cash on delivery`}
           icon={<ClockIcon />}
           accent="amber"
         />
         <Stat
           label="Cash with couriers"
-          value={money(withCouriers.amount)}
+          value={m(withCouriers.amount)}
+          tone={plain}
           hint={<>{withCouriers.orders} delivered order{withCouriers.orders === 1 ? '' : 's'} not paid out yet · <Link to="/couriers">see payouts</Link></>}
           icon={<WalletIcon />}
           accent="blue"
@@ -122,8 +134,8 @@ export default function Dashboard() {
                 <td>{dateTime(o.orderedAt)}</td>
                 <td>{o.customerName}</td>
                 <td>{o.platformName}</td>
-                <td className="num">{money(o.revenue)}</td>
-                <td className={`num ${tone(o.profit)}`}>{money(o.profit)}</td>
+                <td className={`num ${plain}`}>{m(o.revenue)}</td>
+                <td className={`num ${tone(o.profit)}`}>{m(o.profit)}</td>
                 <td><span className={`badge ${o.status}`}>{STATUS_LABEL[o.status]}</span></td>
               </tr>
             ))}
@@ -134,6 +146,7 @@ export default function Dashboard() {
         </table>
       </div>
       {!noOrders && <p><Link to="/orders">View all orders →</Link></p>}
+      {prompt}
     </section>
   )
 }

@@ -823,3 +823,7 @@ thead th.hide-col { padding-left: 1.75rem; padding-right: 1.75rem; } /* room for
 /* The order form's net profit box goes neutral while hidden: green or red would give away a loss. */
 .profit-box.masked-box { background: var(--surface-3); color: var(--muted); }
 .profit-box .reveal svg, .sum-rows .reveal svg { width: 15px; height: 15px; }
+/* Dashboard: one eye beside the heading masks every money figure on the page. */
+.page-eye { display: inline-flex; align-items: center; color: var(--muted); font-size: 0.85rem; white-space: nowrap; }
+.page-eye .reveal svg { width: 20px; height: 20px; }
+.net-hero-value.masked { color: inherit; opacity: 0.8; }
