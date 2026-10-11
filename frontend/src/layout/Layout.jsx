@@ -3,6 +3,7 @@ import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 import { ROLE_LABELS, seesFinancials } from '../auth/roles'
 import ErrorBoundary from '../components/ErrorBoundary'
+import { MasterEye } from '../components/Reveal'
 import ThemeToggle from '../components/ThemeToggle'
 import { logoUrl } from '../components/logo'
 import { currencySymbol } from '../utils/format'
@@ -99,6 +100,7 @@ export default function Layout() {
           ]} />
         </nav>
         <div className="account">
+          {showMoney && <MasterEye />}
           <ThemeToggle />
           <NavLink className="who" to="/settings" title="Store name, profile and password">
             <span className="who-store">{user.businessName}</span>

@@ -7,15 +7,16 @@ import ShareBars from '../components/charts/ShareBars'
 import TrendChart from '../components/charts/TrendChart'
 import Change from '../components/Change'
 import RangePicker from '../components/RangePicker'
+import { MASK, useReveal } from '../components/Reveal'
 import NetHero from '../components/NetHero'
 import Stat from '../components/Stat'
 import {
   BoxIcon, CancelIcon, ChartIcon, ClockIcon, ReceiptIcon, ReturnIcon, TrendUpIcon, TruckIcon,
 } from '../components/icons'
 import { describeRange, previousRange, resolveRange } from '../utils/dateRange'
-import { EXPENSE_LABEL, money } from '../utils/format'
+import { EXPENSE_LABEL, money as fmt } from '../utils/format'
 
-const pct = (part, whole) => (Number(whole) > 0 ? `${((Number(part) / Number(whole)) * 100).toFixed(1)}%` : '—')
+const pctOf = (part, whole) => (Number(whole) > 0 ? `${((Number(part) / Number(whole)) * 100).toFixed(1)}%` : '—')
 
 export default function Reports() {
   const { user } = useAuth()
@@ -24,6 +25,10 @@ export default function Reports() {
   const [platforms, setPlatforms] = useState([])
   const [data, setData] = useState(null) // last good { key, summary, trend, products, previous }
   const [failure, setFailure] = useState(null) // { key, message }
+  // One eye for the whole page: every money figure, margin and comparison stays masked, and the charts and product
+  // lists are left out, until it is shown. Counts are left visible.
+  const { shown, eye, prompt } = useReveal()
+  const show = !!shown.all
 
   const resolved = useMemo(() => resolveRange(range), [range])
   const prior = useMemo(() => previousRange(range), [range])
@@ -56,14 +61,19 @@ export default function Reports() {
     return () => { live = false }
   }, [key, resolved.from, resolved.to, resolved.error, platformId, prior])
 
-  const tone = (n) => (n < 0 ? 'neg' : 'pos')
+  // While hidden: dots instead of amounts, and no green, red or "loss" wording, since those would give them away.
+  const money = (n) => (show ? fmt(n) : MASK)
+  const pct = (part, whole) => (show ? pctOf(part, whole) : MASK)
+  const tone = (n) => (!show ? 'masked' : n < 0 ? 'neg' : 'pos')
+  const plain = show ? '' : 'masked'
+  const neg = (n) => show && n < 0
   const summary = data?.summary
   const realized = summary?.realized
   // The period before, for the "▲ 12% vs last month" lines; none for all time or open-ended ranges.
   const previous = data?.previous
   const compare = previous && { label: previous.label, period: describeRange(previous) }
   const change = (now, before, better, count) =>
-    previous && <Change now={now} before={before} compare={compare} better={better} count={count} />
+    previous && (show || count) && <Change now={now} before={before} compare={compare} better={better} count={count} />
 
   const soldRows = summary?.byPlatform.filter((r) => r.orders > 0) ?? []
   const platformName = platforms.find((p) => String(p.id) === platformId)?.name
@@ -79,6 +89,7 @@ export default function Reports() {
 
       <div className="page-head no-print">
         <h1>Reports</h1>
+        <span className="page-eye">{show ? 'Hide' : 'Show'} figures{eye('all', 'figures')}</span>
         {!resolved.error && (
           <ExportButtons range={resolved} platformId={platformId} platformName={platformName}
                          printTitle={`Sales report - ${periodLabel}${platformName ? ` - ${platformName}` : ''}`} />
@@ -104,29 +115,29 @@ export default function Reports() {
             {' · paid orders, less expenses'}
           </p>
 
-          <NetHero realized={realized} expenses={summary.expenses.total} netProfit={summary.netProfit}
+          <NetHero realized={realized} expenses={summary.expenses.total} netProfit={summary.netProfit} hidden={!show}
                    change={change(summary.netProfit, previous?.netProfit, 'up')} />
 
           <div className="stats kpis">
-            <Stat label="Revenue" value={money(realized.revenue)} hint={`${realized.orders} paid orders`}
+            <Stat label="Revenue" value={money(realized.revenue)} tone={plain} hint={`${realized.orders} paid orders`}
                   change={change(realized.revenue, previous?.realized.revenue, 'up')}
                   icon={<TrendUpIcon />} accent="blue" />
-            <Stat label="Cost of goods" value={money(realized.cost)} hint="what the stock cost you"
+            <Stat label="Cost of goods" value={money(realized.cost)} tone={plain} hint="what the stock cost you"
                   change={change(realized.cost, previous?.realized.cost)}
                   icon={<BoxIcon />} accent="slate" />
             <Stat
-              label={realized.profit < 0 ? 'Gross loss' : 'Gross profit'}
+              label={neg(realized.profit) ? 'Gross loss' : 'Gross profit'}
               value={money(realized.profit)}
               tone={tone(realized.profit)}
               hint={`revenue − cost · ${pct(realized.profit, realized.revenue)} margin`}
               change={change(realized.profit, previous?.realized.profit, 'up')}
               icon={<ChartIcon />}
-              accent={realized.profit < 0 ? 'red' : 'green'}
+              accent={!show ? 'slate' : realized.profit < 0 ? 'red' : 'green'}
             />
-            <Stat label="Delivery charged" value={money(realized.delivery)} hint="paid by customers"
+            <Stat label="Delivery charged" value={money(realized.delivery)} tone={plain} hint="paid by customers"
                   change={change(realized.delivery, previous?.realized.delivery, 'up')}
                   icon={<TruckIcon />} accent="teal" />
-            <Stat label="Expenses" value={money(summary.expenses.total)} hint="delivery, commission, ads…"
+            <Stat label="Expenses" value={money(summary.expenses.total)} tone={plain} hint="delivery, commission, ads…"
                   change={change(summary.expenses.total, previous?.expenses.total, 'down')}
                   icon={<ReceiptIcon />} accent="violet" />
           </div>
@@ -162,6 +173,12 @@ export default function Reports() {
                   icon={<CancelIcon />} accent="slate" />
           </div>
 
+          {!show && (
+            <p className="veiled-note">
+              Charts and product lists are hidden with the figures. Use the eye at the top to show them.
+            </p>
+          )}
+          {show && <>
           <TrendChart trend={data.trend} />
 
           <ShareBars
@@ -170,6 +187,8 @@ export default function Reports() {
             revenueTotal={realized.revenue}
             profitTotal={soldRows.filter((r) => r.profit > 0).reduce((s, r) => s + Number(r.profit), 0)}
           />
+
+          </>}
 
           <h2 className="section-title">By platform <span className="muted">(paid orders; expenses tied to the platform's orders)</span></h2>
           <div className="table-wrap">
@@ -187,14 +206,14 @@ export default function Reports() {
                   <tr key={r.platformId}>
                     <td>{r.platformName}</td>
                     <td className="num">{r.orders}</td>
-                    <td className="num">{money(r.revenue)}</td>
-                    <td className="num">{money(r.cost)}</td>
+                    <td className={`num ${plain}`}>{money(r.revenue)}</td>
+                    <td className={`num ${plain}`}>{money(r.cost)}</td>
                     <td className={`num ${tone(r.profit)}`}>{money(r.profit)}</td>
-                    <td className="num">{money(r.delivery)}</td>
-                    <td className="num">{money(r.expenses)}</td>
+                    <td className={`num ${plain}`}>{money(r.delivery)}</td>
+                    <td className={`num ${plain}`}>{money(r.expenses)}</td>
                     <td className={`num ${tone(r.netProfit)}`}>{money(r.netProfit)}</td>
-                    <td className="num">{pct(r.netProfit, r.revenue)}</td>
-                    <td className="num">{pct(r.revenue, realized.revenue)}</td>
+                    <td className={`num ${plain}`}>{pct(r.netProfit, r.revenue)}</td>
+                    <td className={`num ${plain}`}>{pct(r.revenue, realized.revenue)}</td>
                   </tr>
                 ))}
                 {summary.byPlatform.length === 0 && (
@@ -204,12 +223,15 @@ export default function Reports() {
             </table>
           </div>
 
-          <div className="viz-grid">
-            <BestSellers rows={data.products.topSellers} />
-            <LowestMargin rows={data.products.lowestMargin} />
-          </div>
+          {show && (
+            <div className="viz-grid">
+              <BestSellers rows={data.products.topSellers} />
+              <LowestMargin rows={data.products.lowestMargin} />
+            </div>
+          )}
         </div>
       )}
+      {prompt}
     </section>
   )
 }

@@ -3,10 +3,11 @@ import { useSearchParams } from 'react-router-dom'
 import api, { errorMessage } from '../api/client'
 import { useAuth } from '../auth/AuthContext'
 import ExportButtons from '../components/ExportButtons'
+import { MASK, useReveal } from '../components/Reveal'
 import { ClockIcon, ReturnIcon } from '../components/icons'
 import { logoUrl } from '../components/logo'
 import { toDateStr } from '../utils/dateRange'
-import { EXPENSE_LABEL, currencySymbol, money } from '../utils/format'
+import { EXPENSE_LABEL, currencySymbol, money as fmt } from '../utils/format'
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
 const pad = (n) => String(n).padStart(2, '0')
@@ -23,13 +24,16 @@ function parseMonth(value) {
   return m ? { year: Number(m[1]), month: Number(m[2]) } : null
 }
 
-const pct = (part, whole) => (Number(whole) > 0 ? `${((Number(part) / Number(whole)) * 100).toFixed(1)}%` : '—')
+const pctOf = (part, whole) => (Number(whole) > 0 ? `${((Number(part) / Number(whole)) * 100).toFixed(1)}%` : '—')
 
 export default function Statement() {
   const { user } = useAuth()
   const [params, setParams] = useSearchParams()
   const { year, month } = parseMonth(params.get('month')) ?? parseMonth(currentMonth())
   const [result, setResult] = useState(null) // { key, summary } | { key, error }
+  // One eye for the whole page: every amount and margin stays masked until it is shown. Counts are left visible.
+  const { shown, eye, prompt } = useReveal()
+  const show = !!shown.all
 
   const key = `${year}-${pad(month)}`
   const range = useMemo(
@@ -55,12 +59,17 @@ export default function Statement() {
   const summary = result?.key === key ? result.summary : null
   const period = `${MONTHS[month - 1]} ${year}`
   const paid = summary?.realized
-  const tone = (n) => (n < 0 ? 'neg' : 'pos')
+  // While hidden: dots instead of amounts, and no green, red or "loss" wording, since those would give them away.
+  const money = (n) => (show ? fmt(n) : MASK)
+  const pct = (part, whole) => (show ? pctOf(part, whole) : MASK)
+  const tone = (n) => (!show ? 'masked' : n < 0 ? 'neg' : 'pos')
+  const neg = (n) => show && n < 0
 
   return (
     <section>
       <div className="page-head no-print">
         <h1>Monthly statement</h1>
+        <span className="page-eye">{show ? 'Hide' : 'Show'} figures{eye('all', 'figures')}</span>
         <ExportButtons range={range} platformId="" printTitle={`Statement - ${period}`} />
       </div>
 
@@ -102,13 +111,13 @@ export default function Statement() {
             <div className="statement-tiles">
               <div className="st-tile accent-blue"><span>Total sold</span><b>{money(paid.revenue)}</b>
                 <small>{paid.orders} paid order{paid.orders === 1 ? '' : 's'}</small></div>
-              <div className={`st-tile ${paid.profit < 0 ? 'accent-red' : 'accent-green'}`}>
-                <span>{paid.profit < 0 ? 'Gross loss' : 'Gross profit'}</span><b>{money(paid.profit)}</b>
+              <div className={`st-tile ${!show ? 'accent-slate' : paid.profit < 0 ? 'accent-red' : 'accent-green'}`}>
+                <span>{neg(paid.profit) ? 'Gross loss' : 'Gross profit'}</span><b>{money(paid.profit)}</b>
                 <small>{pct(paid.profit, paid.revenue)} of sales</small></div>
               <div className="st-tile accent-violet"><span>Expenses</span><b>{money(summary.expenses.total)}</b>
                 <small>delivery, commission, ads…</small></div>
-              <div className={`st-tile hero ${summary.netProfit < 0 ? 'loss' : ''}`}>
-                <span>{summary.netProfit < 0 ? 'Net loss' : 'Net profit'}</span><b>{money(summary.netProfit)}</b>
+              <div className={`st-tile hero ${neg(summary.netProfit) ? 'loss' : ''}`}>
+                <span>{neg(summary.netProfit) ? 'Net loss' : 'Net profit'}</span><b>{money(summary.netProfit)}</b>
                 <small>{pct(summary.netProfit, paid.revenue)} net margin</small></div>
             </div>
 
@@ -118,7 +127,7 @@ export default function Statement() {
                 <tr><th scope="row">Total sold</th><td className="num">{money(paid.revenue)}</td></tr>
                 <tr><th scope="row">Total cost of goods</th><td className="num">{money(paid.cost)}</td></tr>
                 <tr>
-                  <th scope="row">{paid.profit < 0 ? 'Gross loss' : 'Gross profit'}</th>
+                  <th scope="row">{neg(paid.profit) ? 'Gross loss' : 'Gross profit'}</th>
                   <td className={`num ${tone(paid.profit)}`}>{money(paid.profit)}</td>
                 </tr>
                 {Number(paid.delivery) > 0 && (
@@ -129,8 +138,8 @@ export default function Statement() {
                   <tr key={t.type}><th scope="row" className="sub">less {EXPENSE_LABEL[t.type].toLowerCase()}</th>
                     <td className="num">{money(t.total)}</td></tr>
                 ))}
-                <tr className={`ledger-total${summary.netProfit < 0 ? ' loss' : ''}`}>
-                  <th scope="row">{summary.netProfit < 0 ? 'Net loss' : 'Net profit'}</th>
+                <tr className={`ledger-total${neg(summary.netProfit) ? ' loss' : ''}`}>
+                  <th scope="row">{neg(summary.netProfit) ? 'Net loss' : 'Net profit'}</th>
                   <td className={`num ${tone(summary.netProfit)}`}>{money(summary.netProfit)}</td>
                 </tr>
                 <tr><th scope="row" className="muted">Net margin</th><td className="num muted">{pct(summary.netProfit, paid.revenue)}</td></tr>
@@ -165,7 +174,7 @@ export default function Statement() {
                     <td className="num">—</td><td className="num">—</td><td className="num">—</td><td className="num">—</td>
                     <td className="num">—</td>
                     <td className="num">{money(summary.expenses.unallocated)}</td>
-                    <td className="num neg">{money(-summary.expenses.unallocated)}</td>
+                    <td className={`num ${tone(-1)}`}>{money(-summary.expenses.unallocated)}</td>
                   </tr>
                 )}
                 {summary.byPlatform.length === 0 && Number(summary.expenses.unallocated) === 0 && (
@@ -218,6 +227,7 @@ export default function Statement() {
           </div>
         )}
       </article>
+      {prompt}
     </section>
   )
 }

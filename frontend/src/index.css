@@ -827,3 +827,9 @@ thead th.hide-col { padding-left: 1.75rem; padding-right: 1.75rem; } /* room for
 .page-eye { display: inline-flex; align-items: center; color: var(--muted); font-size: 0.85rem; white-space: nowrap; }
 .page-eye .reveal svg { width: 20px; height: 20px; }
 .net-hero-value.masked { color: inherit; opacity: 0.8; }
+/* Reports: stands in for the charts and product lists while the page's figures are hidden. */
+.veiled-note { margin: 1.25rem 0; padding: 1.5rem 1rem; text-align: center; color: var(--muted); border: 1px dashed var(--border); border-radius: 8px; background: var(--surface); }
+/* Beside a page heading with other buttons, the eye sits just before them on the right. */
+.page-head .page-eye { margin-left: auto; margin-right: 0.75rem; }
+/* Top bar master eye: tinted while it keeps every figure shown, so it is clear the screen is showing them. */
+.master-eye.on { color: var(--primary); border-color: var(--primary); background: var(--primary-soft); }

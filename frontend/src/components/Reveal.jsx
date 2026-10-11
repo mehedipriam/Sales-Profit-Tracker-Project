@@ -8,42 +8,109 @@ export const MASK = '••••••'
 // One password or PIN unlocks every eye in the app for this long; then everything shown hides itself again, in case
 // the screen is left unattended.
 const UNLOCK_MS = 5 * 60 * 1000
+// The master eye's "show everything" lasts until the tab is closed: sessionStorage belongs to this tab alone and is
+// cleared with it. It holds the id of the user who turned it on, so it never carries over to someone else.
+const ALL_KEY = 'reveal-all'
+
+const readAll = () => {
+  try { return sessionStorage.getItem(ALL_KEY) } catch { return null }
+}
+const writeAll = (userId) => {
+  try {
+    if (userId == null) sessionStorage.removeItem(ALL_KEY)
+    else sessionStorage.setItem(ALL_KEY, String(userId))
+  } catch { /* storage blocked: it then lasts until the page is reloaded */ }
+}
 
 const RevealContext = createContext(null)
 
-/** Remembers, for the signed-in user only, until when cost and profit figures may be shown without asking again. */
+/**
+ * For the signed-in user only: until when cost and profit figures may be shown without asking again, and whether the
+ * master eye has shown everything on every page for the rest of this tab's life.
+ */
 export function RevealProvider({ children }) {
   const { user } = useAuth()
   const [unlock, setUnlock] = useState({ userId: null, until: 0 })
+  const [allFor, setAllFor] = useState(readAll) // the user id the master eye was turned on for, or null
+
+  useEffect(() => { if (!user) writeAll(null) }, [user]) // logging out ends it
+
   const until = unlock.userId === user?.id ? unlock.until : 0
-  const value = { until, unlocked: () => Date.now() < until, grant: () => setUnlock({ userId: user?.id, until: Date.now() + UNLOCK_MS }) }
+  const all = user != null && allFor === String(user.id)
+  const value = {
+    until,
+    all,
+    unlocked: () => all || Date.now() < until,
+    grant: () => setUnlock({ userId: user?.id, until: Date.now() + UNLOCK_MS }),
+    setAll: (on) => {
+      const id = on ? String(user.id) : null
+      writeAll(id)
+      setAllFor(id)
+    },
+  }
   return <RevealContext.Provider value={value}>{children}</RevealContext.Provider>
 }
 
 /**
+ * The master eye in the top bar: one password or PIN shows every cost and profit figure on every page, and they stay
+ * shown until this tab is closed, the user logs out, or it is clicked again.
+ */
+export function MasterEye() {
+  const reveal = useContext(RevealContext)
+  const [asking, setAsking] = useState(false)
+  const text = reveal.all ? 'Hide all figures again' : 'Show all figures on every page until this tab is closed'
+  const click = () => (reveal.all ? reveal.setAll(false) : setAsking(true))
+  return <>
+    <button type="button" className={`theme-toggle master-eye${reveal.all ? ' on' : ''}`} title={text} aria-label={text}
+            aria-pressed={reveal.all} onClick={click}>
+      {reveal.all ? <EyeOffIcon /> : <EyeIcon />}
+    </button>
+    {asking && (
+      <Modal title="Show all figures" onClose={() => setAsking(false)}>
+        <RevealPrompt
+          what="all figures"
+          note="Every cost and profit figure on every page stays shown until you close this tab, log out, or click the eye in the top bar again."
+          onRevealed={() => { reveal.setAll(true); setAsking(false) }}
+          onCancel={() => setAsking(false)}
+        />
+      </Modal>
+    )}
+  </>
+}
+
+/**
  * Per-page show/hide state for masked figures. Each eye (cost, profit, ...) shows or hides only its own figures; the
- * first one opened asks for the password or PIN, and the rest open straight away until the unlock runs out.
+ * first one opened asks for the password or PIN, and the rest open straight away until the unlock runs out. While
+ * the master eye is on, everything starts shown, and a page's own eye can still hide its figures there.
  * Returns { shown, eye(key, label), prompt }: render `prompt` once somewhere on the page.
  */
 export function useReveal() {
   const reveal = useContext(RevealContext)
-  const [shown, setShown] = useState({})
+  // Eyes flipped away from the default, which is shown while the master eye is on and hidden otherwise.
+  const [flipped, setFlipped] = useState({})
   const [asking, setAsking] = useState(null) // { key, label } while the prompt is open
+  const isShown = (key) => reveal.all !== !!flipped[key]
+  const shown = new Proxy({}, { get: (_, key) => isShown(key) })
+
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { setFlipped({}) }, [reveal.all]) // the master eye turning on or off resets every page eye
 
   useEffect(() => {
+    if (reveal.all) return undefined
     const left = reveal.until - Date.now()
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (left <= 0) { setShown({}); return undefined }
-    const timer = setTimeout(() => setShown({}), left)
+    if (left <= 0) { setFlipped({}); return undefined }
+    const timer = setTimeout(() => setFlipped({}), left)
     return () => clearTimeout(timer)
-  }, [reveal.until])
+  }, [reveal.until, reveal.all])
+
+  const flip = (key) => setFlipped((f) => ({ ...f, [key]: !f[key] }))
 
   const eye = (key, label) => {
-    const on = !!shown[key]
+    const on = isShown(key)
     const text = `${on ? 'Hide' : 'Show'} ${label}`
     const click = () => {
-      if (on) setShown((s) => ({ ...s, [key]: false }))
-      else if (reveal.unlocked()) setShown((s) => ({ ...s, [key]: true }))
+      if (on || reveal.unlocked()) flip(key)
       else setAsking({ key, label })
     }
     return (
@@ -57,7 +124,7 @@ export function useReveal() {
     <Modal title={`Show ${asking.label}`} onClose={() => setAsking(null)}>
       <RevealPrompt
         what={asking.label}
-        onRevealed={() => { reveal.grant(); setShown((s) => ({ ...s, [asking.key]: true })); setAsking(null) }}
+        onRevealed={() => { reveal.grant(); flip(asking.key); setAsking(null) }}
         onCancel={() => setAsking(null)}
       />
     </Modal>
@@ -73,7 +140,7 @@ export function EyeHead({ children, eye }) {
 
 // Asks for the signed-in user's login password, or their PIN if they set one. Only one is sent: typing in either box
 // disables the other.
-function RevealPrompt({ what, onRevealed, onCancel }) {
+function RevealPrompt({ what, note, onRevealed, onCancel }) {
   const [password, setPassword] = useState('')
   const [pin, setPin] = useState('')
   const [pinStatus, setPinStatus] = useState(null) // { set, locked } once loaded
@@ -126,8 +193,10 @@ function RevealPrompt({ what, onRevealed, onCancel }) {
         </label>
       </div>
       <span className="hint">
-        Cost and profit figures stay hidden until you enter the password you log in with or your PIN. Once you do,
-        every eye in the app opens without asking for 5 minutes.{pinNote && <> {pinNote}.</>}
+        {note ?? <>Cost and profit figures stay hidden until you enter the password you log in with or your PIN. Once
+          you do, every eye in the app opens without asking for 5 minutes. To keep everything shown until you close
+          this tab, use the eye in the top bar instead.</>}
+        {pinNote && <> {pinNote}.</>}
       </span>
       {error && <p className="error" role="alert">{error}</p>}
       <div className="actions">
