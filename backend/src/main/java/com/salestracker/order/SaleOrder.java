@@ -21,6 +21,10 @@ public class SaleOrder implements TenantOwned {
     @Column(name = "tenant_id", nullable = false)
     private Long tenantId;
 
+    /** ORD-YYMM-NNNN: set once when the order is created and never changed. */
+    @Column(name = "order_no", nullable = false, updatable = false)
+    private String orderNo;
+
     @Column(name = "platform_id", nullable = false)
     private Long platformId;
 
@@ -101,6 +105,8 @@ public class SaleOrder implements TenantOwned {
     public void setStatus(OrderStatus status) { this.status = status; }
 
     public Long getId() { return id; }
+    public String getOrderNo() { return orderNo; }
+    public void assignOrderNo(String orderNo) { this.orderNo = orderNo; }
     public Long getTenantId() { return tenantId; }
     public Long getPlatformId() { return platformId; }
     public Long getCustomerId() { return customerId; }

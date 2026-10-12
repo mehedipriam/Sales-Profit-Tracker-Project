@@ -28,6 +28,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -57,7 +58,15 @@ public class OrderService {
         this.stock = stock;
     }
 
-    /** Matches the customer's name or the order number; a leading "#" (as the list shows it) is ignored. */
+    /** ORD-YYMM-NNNN: the next free number in the month the order was placed (a later edit never renumbers it). */
+    private String nextOrderNo(Long tenantId, LocalDateTime orderedAt) {
+        String prefix = "ORD-" + orderedAt.format(DateTimeFormatter.ofPattern("yyMM")) + "-";
+        String last = orders.maxOrderNo(tenantId, prefix + "%");
+        int next = last == null ? 1 : Integer.parseInt(last.substring(prefix.length())) + 1;
+        return prefix + String.format("%04d", next);
+    }
+
+    /** Matches the customer's name or the order number (ORD-2610-0004, or part of it); a leading "#" is ignored. */
     private static String searchPattern(String q) {
         String text = Search.blankToNull(q);
         return Search.pattern(text == null ? null : text.replaceFirst("^#+\\s*", ""));
@@ -82,7 +91,7 @@ public class OrderService {
                 Courier::getId);
 
         List<OrderSummary> content = result.getContent().stream().map(o -> new OrderSummary(
-                o.getId(), o.getOrderedAt(),
+                o.getId(), o.getOrderNo(), o.getOrderedAt(),
                 platformById.get(o.getPlatformId()).getName(),
                 customerById.get(o.getCustomerId()).getName(),
                 o.getStatus(), o.getItems().size(), courierInfo(o, courierById.get(o.getCourierId())),
@@ -99,7 +108,9 @@ public class OrderService {
     // Every write takes the signed-in user, who goes into the activity log.
 
     public OrderDetail create(AuthUser actor, OrderRequest req) {
-        SaleOrder order = orders.save(fill(new SaleOrder(actor.tenantId()), req));
+        SaleOrder draft = fill(new SaleOrder(actor.tenantId()), req);
+        draft.assignOrderNo(nextOrderNo(actor.tenantId(), draft.getOrderedAt()));
+        SaleOrder order = orders.save(draft);
         activity.created(actor, order);
         return saved(order);
     }
@@ -242,7 +253,7 @@ public class OrderService {
                 i.getProductId(), productById.get(i.getProductId()).getName(), i.getQuantity(),
                 i.getCostPriceSnapshot(), i.getSoldPrice(), i.lineRevenue(), i.lineCost(), i.lineProfit())).toList();
 
-        return new OrderDetail(o.getId(), o.getOrderedAt(), platform.getId(), platform.getName(),
+        return new OrderDetail(o.getId(), o.getOrderNo(), o.getOrderedAt(), platform.getId(), platform.getName(),
                 customer.getId(), customer.getName(), customer.getPhone(), customer.getAddress(), o.getStatus(), o.getCommissionPct(),
                 o.getDeliveryCharge(), courierInfo(o, courier), o.getNotes(), items,
                 sum(o, OrderItem::lineRevenue), sum(o, OrderItem::lineCost), sum(o, OrderItem::lineProfit),

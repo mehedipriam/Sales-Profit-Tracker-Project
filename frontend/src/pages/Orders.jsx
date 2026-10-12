@@ -10,6 +10,8 @@ import Tracking from '../components/Tracking'
 import { resolveRange } from '../utils/dateRange'
 import { STATUSES, STATUS_LABEL, dateTime, money } from '../utils/format'
 
+const PAGE_SIZE = 20 // the API's default page size
+
 export default function Orders() {
   const { user } = useAuth()
   const showMoney = seesFinancials(user)
@@ -86,7 +88,7 @@ export default function Orders() {
 
       <div className="filters orders-filters">
         <input type="search" className="orders-search" value={search} onChange={(e) => setSearch(e.target.value)}
-               placeholder="Search customer name or order number" aria-label="Search orders by customer name or order number" />
+               placeholder="Search customer name or order no." aria-label="Search orders by customer name or order number" />
         <select value={platformId} onChange={(e) => { setPlatformId(e.target.value); setPage(0) }}>
           <option value="">All platforms</option>
           {platforms.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
@@ -111,7 +113,7 @@ export default function Orders() {
         <table className="orders-table striped">
           <thead>
             <tr>
-              <th className="serial">#</th><th>Date</th><th>Customer</th><th>Platform / courier</th><th className="num hide-md">Items</th>
+              <th className="serial">#</th><th className="order-id">Order no.</th><th>Date</th><th>Customer</th><th>Platform / courier</th><th className="num hide-md">Items</th>
               <th className="num">Revenue</th>
               {showMoney && <>
                 <th className="num hide-col"><EyeHead eye={eye('cost', 'costs')}>Cost</EyeHead></th>
@@ -121,9 +123,10 @@ export default function Orders() {
             </tr>
           </thead>
           <tbody>
-            {data?.content.map((o) => (
+            {data?.content.map((o, i) => (
               <tr key={o.id}>
-                <td className="serial">{o.id}</td>
+                <td className="serial" title="Position in this list, newest first">{data.totalElements - data.page * PAGE_SIZE - i}</td>
+                <td className="order-id">{o.orderNo}</td>
                 <td className="when">{dateTime(o.orderedAt)}</td>
                 <td className="cust-name">{o.customerName}</td>
                 <td className="platform-cell">
@@ -162,7 +165,7 @@ export default function Orders() {
               </tr>
             ))}
             {data && data.content.length === 0 && (
-              <tr><td colSpan={showMoney ? 9 : 7} className="empty">{q || platformId || status || customerId || range.preset !== 'all'
+              <tr><td colSpan={showMoney ? 10 : 8} className="empty">{q || platformId || status || customerId || range.preset !== 'all'
                 ? 'No orders match these filters.' : 'No orders yet. Record your first sale.'}</td></tr>
             )}
           </tbody>

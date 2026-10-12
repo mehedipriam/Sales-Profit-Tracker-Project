@@ -286,6 +286,7 @@ select.status.RETURNED, select.status.CANCELLED { color: var(--danger); }
 .orders-table .num { text-align: right; font-variant-numeric: tabular-nums; }
 .orders-table th.hide-col, .orders-table td.hide-col { text-align: center; }
 .orders-table .serial { text-align: left; width: 2.5rem; }
+.orders-table .order-id { font-weight: 600; font-variant-numeric: tabular-nums; }
 .orders-table .cust-name { font-weight: 500; max-width: 11rem; overflow: hidden; text-overflow: ellipsis; }
 .orders-table .platform-cell { max-width: 17rem; overflow: hidden; text-overflow: ellipsis; }
 .platform-name { font-weight: 500; }

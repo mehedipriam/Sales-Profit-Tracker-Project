@@ -118,8 +118,10 @@ class CustomerInsightsIntegrationTest extends AbstractIntegrationTest {
         assertEquals(2, byName.get("totalElements").asLong());
         byName.get("content").forEach(o -> assertEquals("Rahim Uddin", o.get("customerName").asText()));
 
+        // Numbered ORD-YYMM-NNNN, counting from 0001 in the month the order was placed.
         JsonNode firstOrder = get(tenant, "/api/orders?customerId=" + karim, 200).get("content").get(0);
-        JsonNode byNumber = get(tenant, "/api/orders?q=%23" + firstOrder.get("id").asLong(), 200);
+        assertEquals("ORD-2601-0002", firstOrder.get("orderNo").asText());
+        JsonNode byNumber = get(tenant, "/api/orders?q=ord-2601-0002", 200);
         assertEquals(1, byNumber.get("totalElements").asLong());
         assertEquals("Karim", byNumber.get("content").get(0).get("customerName").asText());
 

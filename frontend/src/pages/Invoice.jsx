@@ -4,7 +4,7 @@ import api, { errorMessage } from '../api/client'
 import { useAuth } from '../auth/AuthContext'
 import { logoUrl } from '../components/logo'
 import { printAs } from '../utils/download'
-import { currencySymbol, invoiceNumber, money } from '../utils/format'
+import { currencySymbol, money } from '../utils/format'
 
 const longDate = (iso) => new Date(iso).toLocaleDateString('en-GB', { dateStyle: 'long' })
 
@@ -75,7 +75,7 @@ function InvoiceDoc({ order, user }) {
         <StoreBlock user={user} />
         <div className="inv-meta">
           <span className="inv-doc">Invoice</span>
-          <b>{invoiceNumber(order.id)}</b>
+          <b>{order.orderNo}</b>
           <span>Date: {longDate(order.orderedAt)}</span>
           <span className={`inv-stamp ${pay.tone}`}>{pay.label}</span>
         </div>
@@ -133,7 +133,7 @@ function PackingSlip({ order, user }) {
         <StoreBlock user={user} />
         <div className="inv-meta">
           <span className="inv-doc">Packing slip</span>
-          <b>Order #{order.id}</b>
+          <b>Order {order.orderNo}</b>
           <span>{longDate(order.orderedAt)}</span>
         </div>
       </header>
@@ -197,14 +197,14 @@ export default function Invoice() {
   if (error) return <p className="error" role="alert">{error}</p>
   if (!order) return <p className="center-note">Loading…</p>
 
-  const title = slip ? `Packing slip - Order ${order.id} - ${order.customerName}`
-    : `Invoice ${invoiceNumber(order.id)} - ${order.customerName}`
+  const title = slip ? `Packing slip - ${order.orderNo} - ${order.customerName}`
+    : `Invoice ${order.orderNo} - ${order.customerName}`
 
   return (
     <section>
       <div className="page-head no-print">
         <div>
-          <p className="eyebrow-plain"><Link to={`/orders/${order.id}`}>← Order #{order.id}</Link></p>
+          <p className="eyebrow-plain"><Link to={`/orders/${order.id}`}>← Order {order.orderNo}</Link></p>
           <h1>{slip ? 'Packing slip' : 'Invoice'}</h1>
         </div>
         <div className="export-buttons">

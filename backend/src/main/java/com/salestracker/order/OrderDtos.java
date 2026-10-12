@@ -60,7 +60,7 @@ public final class OrderDtos {
         }
     }
 
-    public record OrderDetail(Long id, LocalDateTime orderedAt, Long platformId, String platformName,
+    public record OrderDetail(Long id, String orderNo, LocalDateTime orderedAt, Long platformId, String platformName,
                               Long customerId, String customerName, String customerPhone, String customerAddress,
                               OrderStatus status,
                               BigDecimal commissionPct, BigDecimal deliveryCharge, CourierInfo courier, String notes,
@@ -69,17 +69,17 @@ public final class OrderDtos {
                               List<ExpenseLine> expenses) {
         /** Phase 7b: same boundary as the dashboard/reports - Staff records the sale, not its margin. */
         public OrderDetail hideFinancials() {
-            return new OrderDetail(id, orderedAt, platformId, platformName, customerId, customerName, customerPhone,
+            return new OrderDetail(id, orderNo, orderedAt, platformId, platformName, customerId, customerName, customerPhone,
                     customerAddress, status, null, deliveryCharge, courier, notes, items.stream().map(ItemResponse::hideFinancials).toList(),
                     revenue, null, null, List.of());
         }
     }
 
-    public record OrderSummary(Long id, LocalDateTime orderedAt, String platformName, String customerName,
+    public record OrderSummary(Long id, String orderNo, LocalDateTime orderedAt, String platformName, String customerName,
                                OrderStatus status, int itemCount, CourierInfo courier,
                                BigDecimal revenue, BigDecimal deliveryCharge, BigDecimal cost, BigDecimal profit) {
         public OrderSummary hideFinancials() {
-            return new OrderSummary(id, orderedAt, platformName, customerName, status, itemCount, courier, revenue,
+            return new OrderSummary(id, orderNo, orderedAt, platformName, customerName, status, itemCount, courier, revenue,
                     deliveryCharge, null, null);
         }
     }
