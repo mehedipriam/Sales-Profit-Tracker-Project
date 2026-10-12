@@ -107,6 +107,27 @@ class CustomerInsightsIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void ordersCanBeSearchedByCustomerNameOrOrderNumber() throws Exception {
+        long rahim = customer("Rahim Uddin");
+        long karim = customer("Karim");
+        order(rahim, "PAID", "2026-01-01T10:00:00");
+        order(karim, "PAID", "2026-01-02T10:00:00");
+        order(rahim, "PAID", "2026-01-03T10:00:00");
+
+        JsonNode byName = get(tenant, "/api/orders?q=rahim", 200);
+        assertEquals(2, byName.get("totalElements").asLong());
+        byName.get("content").forEach(o -> assertEquals("Rahim Uddin", o.get("customerName").asText()));
+
+        JsonNode firstOrder = get(tenant, "/api/orders?customerId=" + karim, 200).get("content").get(0);
+        JsonNode byNumber = get(tenant, "/api/orders?q=%23" + firstOrder.get("id").asLong(), 200);
+        assertEquals(1, byNumber.get("totalElements").asLong());
+        assertEquals("Karim", byNumber.get("content").get(0).get("customerName").asText());
+
+        assertEquals(0, get(tenant, "/api/orders?q=nobody", 200).get("totalElements").asLong());
+        assertEquals(0, get(registerTenant(), "/api/orders?q=rahim", 200).get("totalElements").asLong());
+    }
+
+    @Test
     void insightsOnlyCountTheBusinessesOwnOrders() throws Exception {
         long mine = customer("Mine");
         Tenant other = registerTenant();

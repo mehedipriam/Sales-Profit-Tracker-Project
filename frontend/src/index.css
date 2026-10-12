@@ -277,11 +277,31 @@ select.status { padding: 0.25rem 0.4rem; font-size: 0.85rem; }
 select.status.PAID { color: var(--success); }
 select.status.PENDING { color: var(--warning); }
 select.status.RETURNED, select.status.CANCELLED { color: var(--danger); }
-/* Orders list: every column centred; the row's links sit under its status so the table fits without scrolling sideways. */
-.orders-table th, .orders-table td, .orders-table .num { text-align: center; vertical-align: middle; }
+/* Orders list: one compact line per order so many orders fit on screen and nothing scrolls sideways. */
+.page-sub { margin: 0.15rem 0 0; color: var(--muted); font-size: 0.9rem; }
+.orders-filters { padding: 0.6rem; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; align-items: center; }
+.orders-table { font-size: 0.88rem; }
+.orders-table th, .orders-table td { vertical-align: middle; padding: 0.4rem 0.5rem; font-size: 0.88rem; white-space: nowrap; }
+.orders-table thead th { padding-top: 0.55rem; padding-bottom: 0.55rem; }
+.orders-table .num { text-align: right; font-variant-numeric: tabular-nums; }
+.orders-table th.hide-col, .orders-table td.hide-col { text-align: center; }
+.orders-table .serial { text-align: left; width: 2.5rem; }
+.orders-table .cust-name { font-weight: 500; max-width: 11rem; overflow: hidden; text-overflow: ellipsis; }
+.orders-table .platform-cell { max-width: 17rem; overflow: hidden; text-overflow: ellipsis; }
+.platform-name { font-weight: 500; }
+/* The courier detail sits on the same line, after the platform, and is cut short rather than adding a second line. */
+.orders-table .via { display: inline; margin-left: 0.4rem; }
+.profit-chip { display: inline-block; padding: 0.05rem 0.5rem; border-radius: 999px; font-weight: 600; }
+.profit-chip.pos { background: var(--success-soft); color: var(--success); }
+.profit-chip.neg { background: var(--danger-soft); color: var(--danger); }
+/* The status with the row's links under it, centred, as before: it keeps the table narrow. */
+.orders-table .status-col { text-align: center; }
 .orders-table select.status { width: 7rem; }
-.orders-table .row-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.15rem 0; margin-top: 0.35rem; font-size: 0.82rem; white-space: normal; }
+.orders-table .row-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.1rem 0; margin-top: 0.3rem; font-size: 0.82rem; white-space: normal; }
 .orders-table .row-actions .link { padding: 0 0.3rem; }
+.orders-search { flex: 1 1 16rem; min-width: 12rem; }
+@media (max-width: 1250px) { .orders-table .via { display: none; } }
+@media (max-width: 1000px) { .orders-table .hide-md { display: none; } }
 @media (max-width: 700px) { .card .row { flex-direction: column; } }
 
 .section-title { font-size: 1.1rem; margin: 1.5rem 0 0.75rem; }

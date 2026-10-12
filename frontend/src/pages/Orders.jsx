@@ -23,6 +23,8 @@ export default function Orders() {
   const [status, setStatus] = useState('')
   const [range, setRange] = useState({ preset: 'all', from: '', to: '' })
   const [page, setPage] = useState(0)
+  const [search, setSearch] = useState('') // what is typed
+  const [q, setQ] = useState('') // what is sent, a moment after typing stops
   const [data, setData] = useState(null)
   const [platforms, setPlatforms] = useState([])
   const [error, setError] = useState('')
@@ -31,6 +33,11 @@ export default function Orders() {
     api.get('/platforms').then((res) => setPlatforms(res.data)).catch(() => {})
   }, [])
 
+  useEffect(() => {
+    const timer = setTimeout(() => { setQ(search.trim()); setPage(0) }, 300)
+    return () => clearTimeout(timer)
+  }, [search])
+
   const resolved = useMemo(() => resolveRange(range), [range])
 
   const load = useCallback(() => {
@@ -38,13 +45,13 @@ export default function Orders() {
     api
       .get('/orders', {
         params: {
-          platformId: platformId || undefined, customerId: customerId || undefined, status: status || undefined,
+          platformId: platformId || undefined, customerId: customerId || undefined, status: status || undefined, q: q || undefined,
           from: resolved.from, to: resolved.to, page,
         },
       })
       .then((res) => { setData(res.data); setError('') })
       .catch((err) => setError(errorMessage(err)))
-  }, [platformId, customerId, status, resolved, page])
+  }, [platformId, customerId, status, q, resolved, page])
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { load() }, [load])
 
@@ -70,11 +77,16 @@ export default function Orders() {
   return (
     <section>
       <div className="page-head">
-        <h1>Orders</h1>
+        <div>
+          <h1>Orders</h1>
+          {data && <p className="page-sub">{data.totalElements} {data.totalElements === 1 ? 'order' : 'orders'}</p>}
+        </div>
         <Link className="btn" to="/orders/new">+ New sale</Link>
       </div>
 
-      <div className="filters">
+      <div className="filters orders-filters">
+        <input type="search" className="orders-search" value={search} onChange={(e) => setSearch(e.target.value)}
+               placeholder="Search customer name or order number" aria-label="Search orders by customer name or order number" />
         <select value={platformId} onChange={(e) => { setPlatformId(e.target.value); setPage(0) }}>
           <option value="">All platforms</option>
           {platforms.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
@@ -96,26 +108,26 @@ export default function Orders() {
       {error &&<p className="error" role="alert">{error}</p>}
 
       <div className="table-wrap">
-        <table className="orders-table">
+        <table className="orders-table striped">
           <thead>
             <tr>
-              <th>#</th><th>Date</th><th>Customer</th><th>Platform / courier</th><th className="num">Items</th>
+              <th className="serial">#</th><th>Date</th><th>Customer</th><th>Platform / courier</th><th className="num hide-md">Items</th>
               <th className="num">Revenue</th>
               {showMoney && <>
                 <th className="num hide-col"><EyeHead eye={eye('cost', 'costs')}>Cost</EyeHead></th>
                 <th className="num hide-col"><EyeHead eye={eye('profit', 'profits')}>Profit</EyeHead></th>
               </>}
-              <th>Status</th>
+              <th className="status-col">Status</th>
             </tr>
           </thead>
           <tbody>
             {data?.content.map((o) => (
               <tr key={o.id}>
-                <td>{o.id}</td>
-                <td>{dateTime(o.orderedAt)}</td>
-                <td>{o.customerName}</td>
-                <td>
-                  {o.platformName}
+                <td className="serial">{o.id}</td>
+                <td className="when">{dateTime(o.orderedAt)}</td>
+                <td className="cust-name">{o.customerName}</td>
+                <td className="platform-cell">
+                  <span className="platform-name">{o.platformName}</span>
                   {o.courier && (
                     <span className="via">
                       via {o.courier.courierName}
@@ -126,15 +138,15 @@ export default function Orders() {
                     </span>
                   )}
                 </td>
-                <td className="num">{o.itemCount}</td>
+                <td className="num hide-md">{o.itemCount}</td>
                 <td className="num">{money(o.revenue)}</td>
                 {showMoney && <>
                   {shown.cost ? <td className="num">{money(o.cost)}</td> : <td className="num masked hide-col">{MASK}</td>}
                   {shown.profit
-                    ? <td className={`num ${o.profit < 0 ? 'neg' : 'pos'}`}>{money(o.profit)}</td>
+                    ? <td className="num"><span className={`profit-chip ${o.profit < 0 ? 'neg' : 'pos'}`}>{money(o.profit)}</span></td>
                     : <td className="num masked hide-col">{MASK}</td>}
                 </>}
-                <td>
+                <td className="status-col">
                   <select className={`status ${o.status}`} value={o.status} aria-label={`Status of order ${o.id}`}
                           onChange={(e) => changeStatus(o, e.target.value)}>
                     {STATUSES.map((s) => <option key={s} value={s}>{STATUS_LABEL[s]}</option>)}
@@ -150,7 +162,8 @@ export default function Orders() {
               </tr>
             ))}
             {data && data.content.length === 0 && (
-              <tr><td colSpan={showMoney ? 9 : 7} className="empty">No orders yet. Record your first sale.</td></tr>
+              <tr><td colSpan={showMoney ? 9 : 7} className="empty">{q || platformId || status || customerId || range.preset !== 'all'
+                ? 'No orders match these filters.' : 'No orders yet. Record your first sale.'}</td></tr>
             )}
           </tbody>
         </table>

@@ -57,14 +57,20 @@ public class OrderService {
         this.stock = stock;
     }
 
+    /** Matches the customer's name or the order number; a leading "#" (as the list shows it) is ignored. */
+    private static String searchPattern(String q) {
+        String text = Search.blankToNull(q);
+        return Search.pattern(text == null ? null : text.replaceFirst("^#+\\s*", ""));
+    }
+
     @Transactional(readOnly = true)
     public PageResponse<OrderSummary> list(Long tenantId, Long platformId, Long customerId, OrderStatus status,
-                                           DateRange range, int page, int size) {
+                                           String q, DateRange range, int page, int size) {
         Collection<OrderStatus> statuses = status == null ? List.of(OrderStatus.values()) : List.of(status);
         Pageable newestFirst = PageRequest.of(Math.max(page, 0), Math.min(Math.max(size, 1), 100),
                 Sort.by(Sort.Order.desc("orderedAt"), Sort.Order.desc("id")));
         Page<SaleOrder> result = orders.search(tenantId, platformId == null ? 0L : platformId,
-                customerId == null ? 0L : customerId, statuses,
+                customerId == null ? 0L : customerId, statuses, searchPattern(q),
                 range.from(), range.toExclusive(), newestFirst);
 
         Map<Long, Platform> platformById = byId(platforms.findAllById(

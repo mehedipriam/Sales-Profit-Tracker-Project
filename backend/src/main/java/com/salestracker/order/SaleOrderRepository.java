@@ -20,10 +20,13 @@ public interface SaleOrderRepository extends JpaRepository<SaleOrder, Long> {
               and (:customerId = 0L or o.customerId = :customerId)
               and o.status in :statuses
               and o.orderedAt >= :from and o.orderedAt < :to
+              and (cast(o.id as string) like :q escape '\\'
+                   or o.customerId in (select c.id from Customer c
+                                       where c.tenantId = :tenantId and lower(c.name) like :q escape '\\'))
             """)
     Page<SaleOrder> search(@Param("tenantId") Long tenantId, @Param("platformId") long platformId,
                            @Param("customerId") long customerId,
-                           @Param("statuses") Collection<OrderStatus> statuses,
+                           @Param("statuses") Collection<OrderStatus> statuses, @Param("q") String q,
                            @Param("from") LocalDateTime from, @Param("to") LocalDateTime to, Pageable pageable);
 
     /** Order counts and money per status; platformId 0 means all platforms. */
