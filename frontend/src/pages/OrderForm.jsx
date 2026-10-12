@@ -72,6 +72,7 @@ export default function OrderForm() {
   const [removedExpenseIds, setRemovedExpenseIds] = useState([]) // existing ones to delete on save
   const [savedId, setSavedId] = useState(null) // set once a new sale is stored, so a retry updates instead of duplicating
   const [loading, setLoading] = useState(editing)
+  const [orderNo, setOrderNo] = useState('') // the order's number (ORD-2610-0001) once loaded
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
 
@@ -100,6 +101,7 @@ export default function OrderForm() {
   useEffect(() => {
     if (!editing) return
     api.get(`/orders/${id}`).then(({ data: o }) => {
+      setOrderNo(o.orderNo)
       setPlatformId(String(o.platformId))
       setOriginal({ platformId: String(o.platformId), rate: Number(o.commissionPct), expenses: o.expenses })
       setCustomer({ id: o.customerId, name: o.customerName, phone: o.customerPhone })
@@ -236,7 +238,7 @@ export default function OrderForm() {
       <div className="page-head">
         <div>
           <p className="eyebrow">{editing ? 'Orders' : 'Record a sale'}</p>
-          <h1>{editing ? `Edit order #${id}` : 'New sale'}</h1>
+          <h1>{editing ? `Edit order ${orderNo || `#${id}`}` : 'New sale'}</h1>
         </div>
         <div className="export-buttons">
           {editing && <>

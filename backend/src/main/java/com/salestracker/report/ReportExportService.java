@@ -45,7 +45,7 @@ import java.util.stream.Collectors;
 @Transactional(readOnly = true)
 public class ReportExportService {
     private static final DateTimeFormatter DATE_TIME = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
-    private static final List<String> HEADER = List.of("Order date", "Order #", "Platform", "Customer", "Status",
+    private static final List<String> HEADER = List.of("Order date", "Order no.", "Platform", "Customer", "Status",
             "Product", "Quantity", "Unit sold price", "Unit cost", "Revenue", "Cost", "Profit", "Delivery charge");
     /** Characters that make a spreadsheet treat a cell as a formula. */
     private static final String FORMULA_TRIGGERS = "=+-@\t\r";
@@ -99,7 +99,7 @@ public class ReportExportService {
                 for (OrderItem i : o.getItems()) {
                     writeRow(w, List.of(
                             text(o.getOrderedAt().format(DATE_TIME)),
-                            String.valueOf(o.getId()),
+                            text(o.getOrderNo()),
                             text(platformById.get(o.getPlatformId()).getName()),
                             text(customerById.get(o.getCustomerId()).getName()),
                             text(o.getStatus().name()),

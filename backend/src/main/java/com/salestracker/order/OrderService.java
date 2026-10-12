@@ -58,12 +58,15 @@ public class OrderService {
         this.stock = stock;
     }
 
-    /** ORD-YYMM-NNNN: the next free number in the month the order was placed (a later edit never renumbers it). */
+    /**
+     * ORD-YYMM-NNNN: YYMM is the month the order was placed and NNNN counts the business's orders through that year,
+     * so the count keeps rising from January to December (a later edit never renumbers an order).
+     */
     private String nextOrderNo(Long tenantId, LocalDateTime orderedAt) {
-        String prefix = "ORD-" + orderedAt.format(DateTimeFormatter.ofPattern("yyMM")) + "-";
-        String last = orders.maxOrderNo(tenantId, prefix + "%");
-        int next = last == null ? 1 : Integer.parseInt(last.substring(prefix.length())) + 1;
-        return prefix + String.format("%04d", next);
+        String year = orderedAt.format(DateTimeFormatter.ofPattern("yy"));
+        Integer last = orders.lastOrderSeq(tenantId, "ORD-" + year + "__-%");
+        return "ORD-" + year + orderedAt.format(DateTimeFormatter.ofPattern("MM")) + "-"
+                + String.format("%04d", last == null ? 1 : last + 1);
     }
 
     /** Matches the customer's name or the order number (ORD-2610-0004, or part of it); a leading "#" is ignored. */

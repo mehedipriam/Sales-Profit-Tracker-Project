@@ -30,7 +30,7 @@ public class OrderActivityService {
 
     /** One log entry as the Activity page shows it; orderExists is false once the order has been deleted. */
     public record ActivityRow(Long id, LocalDateTime at, Long userId, String userName, Role userRole,
-                              OrderAction action, Long orderId, boolean orderExists, String customerName,
+                              OrderAction action, Long orderId, String orderNo, boolean orderExists, String customerName,
                               BigDecimal amountBefore, BigDecimal amount, OrderStatus fromStatus, OrderStatus toStatus,
                               List<OrderChange> changes) {}
 
@@ -98,7 +98,7 @@ public class OrderActivityService {
         return PageResponse.of(result, a -> {
             User u = userById.get(a.getUserId());
             return new ActivityRow(a.getId(), a.getCreatedAt(), a.getUserId(), u == null ? null : u.getFullName(),
-                    u == null ? null : u.getRole(), a.getAction(), a.getOrderId(), existing.contains(a.getOrderId()),
+                    u == null ? null : u.getRole(), a.getAction(), a.getOrderId(), a.getOrderNo(), existing.contains(a.getOrderId()),
                     a.getCustomerName(), a.getAmountBefore(), a.getAmount(), a.getFromStatus(), a.getToStatus(),
                     a.getChanges() == null ? List.of()
                             : Arrays.stream(a.getChanges().split(",")).map(OrderChange::valueOf).toList());
@@ -110,7 +110,7 @@ public class OrderActivityService {
     private void write(AuthUser actor, SaleOrder o, OrderAction action, BigDecimal amountBefore, BigDecimal amount,
                        OrderStatus from, OrderStatus to, String changes) {
         String customerName = customers.findById(o.getCustomerId()).map(Customer::getName).orElse("—");
-        activity.save(new OrderActivity(actor.tenantId(), o.getId(), actor.userId(), action, customerName,
+        activity.save(new OrderActivity(actor.tenantId(), o.getId(), o.getOrderNo(), actor.userId(), action, customerName,
                 amountBefore, amount, from, to, changes));
     }
 }

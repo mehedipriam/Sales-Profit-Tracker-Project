@@ -36,6 +36,8 @@ export default function Dashboard() {
   const m = (n) => (show ? money(n) : MASK)
   const loss = show && realized.profit < 0
   const noOrders = recentOrders.length === 0
+  // The newest order is the all-time sales count, as in the Orders list.
+  const totalOrders = realized.orders + pending.orders + returnedOrders + cancelledOrders
 
   return (
     <section>
@@ -123,14 +125,15 @@ export default function Dashboard() {
         <table>
           <thead>
             <tr>
-              <th>#</th><th>Date</th><th>Customer</th><th>Platform</th>
+              <th>#</th><th>Order no.</th><th>Date</th><th>Customer</th><th>Platform</th>
               <th className="num">Revenue</th><th className="num">Profit</th><th>Status</th>
             </tr>
           </thead>
           <tbody>
-            {recentOrders.map((o) => (
+            {recentOrders.map((o, i) => (
               <tr key={o.id}>
-                <td>{o.id}</td>
+                <td>{totalOrders - i}</td>
+                <td><b>{o.orderNo}</b></td>
                 <td>{dateTime(o.orderedAt)}</td>
                 <td>{o.customerName}</td>
                 <td>{o.platformName}</td>
@@ -140,7 +143,7 @@ export default function Dashboard() {
               </tr>
             ))}
             {noOrders && (
-              <tr><td colSpan={7} className="empty">No sales yet. <Link to="/orders/new">Record your first sale</Link>.</td></tr>
+              <tr><td colSpan={8} className="empty">No sales yet. <Link to="/orders/new">Record your first sale</Link>.</td></tr>
             )}
           </tbody>
         </table>

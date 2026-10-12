@@ -22,6 +22,10 @@ public class OrderActivity implements TenantOwned {
     @Column(name = "order_id", nullable = false)
     private Long orderId;
 
+    /** The order's number when the entry was written; null for entries older than order numbers whose order is gone. */
+    @Column(name = "order_no")
+    private String orderNo;
+
     @Column(name = "user_id", nullable = false)
     private Long userId;
 
@@ -57,11 +61,12 @@ public class OrderActivity implements TenantOwned {
 
     protected OrderActivity() {}
 
-    OrderActivity(Long tenantId, Long orderId, Long userId, OrderAction action, String customerName,
+    OrderActivity(Long tenantId, Long orderId, String orderNo, Long userId, OrderAction action, String customerName,
                   BigDecimal amountBefore, BigDecimal amount, OrderStatus fromStatus, OrderStatus toStatus,
                   String changes) {
         this.tenantId = tenantId;
         this.orderId = orderId;
+        this.orderNo = orderNo;
         this.userId = userId;
         this.action = action;
         this.customerName = customerName;
@@ -76,6 +81,7 @@ public class OrderActivity implements TenantOwned {
     public Long getId() { return id; }
     @Override public Long getTenantId() { return tenantId; }
     public Long getOrderId() { return orderId; }
+    public String getOrderNo() { return orderNo; }
     public Long getUserId() { return userId; }
     public OrderAction getAction() { return action; }
     public String getCustomerName() { return customerName; }

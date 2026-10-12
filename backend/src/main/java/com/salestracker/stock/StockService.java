@@ -6,6 +6,7 @@ import com.salestracker.common.Search;
 import com.salestracker.order.OrderItem;
 import com.salestracker.order.OrderStatus;
 import com.salestracker.order.SaleOrder;
+import com.salestracker.order.SaleOrderRepository;
 import com.salestracker.product.Product;
 import com.salestracker.product.ProductRepository;
 import com.salestracker.stock.StockDtos.AdjustRequest;
@@ -31,10 +32,13 @@ import java.util.stream.Collectors;
 public class StockService {
     private final StockAdjustmentRepository adjustments;
     private final ProductRepository products;
+    private final SaleOrderRepository orders;
 
-    public StockService(StockAdjustmentRepository adjustments, ProductRepository products) {
+    public StockService(StockAdjustmentRepository adjustments, ProductRepository products,
+                        SaleOrderRepository orders) {
         this.adjustments = adjustments;
         this.products = products;
+        this.orders = orders;
     }
 
     @Transactional(readOnly = true)
@@ -47,15 +51,19 @@ public class StockService {
         Map<Long, Product> productById = products.findAllById(
                         result.stream().map(StockAdjustment::getProductId).collect(Collectors.toSet()))
                 .stream().collect(Collectors.toMap(Product::getId, Function.identity()));
+        Map<Long, String> orderNoById = orders.findAllById(
+                        result.stream().map(StockAdjustment::getOrderId).filter(Objects::nonNull).collect(Collectors.toSet()))
+                .stream().collect(Collectors.toMap(SaleOrder::getId, SaleOrder::getOrderNo));
         return PageResponse.of(result, a -> new AdjustmentResponse(a.getId(), a.getCreatedAt(), a.getProductId(),
                 productById.get(a.getProductId()).getName(), a.getReason(), a.getQuantityChange(), a.getStockAfter(),
-                a.getOrderId() != null ? orderNote(a.getQuantityChange(), a.getOrderId()) : a.getNote(),
+                a.getOrderId() != null ? orderNote(a.getQuantityChange(),
+                        orderNoById.getOrDefault(a.getOrderId(), "#" + a.getOrderId())) : a.getNote(),
                 a.getOrderId()));
     }
 
-    /** Built from the order id when shown, not taken from the stored text, so it always names the order it links to. */
-    private static String orderNote(int change, Long orderId) {
-        return (change < 0 ? "Sold on order #" : "Returned from order #") + orderId;
+    /** Built from the order number when shown, not taken from the stored text, so it always names the order it links to. */
+    private static String orderNote(int change, String orderNo) {
+        return (change < 0 ? "Sold on order " : "Returned from order ") + orderNo;
     }
 
     /** A manual adjustment (restock, damaged goods, count correction). Stock can never be taken below zero. */
@@ -166,7 +174,7 @@ public class StockService {
             // Selling past zero is allowed: the sale already happened, the log just shows the shortfall.
             p.addStock(change);
             adjustments.save(new StockAdjustment(tenantId, productId, order.getId(), StockReason.ORDER, change,
-                    p.getStockQty(), orderNote(change, order.getId())));
+                    p.getStockQty(), orderNote(change, order.getOrderNo())));
         }
     }
 }

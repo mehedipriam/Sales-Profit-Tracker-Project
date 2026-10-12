@@ -112,7 +112,7 @@ public class CourierPayoutService {
                     && (o.getStatus() == OrderStatus.PAID || o.getStatus() == OrderStatus.PENDING);
             if (!payable) {
                 throw new ApiException(HttpStatus.BAD_REQUEST,
-                        "Order #" + o.getId() + " has no courier cash waiting to be paid out");
+                        "Order " + o.getOrderNo() + " has no courier cash waiting to be paid out");
             }
             if (o.getStatus() == OrderStatus.PENDING) {
                 orderService.changeStatus(actor, o.getId(), OrderStatus.PAID);

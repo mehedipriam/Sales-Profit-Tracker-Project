@@ -13,7 +13,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class ReportExportIntegrationTest extends AbstractIntegrationTest {
 
-    private static final String HEADER = "\"Order date\",\"Order #\",\"Platform\",\"Customer\",\"Status\","
+    private static final String HEADER = "\"Order date\",\"Order no.\",\"Platform\",\"Customer\",\"Status\","
             + "\"Product\",\"Quantity\",\"Unit sold price\",\"Unit cost\",\"Revenue\",\"Cost\",\"Profit\",\"Delivery charge\"";
 
     private Tenant tenant;
@@ -90,12 +90,12 @@ class ReportExportIntegrationTest extends AbstractIntegrationTest {
         assertEquals(HEADER, lines.get(0));
         assertEquals(5, lines.size(), "header + 2 lines (Aug 30) + Sep 1 + Sep 2");
 
-        assertEquals("\"2026-08-30 09:00:00\",%d,\"Daraz\",\"Buyer\",\"PAID\",\"Rice, Premium \"\"A\"\"\",1,120.00,100.00,120.00,100.00,20.00,60.00"
-                .formatted(order3), lines.get(1));
-        assertEquals("\"2026-08-30 09:00:00\",%d,\"Daraz\",\"Buyer\",\"PAID\",\"Oil\",3,40.00,50.00,120.00,150.00,-30.00,"
-                .formatted(order3), lines.get(2));
-        assertEquals("\"2026-09-01 10:00:00\",%d,\"Facebook Page\",\"Buyer\",\"PAID\",\"Rice, Premium \"\"A\"\"\",2,150.00,100.00,300.00,200.00,100.00,0.00"
-                .formatted(order1), lines.get(3));
+        assertEquals("\"2026-08-30 09:00:00\",\"ORD-2608-0003\",\"Daraz\",\"Buyer\",\"PAID\",\"Rice, Premium \"\"A\"\"\",1,120.00,100.00,120.00,100.00,20.00,60.00",
+                lines.get(1));
+        assertEquals("\"2026-08-30 09:00:00\",\"ORD-2608-0003\",\"Daraz\",\"Buyer\",\"PAID\",\"Oil\",3,40.00,50.00,120.00,150.00,-30.00,",
+                lines.get(2));
+        assertEquals("\"2026-09-01 10:00:00\",\"ORD-2609-0001\",\"Facebook Page\",\"Buyer\",\"PAID\",\"Rice, Premium \"\"A\"\"\",2,150.00,100.00,300.00,200.00,100.00,0.00",
+                lines.get(3));
         assertTrue(lines.get(4).contains("\"PENDING\""), "unpaid orders are exported too, marked by Status");
         assertTrue(lines.get(4).endsWith(",1,90.00,100.00,90.00,100.00,-10.00,0.00"));
     }

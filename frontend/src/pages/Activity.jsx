@@ -99,7 +99,7 @@ export default function Activity() {
         {orderId && (
           <button type="button" className="btn secondary small" title="Show every order's activity"
                   onClick={() => { setParams({}); setPage(0) }}>
-            Order #{orderId} ✕
+            Order {data?.content?.[0]?.orderNo ?? `#${orderId}`} ✕
           </button>
         )}
       </div>
@@ -128,8 +128,8 @@ export default function Activity() {
                 </td>
                 <td>
                   {a.orderExists
-                    ? <Link to={`/orders/${a.orderId}`}>#{a.orderId}</Link>
-                    : <span className="muted" title="This order has been deleted">#{a.orderId} (deleted)</span>}
+                    ? <Link to={`/orders/${a.orderId}`}>{a.orderNo ?? `#${a.orderId}`}</Link>
+                    : <span className="muted" title="This order has been deleted">{a.orderNo ?? `#${a.orderId}`} (deleted)</span>}
                 </td>
                 <td>{a.customerName}</td>
                 <td className="num">

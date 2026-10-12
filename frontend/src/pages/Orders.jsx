@@ -67,7 +67,7 @@ export default function Orders() {
   }
 
   const remove = async (o) => {
-    if (!window.confirm(`Delete order #${o.id} for ${o.customerName}? This cannot be undone.`)) return
+    if (!window.confirm(`Delete order ${o.orderNo} for ${o.customerName}? This cannot be undone.`)) return
     try {
       await api.delete(`/orders/${o.id}`)
       load()

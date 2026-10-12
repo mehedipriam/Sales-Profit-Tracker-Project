@@ -29,9 +29,12 @@ public interface SaleOrderRepository extends JpaRepository<SaleOrder, Long> {
                            @Param("statuses") Collection<OrderStatus> statuses, @Param("q") String q,
                            @Param("from") LocalDateTime from, @Param("to") LocalDateTime to, Pageable pageable);
 
-    /** The highest order number of a month ("ORD-2610-%"), which the next order continues from; null if none. */
-    @Query("select max(o.orderNo) from SaleOrder o where o.tenantId = :tenantId and o.orderNo like :prefix")
-    String maxOrderNo(@Param("tenantId") Long tenantId, @Param("prefix") String prefix);
+    /** The highest count in a year's order numbers ("ORD-26__-%": the NNNN of ORD-2610-NNNN); null if none. */
+    @Query("""
+            select max(cast(substring(o.orderNo, 10) as integer)) from SaleOrder o
+            where o.tenantId = :tenantId and o.orderNo like :pattern
+            """)
+    Integer lastOrderSeq(@Param("tenantId") Long tenantId, @Param("pattern") String pattern);
 
     /** Order counts and money per status; platformId 0 means all platforms. */
     @Query("""
