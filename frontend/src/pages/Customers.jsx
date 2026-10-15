@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import api, { errorMessage } from '../api/client'
 import Modal from '../components/Modal'
 import Pager from '../components/Pager'
+import { MASK, useReveal } from '../components/Reveal'
 import useDebounce from '../hooks/useDebounce'
 import { dateTime, money } from '../utils/format'
 
@@ -63,6 +64,12 @@ function CustomerForm({ customer, platforms, onSaved, onCancel }) {
 
 const PAGE_SIZE = 20
 
+/** 01720034798 -> 017*****98: the first 3 and last 2 characters stay, the middle is starred. */
+const maskPhone = (phone) => {
+  if (!phone) return '—'
+  return phone.length <= 5 ? '*'.repeat(phone.length) : `${phone.slice(0, 3)}${'*'.repeat(phone.length - 5)}${phone.slice(-2)}`
+}
+
 /** "2 of 5 orders" style breakdown of the returned / cancelled ones, for the return-rate tooltip. */
 const problemsText = (ins) =>
   `${ins.returned} returned, ${ins.cancelled} cancelled out of ${ins.paid + ins.returned + ins.cancelled} settled orders`
@@ -76,6 +83,9 @@ export default function Customers() {
   const [editing, setEditing] = useState(null)
   const [error, setError] = useState('')
   const dq = useDebounce(q)
+  // Phone, address and spent stay hidden until the eye is opened (same password or PIN as the other pages).
+  const { shown, eye, prompt } = useReveal()
+  const show = shown.all
 
   useEffect(() => {
     api.get('/platforms').then((res) => setPlatforms(res.data)).catch(() => {})
@@ -108,6 +118,7 @@ export default function Customers() {
     <section>
       <div className="page-head">
         <h1>Customers</h1>
+        <span className="page-eye">{show ? 'Hide' : 'Show'} details{eye('all', 'customer details')}</span>
         <button className="btn" onClick={() => setEditing({})}>+ Add customer</button>
       </div>
 
@@ -145,8 +156,8 @@ export default function Customers() {
                     <span className="badge risk" title={problemsText(c.insights)}>Often returns</span>
                   )}
                 </td>
-                <td>{c.phone || '—'}</td>
-                <td>{c.address || '—'}</td>
+                <td>{show ? (c.phone || '—') : maskPhone(c.phone)}</td>
+                <td className={show ? '' : 'masked'}>{show ? (c.address || '—') : (c.address ? MASK : '—')}</td>
                 <td>{platformName(c.sourcePlatformId)}</td>
                 <td className="num">
                   {c.insights.orders > 0 ? (
@@ -156,7 +167,7 @@ export default function Customers() {
                     </Link>
                   ) : '0'}
                 </td>
-                <td className="num">{money(c.insights.spent)}</td>
+                <td className={`num${show ? '' : ' masked'}`}>{show ? money(c.insights.spent) : MASK}</td>
                 <td className={`num${c.insights.flagged ? ' neg' : ''}`}
                     title={c.insights.returnRatePct == null ? 'No settled orders yet' : problemsText(c.insights)}>
                   {c.insights.returnRatePct == null ? '—' : `${c.insights.returnRatePct}%`}
@@ -175,6 +186,7 @@ export default function Customers() {
         </table>
       </div>
       <Pager data={data} onPage={setPage} />
+      {prompt}
 
       {editing && (
         <Modal title={editing.id ? 'Edit customer' : 'Add customer'} onClose={() => setEditing(null)}>
