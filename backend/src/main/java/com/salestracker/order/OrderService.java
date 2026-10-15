@@ -111,7 +111,7 @@ public class OrderService {
     // Every write takes the signed-in user, who goes into the activity log.
 
     public OrderDetail create(AuthUser actor, OrderRequest req) {
-        SaleOrder draft = fill(new SaleOrder(actor.tenantId()), req);
+        SaleOrder draft = fill(new SaleOrder(actor.tenantId()), req, actor.role().seesFinancials());
         draft.assignOrderNo(nextOrderNo(actor.tenantId(), draft.getOrderedAt()));
         SaleOrder order = orders.save(draft);
         activity.created(actor, order);
@@ -121,7 +121,7 @@ public class OrderService {
     public OrderDetail update(AuthUser actor, Long id, OrderRequest req) {
         SaleOrder order = find(actor.tenantId(), id);
         OrderSnapshot before = OrderSnapshot.of(order);
-        orders.save(fill(order, req));
+        orders.save(fill(order, req, actor.role().seesFinancials()));
         activity.edited(actor, before, order);
         return saved(order);
     }
@@ -156,7 +156,7 @@ public class OrderService {
     }
 
     /** Validates the request against the tenant's data and (re)builds the order and its items. */
-    private SaleOrder fill(SaleOrder order, OrderRequest req) {
+    private SaleOrder fill(SaleOrder order, OrderRequest req, boolean mayEditCost) {
         Long tenantId = order.getTenantId();
         boolean isNew = order.getId() == null;
 
@@ -186,7 +186,9 @@ public class OrderService {
             if (product == null || (!product.isActive() && !keeps)) {
                 throw new ApiException(HttpStatus.BAD_REQUEST, "Unknown product: " + item.productId());
             }
-            BigDecimal cost = keeps ? keptCost.get(item.productId()) : product.getCostPrice();
+            // A cost typed on the line wins (Owner/Admin only); otherwise an edit keeps its snapshot and a new line takes the product's cost.
+            BigDecimal cost = mayEditCost && item.costPrice() != null ? item.costPrice()
+                    : keeps ? keptCost.get(item.productId()) : product.getCostPrice();
             newItems.add(new OrderItem(order, tenantId, product.getId(), item.quantity(), cost, item.soldPrice()));
         }
 

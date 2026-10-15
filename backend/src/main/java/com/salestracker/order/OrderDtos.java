@@ -16,9 +16,11 @@ public final class OrderDtos {
                               @Size(max = 32) String phone,
                               @Size(max = 500) String address) {}
 
+    /** costPrice is optional: this sale's cost for the product when it differs from the product's current cost (Owner/Admin). */
     public record ItemRequest(@NotNull Long productId,
                               @Min(1) @Max(1_000_000) int quantity,
-                              @NotNull @DecimalMin("0.00") @Digits(integer = 10, fraction = 2) BigDecimal soldPrice) {}
+                              @NotNull @DecimalMin("0.00") @Digits(integer = 10, fraction = 2) BigDecimal soldPrice,
+                              @DecimalMin("0.00") @Digits(integer = 10, fraction = 2) BigDecimal costPrice) {}
 
     /**
      * Provide either customerId (existing) or newCustomer (quick-add), not both.

@@ -756,8 +756,12 @@ table.striped tbody tr.picked td { background: var(--primary-soft); }
 .order-form .table-wrap { border-radius: 10px; }
 .order-form th { background: var(--surface-3); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.03em; color: var(--muted); }
 .order-form td { vertical-align: middle; }
-.order-form .line-name { font-weight: 500; min-width: 180px; }
-.order-form input.small.qty { width: 4.5rem; }
+.order-form .line-name { font-weight: 500; min-width: 120px; }
+.order-form input.small { width: 5.5rem; }
+.order-form input.small.qty { width: 3.75rem; }
+.order-form .table-wrap { overflow-x: visible; }
+.order-form th, .order-form td { padding-left: 0.5rem; padding-right: 0.5rem; }
+.order-form thead th.hide-col { padding-left: 0.5rem; padding-right: 0.5rem; }
 .icon-btn {
   display: inline-grid; place-items: center; width: 1.9rem; height: 1.9rem; border-radius: 50%; border: 0;
   background: transparent; color: var(--muted); cursor: pointer; font-size: 0.85rem; transition: background 0.15s, color 0.15s;

@@ -32,7 +32,7 @@ const newLine = (product, extra = {}) => ({
   key: ++lineKey,
   productId: product.id,
   name: product.name,
-  cost: Number(product.costPrice),
+  cost: product.costPrice == null ? '' : Number(product.costPrice),
   quantity: 1,
   soldPrice: product.sellingPrice ?? '',
   ...extra,
@@ -136,9 +136,9 @@ export default function OrderForm() {
   const updateLine = (key, patch) => setLines(lines.map((l) => (l.key === key ? { ...l, ...patch } : l)))
   const removeLine = (key) => setLines(lines.filter((l) => l.key !== key))
 
-  const lineProfit = (l) => (Number(l.soldPrice || 0) - l.cost) * Number(l.quantity || 0)
+  const lineProfit = (l) => (Number(l.soldPrice || 0) - Number(l.cost || 0)) * Number(l.quantity || 0)
   const revenue = lines.reduce((s, l) => s + Number(l.soldPrice || 0) * Number(l.quantity || 0), 0)
-  const cost = lines.reduce((s, l) => s + l.cost * Number(l.quantity || 0), 0)
+  const cost = lines.reduce((s, l) => s + Number(l.cost || 0) * Number(l.quantity || 0), 0)
   const delivery = Number(deliveryCharge || 0)
   const profit = revenue - cost
   const margin = revenue > 0 ? Math.round((profit / revenue) * 100) : 0
@@ -205,7 +205,9 @@ export default function OrderForm() {
       consignmentId: courierId ? consignmentId : null,
       trackingNumber: courierId ? trackingNumber : null,
       codAmount: courierId && codAmount !== '' ? codAmount : null,
-      items: lines.map((l) => ({ productId: l.productId, quantity: Number(l.quantity), soldPrice: l.soldPrice })),
+      items: lines.map((l) => ({ productId: l.productId, quantity: Number(l.quantity), soldPrice: l.soldPrice,
+        ...(showMoney && l.cost !== '' ? { costPrice: l.cost } : {}),
+      })),
     }
     setBusy(true)
     let orderId = id ?? savedId
@@ -368,7 +370,12 @@ export default function OrderForm() {
                         </td>
                         {showMoney && <>
                           {shown.cost
-                            ? <td className="num muted">{money(l.cost)}</td>
+                            ? (
+                              <td className="num">
+                                <input className="small" type="number" min="0" step="0.01" required aria-label={`Cost of ${l.name}`}
+                                       value={l.cost} onChange={(e) => updateLine(l.key, { cost: e.target.value })} />
+                              </td>
+                            )
                             : <td className="num masked hide-col">{MASK}</td>}
                           {shown.profit
                             ? <td className={`num ${lineProfit(l) < 0 ? 'neg' : 'pos'}`}><b>{money(lineProfit(l))}</b></td>
