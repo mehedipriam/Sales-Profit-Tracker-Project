@@ -10,7 +10,7 @@ export function loadChat(userId) {
   try {
     const saved = JSON.parse(sessionStorage.getItem(KEY) ?? 'null')
     if (!saved || saved.userId !== userId || !Array.isArray(saved.messages)) return { open: false, messages: [], maxKey: 0 }
-    const messages = saved.messages.map((m) => (m.status === 'saving'
+    const messages = saved.messages.map((m) => ({ ...m, revising: false })).map((m) => (m.status === 'saving'
       // A reload mid-save: the order may or may not have been stored.
       ? { ...m, status: 'open', error: 'Reloaded while saving. Check Orders before confirming again.' }
       : m))

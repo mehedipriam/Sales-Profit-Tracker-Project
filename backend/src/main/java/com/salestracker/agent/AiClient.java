@@ -10,4 +10,10 @@ public interface AiClient {
 
     /** The same from a screenshot, with an optional note typed beside it (text may be null). */
     ExtractedOrder extractOrder(String text, Image image);
+
+    /**
+     * Understands an instruction about a draft ("make it 3", "remove the red shirt"). draftSummary is the current draft
+     * as JSON with numbered lines. Returns only the changes asked for; saves nothing and changes nothing itself.
+     */
+    DraftRevision reviseDraft(String draftSummary, String instruction);
 }

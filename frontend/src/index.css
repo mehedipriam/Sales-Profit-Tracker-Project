@@ -908,6 +908,10 @@ thead th.hide-col { padding-left: 1.75rem; padding-right: 1.75rem; } /* room for
 .agent-bubble p { margin: 0; }
 .agent-attached { display: flex; align-items: center; gap: 0.6rem; padding: 0.5rem 0.6rem 0; }
 .agent-attach { padding: 0.4rem; display: grid; place-items: center; }
+.agent-revise { display: flex; flex-direction: column; gap: 0.35rem; }
+.agent-revise form { display: flex; gap: 0.4rem; }
+.agent-revise form input { flex: 1; }
+.agent-reply { margin: 0; padding: 0.35rem 0.55rem; border-radius: 6px; font-size: 0.82rem; background: var(--info-soft); color: var(--info); }
 @media (max-width: 600px) {
   .agent-fab { right: 0.8rem; bottom: 0.8rem; }
   .agent-panel { right: 0.5rem; left: 0.5rem; bottom: 4.8rem; width: auto; }

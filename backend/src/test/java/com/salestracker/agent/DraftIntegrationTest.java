@@ -139,7 +139,7 @@ class DraftIntegrationTest extends AbstractIntegrationTest {
                 List.of(item("Red Shirt", 3, "800"), item("Blue Shirt", null, null))));
 
         assertTrue(d.get("canConfirm").asBoolean());
-        assertTrue(hasIssue(d, "WARNING", "800 in the message but 900"));
+        assertTrue(hasIssue(d, "WARNING", "800 in this order but 900"));
         assertTrue(hasIssue(d, "WARNING", "Only 1 of Red Shirt in stock"));
         assertTrue(hasIssue(d, "WARNING", "No price for Blue Shirt"));
         assertEquals(redShirt, d.at("/items/0/productId").asLong());

@@ -61,18 +61,24 @@ public class DraftService {
 
         List<Product> catalog = products.findByTenantIdAndActiveTrue(tenantId);
         List<Line> lines = new ArrayList<>();
-        for (ExtractedOrder.Item item : x.items()) lines.add(line(item, catalog, issues));
-        if (lines.isEmpty()) issues.add(new Issue(Level.ERROR, "No products were found in the message"));
+        for (ExtractedOrder.Item item : x.items()) lines.add(line(item.name(), null, item.quantity(), item.price(), catalog, issues));
 
         BigDecimal delivery = x.deliveryCharge() != null && x.deliveryCharge().signum() >= 0 ? x.deliveryCharge() : BigDecimal.ZERO;
+        return assemble(customer, platform, OrderStatus.PENDING, delivery, x.notes(), lines, issues);
+    }
+
+    /** The finished draft: adds the problems every draft shares (no platform, no products) and works out canConfirm. */
+    DraftOrder assemble(DraftCustomer customer, Optional<Platform> platform, OrderStatus status, BigDecimal delivery,
+                        String notes, List<Line> lines, List<Issue> issues) {
+        if (lines.isEmpty()) issues.add(new Issue(Level.ERROR, "No products were found in the message"));
         boolean canConfirm = issues.stream().noneMatch(i -> i.level() == Level.ERROR);
         return new DraftOrder(customer, platform.map(Platform::getId).orElse(null), platform.map(Platform::getName).orElse(null),
-                OrderStatus.PENDING, delivery, x.notes(), lines, issues, canConfirm);
+                status, delivery, notes, lines, issues, canConfirm);
     }
 
     // ---- customer ----
 
-    private DraftCustomer customer(Long tenantId, ExtractedOrder x, List<Issue> issues) {
+    DraftCustomer customer(Long tenantId, ExtractedOrder x, List<Issue> issues) {
         Optional<Customer> existing = findByPhone(tenantId, x.phone());
         if (existing.isPresent()) {
             Customer c = existing.get();
@@ -127,7 +133,7 @@ public class DraftService {
     // ---- platform ----
 
     /** The platform the message names; failing that Facebook (where the orders come from), or the only one there is. */
-    private Optional<Platform> platform(Long tenantId, String named) {
+    Optional<Platform> platform(Long tenantId, String named) {
         List<Platform> active = platforms.findByTenantIdAndActiveTrueOrderByName(tenantId);
         if (named != null) {
             String n = named.toLowerCase(Locale.ROOT);
@@ -143,26 +149,33 @@ public class DraftService {
 
     // ---- items ----
 
-    private Line line(ExtractedOrder.Item item, List<Product> catalog, List<Issue> issues) {
-        String text = item.name() == null ? "" : item.name().trim();
-        int qty = item.quantity() != null && item.quantity() >= 1 ? item.quantity() : 1;
-        ProductMatcher.Match m = ProductMatcher.match(text, catalog);
+    /**
+     * One draft line. A pinned product (already chosen, kept from an earlier draft) is used as is while it is still in
+     * the catalog; otherwise the name is matched against the catalog.
+     */
+    Line line(String name, Long pinnedProductId, Integer quantity, BigDecimal soldPrice, List<Product> catalog, List<Issue> issues) {
+        String text = name == null ? "" : name.trim();
+        int qty = quantity != null && quantity >= 1 ? quantity : 1;
+        Product pinned = pinnedProductId == null ? null
+                : catalog.stream().filter(c -> c.getId().equals(pinnedProductId)).findFirst().orElse(null);
+        ProductMatcher.Match m = pinned != null ? new ProductMatcher.Match(MatchStatus.MATCHED, pinned, List.of())
+                                                : ProductMatcher.match(text, catalog);
 
         if (m.status() != MatchStatus.MATCHED) {
             List<Candidate> candidates = m.candidates().stream().map(p -> new Candidate(p.getId(), p.getName(), p.getSellingPrice(), p.getStockQty())).toList();
             issues.add(new Issue(Level.ERROR, m.status() == MatchStatus.AMBIGUOUS
                     ? "\"" + text + "\" could be more than one product: choose one"
                     : "No product matches \"" + text + "\""));
-            return new Line(text, null, null, qty, item.price(), null, null, m.status(), candidates);
+            return new Line(text, null, null, qty, soldPrice, null, null, m.status(), candidates);
         }
 
         Product p = m.product();
-        BigDecimal price = item.price();
+        BigDecimal price = soldPrice;
         if (price == null) {
             price = p.getSellingPrice();
             issues.add(new Issue(Level.WARNING, "No price for " + p.getName() + ": using its list price " + p.getSellingPrice().toPlainString()));
         } else if (price.compareTo(p.getSellingPrice()) != 0) {
-            issues.add(new Issue(Level.WARNING, p.getName() + " is " + price.toPlainString() + " in the message but "
+            issues.add(new Issue(Level.WARNING, p.getName() + " is " + price.toPlainString() + " in this order but "
                     + p.getSellingPrice().toPlainString() + " in your products"));
         }
         if (p.getStockQty() != null && qty > p.getStockQty()) {

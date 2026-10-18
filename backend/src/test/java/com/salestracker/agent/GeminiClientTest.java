@@ -93,6 +93,37 @@ class GeminiClientTest {
     }
 
     @Test
+    void aRevisionIsReadAsAListOfChangesWithTheDraftAndInstructionSent() throws Exception {
+        server.expect(requestTo(URL))
+                .andExpect(jsonPath("$.contents[0].parts[0].text").value(org.hamcrest.Matchers.allOf(
+                        org.hamcrest.Matchers.containsString("{\"lines\":[]}"), org.hamcrest.Matchers.containsString("Instruction: make it 3"))))
+                .andExpect(jsonPath("$.generationConfig.responseSchema.properties.changes.items.properties.action.enum[0]").value("SET_QUANTITY"))
+                .andRespond(withSuccess(answer("""
+                        {"reply":" Now 3. ","customerPhone":"01911-555666","status":"PAID","notes":"",
+                         "changes":[{"action":"SET_QUANTITY","line":1,"quantity":3},{"action":"ADD","product":"Red Shirt","quantity":1,"price":800}]}
+                        """), MediaType.APPLICATION_JSON));
+
+        DraftRevision r = client("k").reviseDraft("{\"lines\":[]}", "make it 3");
+
+        assertEquals("Now 3.", r.reply());
+        assertEquals("01911555666", r.customerPhone());
+        assertEquals(com.salestracker.order.OrderStatus.PAID, r.status());
+        assertEquals("", r.notes()); // an empty string means "clear the notes"
+        assertNull(r.customerName());
+        assertEquals(2, r.changes().size());
+        assertEquals(DraftRevision.Action.SET_QUANTITY, r.changes().get(0).action());
+        assertEquals(1, r.changes().get(0).line());
+        assertEquals("Red Shirt", r.changes().get(1).product());
+        server.verify();
+    }
+
+    @Test
+    void anUnknownRevisionActionIsBadGateway() throws Exception {
+        server.expect(requestTo(URL)).andRespond(withSuccess(answer("{\"reply\":\"x\",\"changes\":[{\"action\":\"DELETE_EVERYTHING\"}]}"), MediaType.APPLICATION_JSON));
+        assertEquals(HttpStatus.BAD_GATEWAY, assertThrows(ApiException.class, () -> client("k").reviseDraft("{}", "x")).getStatus());
+    }
+
+    @Test
     void withoutAKeyItFailsBeforeCallingGemini() {
         ApiException e = assertThrows(ApiException.class, () -> client("  ").extractOrder("hi"));
         assertEquals(HttpStatus.SERVICE_UNAVAILABLE, e.getStatus());

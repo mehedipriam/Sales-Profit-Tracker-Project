@@ -37,6 +37,19 @@ public class GeminiClient implements AiClient {
             shop settled on, so a later message that corrects a quantity, price or address wins over an earlier one. \
             The shop's own name and phone are not the customer's.""";
 
+    private static final String REVISE_PROMPT = """
+            You help a shop owner correct a draft customer order. You get the current draft as JSON (its lines are \
+            numbered from 1) and an instruction that may be in Bengali, English or a mix. Return only the changes the \
+            instruction asks for and leave every other field null or the changes list empty. Never invent values. \
+            Refer to lines by their number: SET_QUANTITY and SET_PRICE (quantity or price), REMOVE, REPLACE_PRODUCT \
+            (product is the new product name). Use ADD, with product, quantity and optional price, for a new product. \
+            "make it 3" with one line means that line. Convert Bengali digits to ASCII digits; a phone number is \
+            digits only. status is one of PAID, PENDING, RETURNED, CANCELLED. Put a new platform name in platform. \
+            An empty string for notes clears them. If the instruction is unclear, refers to a line that does not \
+            exist, or asks for something a draft cannot do, change nothing and explain in reply. If a detail needed \
+            to do it is missing, change nothing and ask for it in reply. reply is one short sentence in the language \
+            of the instruction saying what you did or what you need.""";
+
     private static final Logger log = LoggerFactory.getLogger(GeminiClient.class);
     /** Mutable only so a test does not have to wait. */
     static long RETRY_PAUSE_MS = 1000;
@@ -85,13 +98,33 @@ public class GeminiClient implements AiClient {
                     "data", Base64.getEncoder().encodeToString(image.bytes()))));
         }
         parts.add(Map.of("text", text == null || text.isBlank() ? "Read the order from this screenshot." : text));
+        return readOrder(generate(PROMPT, parts, schema()));
+    }
+
+    @Override
+    public DraftRevision reviseDraft(String draftSummary, String instruction) {
+        List<Map<String, Object>> parts = List.of(Map.of("text", "Current draft:\n" + draftSummary + "\n\nInstruction: " + instruction));
+        String out = generate(REVISE_PROMPT, parts, reviseSchema());
+        DraftRevision raw;
+        try {
+            raw = json.readValue(out, DraftRevision.class);
+        } catch (Exception e) {
+            throw new ApiException(HttpStatus.BAD_GATEWAY, "The AI answer could not be read. Try again");
+        }
+        return new DraftRevision(blankToNull(raw.reply()), blankToNull(raw.customerName()), cleanPhone(raw.customerPhone()),
+                blankToNull(raw.customerAddress()), raw.deliveryCharge(), raw.notes() == null ? null : raw.notes().trim(),
+                raw.status(), blankToNull(raw.platform()), raw.changes());
+    }
+
+    /** Sends one request to Gemini (retrying once on a server error) and returns the JSON text the model answered with. */
+    private String generate(String system, List<Map<String, Object>> parts, Map<String, Object> responseSchema) {
         Map<String, Object> body = Map.of(
-                "systemInstruction", Map.of("parts", List.of(Map.of("text", PROMPT))),
+                "systemInstruction", Map.of("parts", List.of(Map.of("text", system))),
                 "contents", List.of(Map.of("role", "user", "parts", parts)),
                 "generationConfig", Map.of(
                         "temperature", 0,
                         "responseMimeType", "application/json",
-                        "responseSchema", schema()));
+                        "responseSchema", responseSchema));
         JsonNode response;
         try {
             response = post(body);
@@ -113,7 +146,7 @@ public class GeminiClient implements AiClient {
         } catch (ResourceAccessException e) {
             throw unreachable();
         }
-        return parse(response);
+        return answerText(response);
     }
 
     private JsonNode post(Map<String, Object> body) {
@@ -146,7 +179,7 @@ public class GeminiClient implements AiClient {
         }
     }
 
-    private ExtractedOrder parse(JsonNode response) {
+    private static String answerText(JsonNode response) {
         String out = "";
         if (response != null) {
             // Skip "thought" parts some models add before the answer.
@@ -161,6 +194,10 @@ public class GeminiClient implements AiClient {
             // E.g. the answer was blocked by a safety filter.
             throw new ApiException(HttpStatus.BAD_GATEWAY, "The AI gave no answer. Try rewording the message");
         }
+        return out;
+    }
+
+    private ExtractedOrder readOrder(String out) {
         ExtractedOrder raw;
         try {
             raw = json.readValue(out, ExtractedOrder.class);
@@ -186,6 +223,25 @@ public class GeminiClient implements AiClient {
 
     private static String blankToNull(String s) {
         return s == null || s.isBlank() ? null : s.trim();
+    }
+
+    private static Map<String, Object> reviseSchema() {
+        Map<String, Object> change = Map.of("type", "OBJECT", "properties", Map.of(
+                "action", Map.of("type", "STRING", "enum", List.of("SET_QUANTITY", "SET_PRICE", "REMOVE", "ADD", "REPLACE_PRODUCT")),
+                "line", Map.of("type", "INTEGER", "nullable", true),
+                "product", Map.of("type", "STRING", "nullable", true),
+                "quantity", Map.of("type", "INTEGER", "nullable", true),
+                "price", Map.of("type", "NUMBER", "nullable", true)));
+        return Map.of("type", "OBJECT", "properties", Map.of(
+                "reply", Map.of("type", "STRING"),
+                "customerName", Map.of("type", "STRING", "nullable", true),
+                "customerPhone", Map.of("type", "STRING", "nullable", true),
+                "customerAddress", Map.of("type", "STRING", "nullable", true),
+                "deliveryCharge", Map.of("type", "NUMBER", "nullable", true),
+                "notes", Map.of("type", "STRING", "nullable", true),
+                "status", Map.of("type", "STRING", "nullable", true, "enum", List.of("PAID", "PENDING", "RETURNED", "CANCELLED")),
+                "platform", Map.of("type", "STRING", "nullable", true),
+                "changes", Map.of("type", "ARRAY", "items", change)));
     }
 
     private static Map<String, Object> schema() {

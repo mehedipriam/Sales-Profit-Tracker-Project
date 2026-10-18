@@ -25,10 +25,12 @@ public class AgentController {
 
     private final AiClient ai;
     private final DraftService drafts;
+    private final RevisionService revisions;
 
-    public AgentController(AiClient ai, DraftService drafts) {
+    public AgentController(AiClient ai, DraftService drafts, RevisionService revisions) {
         this.ai = ai;
         this.drafts = drafts;
+        this.revisions = revisions;
     }
 
     /** Test endpoint: just what the AI read, before any matching. */
@@ -50,6 +52,12 @@ public class AgentController {
                                      @RequestParam(value = "text", required = false) String text) {
         if (text != null && text.length() > 4000) throw new ApiException(HttpStatus.BAD_REQUEST, "The note is too long");
         return drafts.prepare(user, text, ImageUpload.read(image));
+    }
+
+    /** "Make it 3", "remove the red shirt": changes an open draft as asked and checks it again. Saves nothing. */
+    @PostMapping("/revise")
+    public RevisionService.Revised revise(@AuthenticationPrincipal AuthUser user, @Valid @RequestBody RevisionService.RevisionRequest req) {
+        return revisions.revise(user, req);
     }
 
     /** The (possibly corrected) draft as an ordinary order request: a customerId, or newCustomer to create one. */

@@ -51,6 +51,19 @@ function blockers(s) {
   return out
 }
 
+/** The draft as the revise endpoint expects it (the same fields, numbers as numbers). */
+const toRevisionDraft = (s) => ({
+  customer: s.customer,
+  platformId: s.platformId ? Number(s.platformId) : null,
+  status: s.status,
+  deliveryCharge: Number(s.deliveryCharge) || 0,
+  notes: s.notes || null,
+  lines: s.lines.map((l) => ({
+    text: l.text, productId: l.productId, quantity: Number(l.quantity) || null,
+    soldPrice: l.soldPrice === '' ? null : Number(l.soldPrice),
+  })),
+})
+
 /** The draft as the ordinary order request the server expects. */
 const toRequest = (s) => ({
   platformId: Number(s.platformId),
@@ -63,9 +76,10 @@ const toRequest = (s) => ({
   items: s.lines.map((l) => ({ productId: l.productId, quantity: qty(l), soldPrice: price(l) })),
 })
 
-function DraftCard({ message, platforms, onEdit, onConfirm, onDiscard }) {
-  const { draft: s, status, error } = message
-  const open = status === 'open' || status === 'saving'
+function DraftCard({ message, platforms, onEdit, onConfirm, onDiscard, onRevise }) {
+  const { draft: s, status, error, reply, revising } = message
+  const [change, setChange] = useState('')
+  const open = (status === 'open' || status === 'saving') && !revising
   const issues = blockers(s)
   const set = (patch) => onEdit((d) => ({ ...d, ...patch }))
   const setCustomer = (patch) => onEdit((d) => ({ ...d, customer: { ...d.customer, ...patch } }))
@@ -184,6 +198,25 @@ function DraftCard({ message, platforms, onEdit, onConfirm, onDiscard }) {
       )}
       {error && <p className="error" role="alert">{error}</p>}
 
+      {(status === 'open' || revising) && (
+        <div className="agent-revise">
+          {reply && <p className="agent-reply">{reply}</p>}
+          <form onSubmit={(e) => {
+            e.preventDefault()
+            const text = change.trim()
+            if (!text || revising) return
+            setChange('')
+            onRevise(text)
+          }}>
+            <input aria-label="Change something in this draft" placeholder="Change something… e.g. make it 3" maxLength={1000}
+                   value={change} disabled={!open} onChange={(e) => setChange(e.target.value)} />
+            <button type="submit" className="btn secondary small" disabled={!open || !change.trim()}>
+              {revising ? 'Working…' : 'Change'}
+            </button>
+          </form>
+        </div>
+      )}
+
       <div className="actions">
         <button type="button" className="btn secondary small" disabled={status === 'saving'} onClick={onDiscard}>Cancel</button>
         <button type="button" className="btn small" disabled={!open || status === 'saving' || issues.length > 0} onClick={onConfirm}>
@@ -281,6 +314,16 @@ export default function AgentChat() {
     }
   }
 
+  const revise = async (m, instruction) => {
+    patch(m.key, () => ({ revising: true, error: '' }))
+    try {
+      const { data } = await api.post('/agent/revise', { instruction, draft: toRevisionDraft(m.draft) })
+      patch(m.key, () => ({ draft: toState(data.draft), reply: data.reply, revising: false }))
+    } catch (err) {
+      patch(m.key, () => ({ revising: false, error: errorMessage(err) }))
+    }
+  }
+
   const confirm = async (m) => {
     patch(m.key, () => ({ status: 'saving', error: '' }))
     try {
@@ -313,6 +356,7 @@ export default function AgentChat() {
               <DraftCard key={m.key} message={m} platforms={platforms}
                          onEdit={(fn) => patch(m.key, (cur) => ({ draft: fn(cur.draft) }))}
                          onConfirm={() => confirm(m)}
+                         onRevise={(instruction) => revise(m, instruction)}
                          onDiscard={() => patch(m.key, () => ({ status: 'discarded' }))} />
             ) : (
               <div key={m.key} className={`agent-bubble ${m.role}${m.failed ? ' failed' : ''}`}>
