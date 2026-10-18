@@ -28,6 +28,8 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
 
     Optional<Product> findByIdAndTenantIdAndActiveTrue(Long id, Long tenantId);
 
+    List<Product> findByTenantIdAndActiveTrue(Long tenantId);
+
     /** Row-locked read for anything that changes stock, so concurrent sales cannot lose an update. */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select p from Product p where p.id = :id and p.tenantId = :tenantId")
