@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 import { ROLE_LABELS, seesFinancials } from '../auth/roles'
+import AgentChat from '../components/AgentChat'
+import { clearChat } from '../components/agentStore'
 import ErrorBoundary from '../components/ErrorBoundary'
 import { MasterEye } from '../components/Reveal'
 import ThemeToggle from '../components/ThemeToggle'
@@ -75,6 +77,7 @@ export default function Layout() {
   const showMoney = seesFinancials(user)
 
   const onLogout = () => {
+    clearChat()
     logout()
     navigate('/login')
   }
@@ -115,6 +118,7 @@ export default function Layout() {
           <Outlet />
         </ErrorBoundary>
       </main>
+      <AgentChat />
     </div>
   )
 }

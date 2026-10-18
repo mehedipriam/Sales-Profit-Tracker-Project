@@ -3,6 +3,8 @@ package com.salestracker.agent;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.salestracker.auth.ApiException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
@@ -29,6 +31,10 @@ public class GeminiClient implements AiClient {
             digits only (keep a leading + if present). Item names are copied as written. Quantity defaults to 1 \
             only when an item is clearly ordered without a number. Prices and the delivery charge are plain \
             numbers without currency symbols. Put anything else useful (delivery instructions, gift notes) in notes.""";
+
+    private static final Logger log = LoggerFactory.getLogger(GeminiClient.class);
+    /** Mutable only so a test does not have to wait. */
+    static long RETRY_PAUSE_MS = 1000;
 
     private final RestClient http;
     private final ObjectMapper json;
@@ -72,21 +78,56 @@ public class GeminiClient implements AiClient {
                         "responseSchema", schema()));
         JsonNode response;
         try {
-            response = http.post().uri("/v1beta/models/{model}:generateContent", model)
-                    .header("x-goog-api-key", apiKey)
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .body(body)
-                    .retrieve().body(JsonNode.class);
+            response = post(body);
         } catch (RestClientResponseException e) {
-            // Never put the request or response text in a message: it holds customer details.
-            int code = e.getStatusCode().value();
-            if (code == 429) throw new ApiException(HttpStatus.TOO_MANY_REQUESTS, "The AI is busy or its quota is used up. Try again shortly");
-            if (code == 400 || code == 401 || code == 403) throw new ApiException(HttpStatus.BAD_GATEWAY, "The AI rejected the request. Check GEMINI_API_KEY and the model name");
-            throw new ApiException(HttpStatus.BAD_GATEWAY, "The AI service failed. Try again");
+            // Google answers 5xx now and then when it is busy; one more try usually gets through.
+            if (e.getStatusCode().is5xxServerError()) {
+                log.warn("Gemini answered {}; retrying once", e.getStatusCode().value());
+                sleep(RETRY_PAUSE_MS);
+                try {
+                    response = post(body);
+                } catch (RestClientResponseException again) {
+                    throw failed(again);
+                } catch (ResourceAccessException again) {
+                    throw unreachable();
+                }
+            } else {
+                throw failed(e);
+            }
         } catch (ResourceAccessException e) {
-            throw new ApiException(HttpStatus.BAD_GATEWAY, "Could not reach the AI service. Try again");
+            throw unreachable();
         }
         return parse(response);
+    }
+
+    private JsonNode post(Map<String, Object> body) {
+        return http.post().uri("/v1beta/models/{model}:generateContent", model)
+                .header("x-goog-api-key", apiKey)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(body)
+                .retrieve().body(JsonNode.class);
+    }
+
+    /** Never put the request or response text in a message or the log: it holds customer details. */
+    private ApiException failed(RestClientResponseException e) {
+        int code = e.getStatusCode().value();
+        log.warn("Gemini request failed with status {}", code);
+        if (code == 429) return new ApiException(HttpStatus.TOO_MANY_REQUESTS, "The AI is busy or its quota is used up. Try again shortly");
+        if (code == 400 || code == 401 || code == 403) return new ApiException(HttpStatus.BAD_GATEWAY, "The AI rejected the request. Check GEMINI_API_KEY and the model name");
+        return new ApiException(HttpStatus.BAD_GATEWAY, "The AI service failed. Try again");
+    }
+
+    private ApiException unreachable() {
+        log.warn("Gemini could not be reached");
+        return new ApiException(HttpStatus.BAD_GATEWAY, "Could not reach the AI service. Try again");
+    }
+
+    private static void sleep(long ms) {
+        try {
+            Thread.sleep(ms);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
     }
 
     private ExtractedOrder parse(JsonNode response) {

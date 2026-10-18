@@ -70,7 +70,9 @@ public class DraftService {
         Optional<Customer> existing = findByPhone(tenantId, x.phone());
         if (existing.isPresent()) {
             Customer c = existing.get();
-            if (x.customerName() != null && !c.getName().equalsIgnoreCase(x.customerName())) {
+            // A name written in another script (রহিম / Rahim) is the same person written differently, not a mismatch.
+            if (x.customerName() != null && !c.getName().equalsIgnoreCase(x.customerName())
+                    && isLatin(c.getName()) == isLatin(x.customerName())) {
                 issues.add(new Issue(Level.WARNING, "This phone number belongs to " + c.getName()
                         + ", but the message says " + x.customerName()));
             }
@@ -85,6 +87,11 @@ public class DraftService {
     /** The confirm step: creates the order (and the customer, unless their phone is already on file) like the order form does. */
     public OrderDetail confirm(AuthUser actor, OrderRequest req) {
         return orders.create(actor, reuseCustomer(actor.tenantId(), req));
+    }
+
+    private static boolean isLatin(String name) {
+        return name.codePoints().filter(Character::isLetter)
+                .allMatch(cp -> Character.UnicodeScript.of(cp) == Character.UnicodeScript.LATIN);
     }
 
     /** Finds a customer by phone however it was typed (dashes, spaces, +880 or 0 in front): the last 10 digits decide. */
@@ -136,7 +143,7 @@ public class DraftService {
         ProductMatcher.Match m = ProductMatcher.match(text, catalog);
 
         if (m.status() != MatchStatus.MATCHED) {
-            List<Candidate> candidates = m.candidates().stream().map(p -> new Candidate(p.getId(), p.getName())).toList();
+            List<Candidate> candidates = m.candidates().stream().map(p -> new Candidate(p.getId(), p.getName(), p.getSellingPrice(), p.getStockQty())).toList();
             issues.add(new Issue(Level.ERROR, m.status() == MatchStatus.AMBIGUOUS
                     ? "\"" + text + "\" could be more than one product: choose one"
                     : "No product matches \"" + text + "\""));

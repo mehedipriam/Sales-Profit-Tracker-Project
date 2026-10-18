@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.test.web.client.ExpectedCount;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.RestClient;
 
@@ -86,13 +87,28 @@ class GeminiClientTest {
     }
 
     @Test
-    void rejectedKeyAndServerErrorsAreBadGateway() {
+    void rejectedKeyIsBadGatewayWithoutARetry() {
         server.expect(requestTo(URL)).andRespond(withStatus(HttpStatus.FORBIDDEN));
         assertEquals(HttpStatus.BAD_GATEWAY, assertThrows(ApiException.class, () -> client("k").extractOrder("hi")).getStatus());
+        server.verify(); // exactly one request
+    }
 
-        server.reset();
-        server.expect(requestTo(URL)).andRespond(withStatus(HttpStatus.INTERNAL_SERVER_ERROR));
+    @Test
+    void aBusyGoogleIsRetriedOnceThenReportedAsBadGateway() throws Exception {
+        GeminiClient.RETRY_PAUSE_MS = 0;
+        server.expect(ExpectedCount.times(2), requestTo(URL)).andRespond(withStatus(HttpStatus.SERVICE_UNAVAILABLE));
         assertEquals(HttpStatus.BAD_GATEWAY, assertThrows(ApiException.class, () -> client("k").extractOrder("hi")).getStatus());
+        server.verify();
+    }
+
+    @Test
+    void aServerErrorFollowedByAnAnswerSucceeds() throws Exception {
+        GeminiClient.RETRY_PAUSE_MS = 0;
+        server.expect(requestTo(URL)).andRespond(withStatus(HttpStatus.SERVICE_UNAVAILABLE));
+        server.expect(requestTo(URL)).andRespond(withSuccess(answer("{\"customerName\":\"Karim\"}"), MediaType.APPLICATION_JSON));
+
+        assertEquals("Karim", client("k").extractOrder("hi").customerName());
+        server.verify();
     }
 
     @Test

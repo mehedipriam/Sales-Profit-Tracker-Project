@@ -165,4 +165,13 @@ class DraftIntegrationTest extends AbstractIntegrationTest {
         assertTrue(hasIssue(d, "WARNING", "belongs to Rahim Uddin"));
         assertTrue(d.get("canConfirm").asBoolean());
     }
+
+    @Test
+    void theSameNameInAnotherScriptIsNotFlagged() throws Exception {
+        post(tenant, "/api/customers", "{\"name\":\"রহিম\",\"phone\":\"01711222333\"}", 201);
+        JsonNode d = draft(new ExtractedOrder("Rahim", "01711222333", null, null, null, null,
+                List.of(item("Blue Shirt", 1, "900"))));
+        assertFalse(d.at("/customer/isNew").asBoolean());
+        assertFalse(hasIssue(d, "WARNING", "belongs to"));
+    }
 }

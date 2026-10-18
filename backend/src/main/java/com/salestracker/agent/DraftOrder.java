@@ -18,7 +18,8 @@ public record DraftOrder(DraftCustomer customer, Long platformId, String platfor
 
     public enum MatchStatus { MATCHED, AMBIGUOUS, NOT_FOUND }
 
-    public record Candidate(Long id, String name) {}
+    /** A product that might be the one meant, with what the chat needs to use it as a line. */
+    public record Candidate(Long id, String name, BigDecimal sellingPrice, Integer stockQty) {}
 
     /**
      * text is what the message said; productId is null until the product is matched. catalogPrice is the product's
