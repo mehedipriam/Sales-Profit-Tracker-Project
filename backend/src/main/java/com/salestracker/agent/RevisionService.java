@@ -111,6 +111,7 @@ public class RevisionService {
                 : in.deliveryCharge() != null && in.deliveryCharge().signum() >= 0 ? in.deliveryCharge() : BigDecimal.ZERO;
         String notes = plan.notes() != null ? (plan.notes().isBlank() ? null : plan.notes()) : in.notes();
 
+        drafts.warnIfDuplicate(tenantId, customer, lines, issues);
         DraftOrder draft = drafts.assemble(customer, platform, status, delivery, notes, lines, issues);
         return new Revised(draft, plan.reply() != null ? plan.reply() : "Done.");
     }

@@ -32,7 +32,7 @@ public class OrderActivityService {
     public record ActivityRow(Long id, LocalDateTime at, Long userId, String userName, Role userRole,
                               OrderAction action, Long orderId, String orderNo, boolean orderExists, String customerName,
                               BigDecimal amountBefore, BigDecimal amount, OrderStatus fromStatus, OrderStatus toStatus,
-                              List<OrderChange> changes) {}
+                              List<OrderChange> changes, boolean viaAgent) {}
 
     private final OrderActivityRepository activity;
     private final CustomerRepository customers;
@@ -50,7 +50,12 @@ public class OrderActivityService {
     // ---- writing: called by OrderService and CourierPayoutService ----
 
     public void created(AuthUser actor, SaleOrder o) {
-        write(actor, o, OrderAction.CREATED, null, OrderSnapshot.total(o), null, o.getStatus(), null);
+        created(actor, o, false);
+    }
+
+    /** viaAgent: the order came out of the order assistant (the chat box) rather than the order form. */
+    public void created(AuthUser actor, SaleOrder o, boolean viaAgent) {
+        write(actor, o, OrderAction.CREATED, null, OrderSnapshot.total(o), null, o.getStatus(), null, viaAgent);
     }
 
     /** Logs an edit only when it changed something; before is the order as it was when the edit began. */
@@ -61,22 +66,22 @@ public class OrderActivityService {
         BigDecimal total = OrderSnapshot.total(o);
         write(actor, o, OrderAction.EDITED, before.total().compareTo(total) == 0 ? null : before.total(), total,
                 statusChanged ? before.status() : null, statusChanged ? o.getStatus() : null,
-                changes.stream().map(Enum::name).collect(Collectors.joining(",")));
+                changes.stream().map(Enum::name).collect(Collectors.joining(",")), false);
     }
 
     public void statusChanged(AuthUser actor, SaleOrder o, OrderStatus from) {
         if (from == o.getStatus()) return;
-        write(actor, o, OrderAction.STATUS_CHANGED, null, OrderSnapshot.total(o), from, o.getStatus(), null);
+        write(actor, o, OrderAction.STATUS_CHANGED, null, OrderSnapshot.total(o), from, o.getStatus(), null, false);
     }
 
     public void deleted(AuthUser actor, SaleOrder o) {
-        write(actor, o, OrderAction.DELETED, null, OrderSnapshot.total(o), o.getStatus(), null, null);
+        write(actor, o, OrderAction.DELETED, null, OrderSnapshot.total(o), o.getStatus(), null, null, false);
     }
 
     /** The courier paid out (or, undone, didn't pay out after all) the cash it collected: amount is that cash. */
     public void payout(AuthUser actor, SaleOrder o, boolean undone) {
         write(actor, o, undone ? OrderAction.PAYOUT_UNDONE : OrderAction.PAID_OUT, null, o.getCodAmount(),
-                null, null, null);
+                null, null, null, false);
     }
 
     // ---- reading ----
@@ -101,16 +106,17 @@ public class OrderActivityService {
                     u == null ? null : u.getRole(), a.getAction(), a.getOrderId(), a.getOrderNo(), existing.contains(a.getOrderId()),
                     a.getCustomerName(), a.getAmountBefore(), a.getAmount(), a.getFromStatus(), a.getToStatus(),
                     a.getChanges() == null ? List.of()
-                            : Arrays.stream(a.getChanges().split(",")).map(OrderChange::valueOf).toList());
+                            : Arrays.stream(a.getChanges().split(",")).map(OrderChange::valueOf).toList(),
+                    a.isViaAgent());
         });
     }
 
     // ---- internals ----
 
     private void write(AuthUser actor, SaleOrder o, OrderAction action, BigDecimal amountBefore, BigDecimal amount,
-                       OrderStatus from, OrderStatus to, String changes) {
+                       OrderStatus from, OrderStatus to, String changes, boolean viaAgent) {
         String customerName = customers.findById(o.getCustomerId()).map(Customer::getName).orElse("—");
         activity.save(new OrderActivity(actor.tenantId(), o.getId(), o.getOrderNo(), actor.userId(), action, customerName,
-                amountBefore, amount, from, to, changes));
+                amountBefore, amount, from, to, changes, viaAgent));
     }
 }

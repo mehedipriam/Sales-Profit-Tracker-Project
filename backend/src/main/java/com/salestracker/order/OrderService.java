@@ -111,10 +111,15 @@ public class OrderService {
     // Every write takes the signed-in user, who goes into the activity log.
 
     public OrderDetail create(AuthUser actor, OrderRequest req) {
+        return create(actor, req, false);
+    }
+
+    /** viaAgent: the order comes from the order assistant, which the activity log notes. */
+    public OrderDetail create(AuthUser actor, OrderRequest req, boolean viaAgent) {
         SaleOrder draft = fill(new SaleOrder(actor.tenantId()), req, actor.role().seesFinancials());
         draft.assignOrderNo(nextOrderNo(actor.tenantId(), draft.getOrderedAt()));
         SaleOrder order = orders.save(draft);
-        activity.created(actor, order);
+        activity.created(actor, order, viaAgent);
         return saved(order);
     }
 

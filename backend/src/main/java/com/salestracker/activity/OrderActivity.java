@@ -56,6 +56,10 @@ public class OrderActivity implements TenantOwned {
     /** For an edit: the OrderChange names it touched, comma-separated. */
     private String changes;
 
+    /** The order was created through the order assistant rather than the order form. */
+    @Column(name = "via_agent", nullable = false)
+    private boolean viaAgent;
+
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
@@ -63,7 +67,7 @@ public class OrderActivity implements TenantOwned {
 
     OrderActivity(Long tenantId, Long orderId, String orderNo, Long userId, OrderAction action, String customerName,
                   BigDecimal amountBefore, BigDecimal amount, OrderStatus fromStatus, OrderStatus toStatus,
-                  String changes) {
+                  String changes, boolean viaAgent) {
         this.tenantId = tenantId;
         this.orderId = orderId;
         this.orderNo = orderNo;
@@ -75,6 +79,7 @@ public class OrderActivity implements TenantOwned {
         this.fromStatus = fromStatus;
         this.toStatus = toStatus;
         this.changes = changes;
+        this.viaAgent = viaAgent;
         this.createdAt = LocalDateTime.now().withNano(0);
     }
 
@@ -90,5 +95,6 @@ public class OrderActivity implements TenantOwned {
     public OrderStatus getFromStatus() { return fromStatus; }
     public OrderStatus getToStatus() { return toStatus; }
     public String getChanges() { return changes; }
+    public boolean isViaAgent() { return viaAgent; }
     public LocalDateTime getCreatedAt() { return createdAt; }
 }

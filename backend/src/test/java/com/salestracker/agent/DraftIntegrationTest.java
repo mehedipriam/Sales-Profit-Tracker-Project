@@ -212,4 +212,61 @@ class DraftIntegrationTest extends AbstractIntegrationTest {
         assertTrue(res.getResponse().getContentAsString().contains("JPEG, PNG or WebP"));
         org.mockito.Mockito.verifyNoInteractions(ai);
     }
+
+    // ---- duplicate guard and the activity log ----
+
+    private long platform() throws Exception {
+        return get(tenant, "/api/platforms", 200).get(0).get("id").asLong();
+    }
+
+    private String order(long customer, String status, int qty, String orderedAt) throws Exception {
+        return post(tenant, "/api/orders", """
+                {"platformId":%d,"customerId":%d,"status":"%s","orderedAt":%s,
+                 "items":[{"productId":%d,"quantity":%d,"soldPrice":900}]}
+                """.formatted(platform(), customer, status, orderedAt == null ? "null" : "\"" + orderedAt + "\"", shirt, qty), 201)
+                .get("orderNo").asText();
+    }
+
+    private JsonNode draftFor(String phone, int qty) throws Exception {
+        return draft(new ExtractedOrder("Rahim", phone, "Mirpur 10", null, null, null, List.of(item("Blue Shirt", qty, "900"))));
+    }
+
+    @Test
+    void theSameProductsForTheSameCustomerAMomentAgoAreFlaggedAsAPossibleDuplicate() throws Exception {
+        long rahim = post(tenant, "/api/customers", "{\"name\":\"Rahim\",\"phone\":\"01711222333\"}", 201).get("id").asLong();
+        String orderNo = order(rahim, "PENDING", 2, null);
+
+        JsonNode same = draftFor("01711222333", 2);
+        assertTrue(hasIssue(same, "WARNING", "already has an order for the same products, " + orderNo));
+        assertTrue(hasIssue(same, "WARNING", "Check this is not a duplicate"));
+        assertTrue(same.get("canConfirm").asBoolean()); // a warning, not a block: repeat orders are sometimes real
+
+        assertFalse(hasIssue(draftFor("01711222333", 3), "WARNING", "already has an order"));   // other quantity
+        assertFalse(hasIssue(draftFor("01999888777", 2), "WARNING", "already has an order"));   // another customer
+    }
+
+    @Test
+    void cancelledAndOlderOrdersAreNotDuplicates() throws Exception {
+        long rahim = post(tenant, "/api/customers", "{\"name\":\"Rahim\",\"phone\":\"01711222333\"}", 201).get("id").asLong();
+        order(rahim, "CANCELLED", 2, null);
+        order(rahim, "PAID", 2, java.time.LocalDateTime.now().minusHours(3).withNano(0).toString());
+
+        assertFalse(hasIssue(draftFor("01711222333", 2), "WARNING", "already has an order"));
+    }
+
+    @Test
+    void ordersFromTheAssistantAreMarkedInTheActivityLog() throws Exception {
+        long rahim = post(tenant, "/api/customers", "{\"name\":\"Rahim\",\"phone\":\"01711222333\"}", 201).get("id").asLong();
+        order(rahim, "PENDING", 1, null); // typed into the order form
+        post(tenant, "/api/agent/confirm", """
+                {"platformId":%d,"customerId":%d,"status":"PENDING","items":[{"productId":%d,"quantity":1,"soldPrice":900}]}
+                """.formatted(platform(), rahim, shirt), 201);
+
+        JsonNode rows = get(tenant, "/api/activity", 200).get("content");
+
+        assertEquals(2, rows.size());
+        assertEquals("CREATED", rows.get(0).get("action").asText());
+        assertTrue(rows.get(0).get("viaAgent").asBoolean());
+        assertFalse(rows.get(1).get("viaAgent").asBoolean());
+    }
 }

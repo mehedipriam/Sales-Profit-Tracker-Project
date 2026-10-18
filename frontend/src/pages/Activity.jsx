@@ -32,7 +32,7 @@ function detail(a) {
   const status = a.fromStatus && a.toStatus && `${STATUS_LABEL[a.fromStatus]} → ${STATUS_LABEL[a.toStatus]}`
   switch (a.action) {
     case 'CREATED':
-      return STATUS_LABEL[a.toStatus]
+      return [STATUS_LABEL[a.toStatus], a.viaAgent && 'via the order assistant'].filter(Boolean).join(' · ')
     case 'EDITED': {
       const parts = a.changes.filter((c) => c !== 'STATUS').map((c) => CHANGE_LABEL[c])
       return [parts.length > 0 && `Changed ${parts.join(', ')}`, status].filter(Boolean).join(' · ')

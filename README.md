@@ -311,6 +311,41 @@ The **Settings** page (the top-bar link, or click your name) lets the signed-in 
 - A wrong current password is a `400`, not a `401`, so the frontend shows the error instead of logging the user out.
   Covered by `AccountIntegrationTest`.
 
+## Order assistant (Gemini)
+The floating chat button (bottom right of every page) turns a pasted Facebook order, or a screenshot of the conversation,
+into a **draft** order. Nothing is saved until the user presses **Confirm**.
+
+**Set up**: create a key at https://aistudio.google.com ("Get API key") and put it in `.env`, never in the chat or in git:
+```
+GEMINI_API_KEY=...
+# optional: GEMINI_MODEL=gemini-3.8-flash (the default; Google retires old model names, so a 404 means pick a newer one)
+# optional: AGENT_MAX_REQUESTS_PER_MINUTE=20
+```
+then `docker compose up -d --build backend` and restart `frontend` (nginx keeps the old backend's address). Without a key
+the assistant answers "not set up" and nothing else in the app is affected. The Gemini Plus app subscription does **not**
+include API access; the key is separate.
+
+**API** (any signed-in role; the key stays on the server):
+- `POST /api/agent/draft` `{text}` and `POST /api/agent/draft/image` (multipart `image` + optional `text`; JPEG, PNG or
+  WebP, the type is read from the file's bytes, max 6 MB; the browser shrinks screenshots first) return a `DraftOrder`:
+  the customer (found by phone, last 10 digits, or marked new), the platform, products matched by name (an unclear
+  name comes back `AMBIGUOUS` with candidates), the totals' inputs, and `issues` (`ERROR` blocks confirming, `WARNING`
+  is only worth a look, e.g. a price that differs from the catalog, low stock, or the same customer already having an
+  identical order in the last 30 minutes). Nothing is stored, including the picture.
+- `POST /api/agent/revise` `{instruction, draft}` applies "make it 3" or "remove the red shirt": the AI lists the
+  changes, the backend applies them and checks the draft again. A saved customer is never rewritten from here.
+- `POST /api/agent/confirm` takes an ordinary order request (`customerId` or `newCustomer`) and creates the order through
+  the normal order logic, so stock, commission, order numbers and the cost rule (Owner/Admin only) all apply. The
+  Activity log marks these orders "via the order assistant" (`via_agent`, V18).
+- Each user may make `AGENT_MAX_REQUESTS_PER_MINUTE` AI calls a minute (default 20, `429` beyond that). The count is per
+  backend instance, so behind two instances the real ceiling is up to double.
+
+**Privacy and cost**: customer names, phones and addresses in the pasted text or screenshot are sent to Google. On
+Google's free tier prompts may be used to improve their products; enable billing on the key to avoid that. The free
+tier also has a low requests-per-minute limit, shown to the user as "busy or quota used up" (`429`). Server errors from
+Google are retried once. Errors and logs never contain message text. Covered by `GeminiClientTest`,
+`DraftIntegrationTest`, `RevisionIntegrationTest`, `AgentRateLimitIntegrationTest` and friends (the AI is stubbed).
+
 ## Backups & recovery (Phase 8a)
 ```bash
 # .env needs BACKUP_S3_BUCKET, BACKUP_S3_ENDPOINT, BACKUP_S3_ACCESS_KEY, BACKUP_S3_SECRET_KEY - any

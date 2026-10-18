@@ -9,7 +9,6 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -23,25 +22,19 @@ import org.springframework.web.multipart.MultipartFile;
 public class AgentController {
     public record TextRequest(@NotBlank @Size(max = 4000) String text) {}
 
-    private final AiClient ai;
     private final DraftService drafts;
     private final RevisionService revisions;
+    private final AgentRateLimiter limiter;
 
-    public AgentController(AiClient ai, DraftService drafts, RevisionService revisions) {
-        this.ai = ai;
+    public AgentController(DraftService drafts, RevisionService revisions, AgentRateLimiter limiter) {
         this.drafts = drafts;
         this.revisions = revisions;
-    }
-
-    /** Test endpoint: just what the AI read, before any matching. */
-    @PostMapping("/extract")
-    @PreAuthorize("hasAnyRole('OWNER','ADMIN')")
-    public ExtractedOrder extract(@Valid @RequestBody TextRequest req) {
-        return ai.extractOrder(req.text());
+        this.limiter = limiter;
     }
 
     @PostMapping("/draft")
     public DraftOrder draft(@AuthenticationPrincipal AuthUser user, @Valid @RequestBody TextRequest req) {
+        limiter.check(user.userId());
         return drafts.prepare(user, req.text());
     }
 
@@ -51,12 +44,14 @@ public class AgentController {
                                      @RequestPart("image") MultipartFile image,
                                      @RequestParam(value = "text", required = false) String text) {
         if (text != null && text.length() > 4000) throw new ApiException(HttpStatus.BAD_REQUEST, "The note is too long");
+        limiter.check(user.userId());
         return drafts.prepare(user, text, ImageUpload.read(image));
     }
 
     /** "Make it 3", "remove the red shirt": changes an open draft as asked and checks it again. Saves nothing. */
     @PostMapping("/revise")
     public RevisionService.Revised revise(@AuthenticationPrincipal AuthUser user, @Valid @RequestBody RevisionService.RevisionRequest req) {
+        limiter.check(user.userId());
         return revisions.revise(user, req);
     }
 

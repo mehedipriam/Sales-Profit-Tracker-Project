@@ -105,6 +105,22 @@ then redeploy (quick or rolling, as above) with that older code.
   backup - see below. Don't try to hand-fix rows under pressure; restore to a known-good point and redo
   whatever legitimate work happened after it, if any.
 
+## Order assistant (Gemini)
+
+- **"The order agent is not set up"**: `GEMINI_API_KEY` is empty in `.env`. Add it, then recreate the backend
+  (`dc up -d --no-deps backend`, and `dc restart frontend` so nginx finds the new container).
+- **"The AI rejected the request"** (502): the key is wrong or revoked, or Google retired the model name. Check the key at
+  https://aistudio.google.com and set `GEMINI_MODEL` to a current model. The backend log has `Gemini request failed with
+  status 4xx` (never the message text).
+- **"The AI is busy or its quota is used up"** (429): Google's per-minute or daily limit. It clears by itself; enabling
+  billing on the key lifts the free-tier limit. "too fast" is our own per-user limit instead
+  (`AGENT_MAX_REQUESTS_PER_MINUTE`).
+- **Rotating the key**: create a new key in AI Studio, change `GEMINI_API_KEY` in `.env` on every server, recreate the
+  backend containers (both `backend` and `backend2` in production), then delete the old key in AI Studio. Do this
+  whenever the key may have been seen by anyone, for example pasted into a chat or a ticket.
+- Pasted messages and screenshots are not stored by this app; they go to Google. Orders the assistant creates show
+  "via the order assistant" on the Activity page.
+
 ## Backup & restore (Phase 8a)
 
 Scripts: `scripts/backup-db.sh`, `scripts/restore-db.sh` (see README: "Backups & recovery" for what they do).

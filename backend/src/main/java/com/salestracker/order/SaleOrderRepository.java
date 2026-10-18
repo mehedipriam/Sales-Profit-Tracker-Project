@@ -29,6 +29,16 @@ public interface SaleOrderRepository extends JpaRepository<SaleOrder, Long> {
                            @Param("statuses") Collection<OrderStatus> statuses, @Param("q") String q,
                            @Param("from") LocalDateTime from, @Param("to") LocalDateTime to, Pageable pageable);
 
+    /** A customer's live (not returned or cancelled) orders placed since the given time, newest first. */
+    @Query("""
+            select o from SaleOrder o
+            where o.tenantId = :tenantId and o.customerId = :customerId and o.orderedAt >= :since
+              and o.status in :statuses
+            order by o.orderedAt desc
+            """)
+    List<SaleOrder> recentForCustomer(@Param("tenantId") Long tenantId, @Param("customerId") Long customerId,
+                                      @Param("since") LocalDateTime since, @Param("statuses") Collection<OrderStatus> statuses);
+
     /** The highest count in a year's order numbers ("ORD-26__-%": the NNNN of ORD-2610-NNNN); null if none. */
     @Query("""
             select max(cast(substring(o.orderNo, 10) as integer)) from SaleOrder o

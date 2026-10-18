@@ -22,6 +22,8 @@ app:
     api-key: ${GEMINI_API_KEY:}   # Google AI Studio key for the order agent; empty turns the agent off
     model: ${GEMINI_MODEL:gemini-3.8-flash}
     base-url: https://generativelanguage.googleapis.com
+  agent:
+    max-requests-per-minute: ${AGENT_MAX_REQUESTS_PER_MINUTE:20}   # AI calls per user per minute (draft, screenshot, change)
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173}
 management:

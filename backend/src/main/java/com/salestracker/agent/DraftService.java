@@ -8,6 +8,8 @@ import com.salestracker.order.OrderDtos.OrderDetail;
 import com.salestracker.order.OrderDtos.OrderRequest;
 import com.salestracker.order.OrderService;
 import com.salestracker.order.OrderStatus;
+import com.salestracker.order.SaleOrder;
+import com.salestracker.order.SaleOrderRepository;
 import com.salestracker.platform.Platform;
 import com.salestracker.platform.PlatformRepository;
 import com.salestracker.product.Product;
@@ -16,9 +18,13 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.Duration;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 
 /** Turns what the AI read from a message into a draft order checked against the shop's customers, products and platforms. */
@@ -29,11 +35,13 @@ public class DraftService {
     private final ProductRepository products;
     private final PlatformRepository platforms;
     private final OrderService orders;
+    private final SaleOrderRepository sales;
 
     public DraftService(AiClient ai, CustomerRepository customers, ProductRepository products,
-                        PlatformRepository platforms, OrderService orders) {
+                        PlatformRepository platforms, OrderService orders, SaleOrderRepository sales) {
         this.ai = ai;
         this.orders = orders;
+        this.sales = sales;
         this.customers = customers;
         this.products = products;
         this.platforms = platforms;
@@ -62,6 +70,8 @@ public class DraftService {
         List<Product> catalog = products.findByTenantIdAndActiveTrue(tenantId);
         List<Line> lines = new ArrayList<>();
         for (ExtractedOrder.Item item : x.items()) lines.add(line(item.name(), null, item.quantity(), item.price(), catalog, issues));
+
+        warnIfDuplicate(tenantId, customer, lines, issues);
 
         BigDecimal delivery = x.deliveryCharge() != null && x.deliveryCharge().signum() >= 0 ? x.deliveryCharge() : BigDecimal.ZERO;
         return assemble(customer, platform, OrderStatus.PENDING, delivery, x.notes(), lines, issues);
@@ -98,7 +108,34 @@ public class DraftService {
 
     /** The confirm step: creates the order (and the customer, unless their phone is already on file) like the order form does. */
     public OrderDetail confirm(AuthUser actor, OrderRequest req) {
-        return orders.create(actor, reuseCustomer(actor.tenantId(), req));
+        return orders.create(actor, reuseCustomer(actor.tenantId(), req), true);
+    }
+
+    /** Orders placed this recently for the same customer are compared with a new draft. */
+    static final Duration DUPLICATE_WINDOW = Duration.ofMinutes(30);
+
+    /**
+     * Warns when a saved customer already has a live order for exactly these products and quantities from the last half
+     * hour, which is what pasting the same message twice, or confirming twice, looks like. Only a warning: a repeat
+     * order is sometimes real.
+     */
+    void warnIfDuplicate(Long tenantId, DraftCustomer customer, List<Line> lines, List<Issue> issues) {
+        if (customer.id() == null || lines.isEmpty() || lines.stream().anyMatch(l -> l.productId() == null)) return;
+        Map<Long, Integer> wanted = new HashMap<>();
+        lines.forEach(l -> wanted.merge(l.productId(), l.quantity(), Integer::sum));
+        LocalDateTime now = LocalDateTime.now();
+        for (SaleOrder o : sales.recentForCustomer(tenantId, customer.id(), now.minus(DUPLICATE_WINDOW),
+                List.of(OrderStatus.PAID, OrderStatus.PENDING))) {
+            Map<Long, Integer> had = new HashMap<>();
+            o.getItems().forEach(i -> had.merge(i.getProductId(), i.getQuantity(), Integer::sum));
+            if (had.equals(wanted)) {
+                long minutes = Math.max(0, Duration.between(o.getOrderedAt(), now).toMinutes());
+                issues.add(new Issue(Level.WARNING, customer.name() + " already has an order for the same products, "
+                        + o.getOrderNo() + ", from " + (minutes == 0 ? "just now" : minutes + " minute" + (minutes == 1 ? "" : "s") + " ago")
+                        + ". Check this is not a duplicate"));
+                return;
+            }
+        }
     }
 
     private static boolean isLatin(String name) {
