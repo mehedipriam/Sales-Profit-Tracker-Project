@@ -1,0 +1,148 @@
+package com.salestracker.agent;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.salestracker.auth.ApiException;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
+import org.springframework.stereotype.Component;
+import org.springframework.web.client.ResourceAccessException;
+import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientResponseException;
+
+import java.time.Duration;
+import java.util.List;
+import java.util.Map;
+
+/** Calls Google's Gemini API from the backend, so the key never reaches the browser. */
+@Component
+public class GeminiClient implements AiClient {
+    private static final String BENGALI_DIGITS = "০১২৩৪৫৬৭৮৯";
+
+    private static final String PROMPT = """
+            You read customer order messages from Facebook Messenger for a small shop. The text may be Bengali, \
+            English or a mix of both. Extract only what is actually written. Never guess or invent a value: \
+            use null for anything that is missing. Convert Bengali digits to ASCII digits. The phone number is \
+            digits only (keep a leading + if present). Item names are copied as written. Quantity defaults to 1 \
+            only when an item is clearly ordered without a number. Prices and the delivery charge are plain \
+            numbers without currency symbols. Put anything else useful (delivery instructions, gift notes) in notes.""";
+
+    private final RestClient http;
+    private final ObjectMapper json;
+    private final String apiKey;
+    private final String model;
+
+    @Autowired
+    public GeminiClient(ObjectMapper json,
+                        @Value("${app.gemini.api-key:}") String apiKey,
+                        @Value("${app.gemini.model}") String model,
+                        @Value("${app.gemini.base-url}") String baseUrl) {
+        this(timedClient(baseUrl), json, apiKey, model);
+    }
+
+    /** Takes a ready client so tests can point it at a mock server. */
+    GeminiClient(RestClient http, ObjectMapper json, String apiKey, String model) {
+        this.http = http;
+        this.json = json;
+        this.apiKey = apiKey == null ? "" : apiKey.trim();
+        this.model = model;
+    }
+
+    private static RestClient timedClient(String baseUrl) {
+        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout((int) Duration.ofSeconds(5).toMillis());
+        factory.setReadTimeout((int) Duration.ofSeconds(40).toMillis());
+        return RestClient.builder().baseUrl(baseUrl).requestFactory(factory).build();
+    }
+
+    @Override
+    public ExtractedOrder extractOrder(String text) {
+        if (apiKey.isEmpty()) {
+            throw new ApiException(HttpStatus.SERVICE_UNAVAILABLE, "The order agent is not set up: GEMINI_API_KEY is missing");
+        }
+        Map<String, Object> body = Map.of(
+                "systemInstruction", Map.of("parts", List.of(Map.of("text", PROMPT))),
+                "contents", List.of(Map.of("role", "user", "parts", List.of(Map.of("text", text)))),
+                "generationConfig", Map.of(
+                        "temperature", 0,
+                        "responseMimeType", "application/json",
+                        "responseSchema", schema()));
+        JsonNode response;
+        try {
+            response = http.post().uri("/v1beta/models/{model}:generateContent", model)
+                    .header("x-goog-api-key", apiKey)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(body)
+                    .retrieve().body(JsonNode.class);
+        } catch (RestClientResponseException e) {
+            // Never put the request or response text in a message: it holds customer details.
+            int code = e.getStatusCode().value();
+            if (code == 429) throw new ApiException(HttpStatus.TOO_MANY_REQUESTS, "The AI is busy or its quota is used up. Try again shortly");
+            if (code == 400 || code == 401 || code == 403) throw new ApiException(HttpStatus.BAD_GATEWAY, "The AI rejected the request. Check GEMINI_API_KEY and the model name");
+            throw new ApiException(HttpStatus.BAD_GATEWAY, "The AI service failed. Try again");
+        } catch (ResourceAccessException e) {
+            throw new ApiException(HttpStatus.BAD_GATEWAY, "Could not reach the AI service. Try again");
+        }
+        return parse(response);
+    }
+
+    private ExtractedOrder parse(JsonNode response) {
+        String out = "";
+        if (response != null) {
+            // Skip "thought" parts some models add before the answer.
+            for (JsonNode part : response.at("/candidates/0/content/parts")) {
+                if (!part.path("thought").asBoolean(false) && part.hasNonNull("text")) {
+                    out = part.get("text").asText();
+                    break;
+                }
+            }
+        }
+        if (out.isBlank()) {
+            // E.g. the answer was blocked by a safety filter.
+            throw new ApiException(HttpStatus.BAD_GATEWAY, "The AI gave no answer. Try rewording the message");
+        }
+        ExtractedOrder raw;
+        try {
+            raw = json.readValue(out, ExtractedOrder.class);
+        } catch (Exception e) {
+            throw new ApiException(HttpStatus.BAD_GATEWAY, "The AI answer could not be read. Try again");
+        }
+        return new ExtractedOrder(blankToNull(raw.customerName()), cleanPhone(raw.phone()), blankToNull(raw.address()),
+                blankToNull(raw.platform()), raw.deliveryCharge(), blankToNull(raw.notes()), raw.items());
+    }
+
+    /** Digits only (a leading + is kept), with any Bengali digits the model left turned into ASCII. */
+    static String cleanPhone(String phone) {
+        if (phone == null) return null;
+        StringBuilder sb = new StringBuilder();
+        for (char c : phone.trim().toCharArray()) {
+            int bn = BENGALI_DIGITS.indexOf(c);
+            if (bn >= 0) sb.append((char) ('0' + bn));
+            else if (c >= '0' && c <= '9') sb.append(c);
+            else if (c == '+' && sb.isEmpty()) sb.append(c);
+        }
+        return sb.isEmpty() ? null : sb.toString();
+    }
+
+    private static String blankToNull(String s) {
+        return s == null || s.isBlank() ? null : s.trim();
+    }
+
+    private static Map<String, Object> schema() {
+        Map<String, Object> item = Map.of("type", "OBJECT", "properties", Map.of(
+                "name", Map.of("type", "STRING"),
+                "quantity", Map.of("type", "INTEGER", "nullable", true),
+                "price", Map.of("type", "NUMBER", "nullable", true)));
+        return Map.of("type", "OBJECT", "properties", Map.of(
+                "customerName", Map.of("type", "STRING", "nullable", true),
+                "phone", Map.of("type", "STRING", "nullable", true),
+                "address", Map.of("type", "STRING", "nullable", true),
+                "platform", Map.of("type", "STRING", "nullable", true),
+                "deliveryCharge", Map.of("type", "NUMBER", "nullable", true),
+                "notes", Map.of("type", "STRING", "nullable", true),
+                "items", Map.of("type", "ARRAY", "items", item)));
+    }
+}

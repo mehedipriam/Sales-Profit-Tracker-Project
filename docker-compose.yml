@@ -30,6 +30,8 @@ services:
       MYSQL_USER: ${MYSQL_USER:-tracker}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD:?set MYSQL_PASSWORD in .env}
       JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in .env (32+ characters)}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-3.8-flash}
     # Not published: the browser reaches the API through the frontend container's /api proxy.
 
   frontend:
