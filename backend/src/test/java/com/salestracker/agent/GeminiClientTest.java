@@ -70,6 +70,29 @@ class GeminiClientTest {
     }
 
     @Test
+    void aScreenshotIsSentAsInlineDataBeforeTheNote() throws Exception {
+        byte[] png = {(byte) 0x89, 'P', 'N', 'G', 1, 2, 3};
+        server.expect(requestTo(URL))
+                .andExpect(jsonPath("$.contents[0].parts[0].inlineData.mimeType").value("image/png"))
+                .andExpect(jsonPath("$.contents[0].parts[0].inlineData.data").value(java.util.Base64.getEncoder().encodeToString(png)))
+                .andExpect(jsonPath("$.contents[0].parts[1].text").value("Read the order from this screenshot."))
+                .andRespond(withSuccess(answer("{\"customerName\":\"Karim\"}"), MediaType.APPLICATION_JSON));
+
+        assertEquals("Karim", client("k").extractOrder(null, new AiClient.Image("image/png", png)).customerName());
+        server.verify();
+    }
+
+    @Test
+    void aTypedNoteTravelsWithTheScreenshot() throws Exception {
+        server.expect(requestTo(URL))
+                .andExpect(jsonPath("$.contents[0].parts[1].text").value("the second one is a gift"))
+                .andRespond(withSuccess(answer("{}"), MediaType.APPLICATION_JSON));
+
+        client("k").extractOrder("the second one is a gift", new AiClient.Image("image/jpeg", new byte[]{1}));
+        server.verify();
+    }
+
+    @Test
     void withoutAKeyItFailsBeforeCallingGemini() {
         ApiException e = assertThrows(ApiException.class, () -> client("  ").extractOrder("hi"));
         assertEquals(HttpStatus.SERVICE_UNAVAILABLE, e.getStatus());

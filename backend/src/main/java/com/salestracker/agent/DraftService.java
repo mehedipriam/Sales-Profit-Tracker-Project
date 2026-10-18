@@ -45,6 +45,12 @@ public class DraftService {
         return build(actor.tenantId(), ai.extractOrder(text));
     }
 
+    /** The same from a screenshot, with an optional typed note. The picture is read and dropped, never stored. */
+    @Transactional(readOnly = true)
+    public DraftOrder prepare(AuthUser actor, String text, AiClient.Image image) {
+        return build(actor.tenantId(), ai.extractOrder(text, image));
+    }
+
     DraftOrder build(Long tenantId, ExtractedOrder x) {
         List<Issue> issues = new ArrayList<>();
 

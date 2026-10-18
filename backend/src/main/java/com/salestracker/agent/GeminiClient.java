@@ -16,6 +16,8 @@ import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientResponseException;
 
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 
@@ -30,7 +32,10 @@ public class GeminiClient implements AiClient {
             use null for anything that is missing. Convert Bengali digits to ASCII digits. The phone number is \
             digits only (keep a leading + if present). Item names are copied as written. Quantity defaults to 1 \
             only when an item is clearly ordered without a number. Prices and the delivery charge are plain \
-            numbers without currency symbols. Put anything else useful (delivery instructions, gift notes) in notes.""";
+            numbers without currency symbols. Put anything else useful (delivery instructions, gift notes) in notes. \
+            If you are given a screenshot of a conversation, read all of it: the order is what the customer and the \
+            shop settled on, so a later message that corrects a quantity, price or address wins over an earlier one. \
+            The shop's own name and phone are not the customer's.""";
 
     private static final Logger log = LoggerFactory.getLogger(GeminiClient.class);
     /** Mutable only so a test does not have to wait. */
@@ -66,12 +71,23 @@ public class GeminiClient implements AiClient {
 
     @Override
     public ExtractedOrder extractOrder(String text) {
+        return extractOrder(text, null);
+    }
+
+    @Override
+    public ExtractedOrder extractOrder(String text, Image image) {
         if (apiKey.isEmpty()) {
             throw new ApiException(HttpStatus.SERVICE_UNAVAILABLE, "The order agent is not set up: GEMINI_API_KEY is missing");
         }
+        List<Map<String, Object>> parts = new ArrayList<>();
+        if (image != null) {
+            parts.add(Map.of("inlineData", Map.of("mimeType", image.mimeType(),
+                    "data", Base64.getEncoder().encodeToString(image.bytes()))));
+        }
+        parts.add(Map.of("text", text == null || text.isBlank() ? "Read the order from this screenshot." : text));
         Map<String, Object> body = Map.of(
                 "systemInstruction", Map.of("parts", List.of(Map.of("text", PROMPT))),
-                "contents", List.of(Map.of("role", "user", "parts", List.of(Map.of("text", text)))),
+                "contents", List.of(Map.of("role", "user", "parts", parts)),
                 "generationConfig", Map.of(
                         "temperature", 0,
                         "responseMimeType", "application/json",

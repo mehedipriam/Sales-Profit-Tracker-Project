@@ -1,5 +1,6 @@
 package com.salestracker.agent;
 
+import com.salestracker.auth.ApiException;
 import com.salestracker.auth.AuthUser;
 import com.salestracker.order.OrderDtos.OrderDetail;
 import com.salestracker.order.OrderDtos.OrderRequest;
@@ -7,9 +8,11 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 /**
  * The order agent. /draft reads a pasted message and prepares an order without saving anything; /confirm saves it once
@@ -38,6 +41,15 @@ public class AgentController {
     @PostMapping("/draft")
     public DraftOrder draft(@AuthenticationPrincipal AuthUser user, @Valid @RequestBody TextRequest req) {
         return drafts.prepare(user, req.text());
+    }
+
+    /** A screenshot (JPEG, PNG or WebP) instead of pasted text, with an optional note beside it. */
+    @PostMapping(value = "/draft/image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public DraftOrder draftFromImage(@AuthenticationPrincipal AuthUser user,
+                                     @RequestPart("image") MultipartFile image,
+                                     @RequestParam(value = "text", required = false) String text) {
+        if (text != null && text.length() > 4000) throw new ApiException(HttpStatus.BAD_REQUEST, "The note is too long");
+        return drafts.prepare(user, text, ImageUpload.read(image));
     }
 
     /** The (possibly corrected) draft as an ordinary order request: a customerId, or newCustomer to create one. */

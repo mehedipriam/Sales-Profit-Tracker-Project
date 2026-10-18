@@ -6,11 +6,18 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.mock.mockito.MockBean;
 
+import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.test.web.servlet.MvcResult;
+import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
+
 import java.math.BigDecimal;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /** The AI is stubbed; everything else (customers, products, platforms, orders, stock) is the real app on a real database. */
@@ -173,5 +180,36 @@ class DraftIntegrationTest extends AbstractIntegrationTest {
                 List.of(item("Blue Shirt", 1, "900"))));
         assertFalse(d.at("/customer/isNew").asBoolean());
         assertFalse(hasIssue(d, "WARNING", "belongs to"));
+    }
+
+    private MvcResult upload(byte[] bytes, String note) throws Exception {
+        MockMultipartFile image = new MockMultipartFile("image", "shot.png", "image/png", bytes);
+        var req = MockMvcRequestBuilders.multipart("/api/agent/draft/image").file(image).header("Authorization", tenant.bearer());
+        if (note != null) req.param("text", note);
+        return mvc.perform(req).andReturn();
+    }
+
+    @Test
+    void aScreenshotBecomesADraftLikeATypedMessage() throws Exception {
+        byte[] png = {(byte) 0x89, 'P', 'N', 'G', 0x0D, 0x0A, 0x1A, 0x0A, 1, 2, 3};
+        when(ai.extractOrder(any(), any(AiClient.Image.class))).thenReturn(new ExtractedOrder("Rahim", "01711222333",
+                "Mirpur 10", null, null, null, List.of(item("Blue Shirt", 2, "900"))));
+
+        MvcResult res = upload(png, "gift wrap please");
+
+        assertEquals(200, res.getResponse().getStatus());
+        JsonNode d = json.readTree(res.getResponse().getContentAsString());
+        assertTrue(d.get("canConfirm").asBoolean());
+        assertEquals(shirt, d.at("/items/0/productId").asLong());
+        verify(ai).extractOrder(eq("gift wrap please"), eq(new AiClient.Image("image/png", png)));
+        assertEquals(0, get(tenant, "/api/orders", 200).get("content").size()); // nothing saved
+    }
+
+    @Test
+    void aFileThatIsNotAnImageIsRefusedBeforeTheAiSeesIt() throws Exception {
+        MvcResult res = upload("<html></html>".getBytes(), null);
+        assertEquals(400, res.getResponse().getStatus());
+        assertTrue(res.getResponse().getContentAsString().contains("JPEG, PNG or WebP"));
+        org.mockito.Mockito.verifyNoInteractions(ai);
     }
 }

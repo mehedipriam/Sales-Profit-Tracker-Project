@@ -23,7 +23,7 @@ export function loadChat(userId) {
 
 export function saveChat(userId, open, messages) {
   try {
-    sessionStorage.setItem(KEY, JSON.stringify({ userId, open, messages: messages.slice(-MAX_MESSAGES) }))
+    sessionStorage.setItem(KEY, JSON.stringify({ userId, open, messages: messages.slice(-MAX_MESSAGES).map(({ thumb: _thumb, ...m }) => m) }))
   } catch {
     // Not saved: the chat still works, it just will not survive a reload.
   }

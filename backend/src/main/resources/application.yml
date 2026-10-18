@@ -3,6 +3,10 @@ spring:
     name: sales-tracker
   profiles:
     default: dev
+  servlet:
+    multipart:
+      max-file-size: 6MB      # order screenshots for the agent
+      max-request-size: 7MB
   jpa:
     hibernate:
       ddl-auto: validate   # schema is owned by Flyway, never JPA

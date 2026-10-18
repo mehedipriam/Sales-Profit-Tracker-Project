@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import api, { errorMessage } from '../api/client'
 import { useAuth } from '../auth/AuthContext'
 import { STATUSES, STATUS_LABEL, money } from '../utils/format'
+import { prepareImage } from '../utils/image'
 import AsyncPicker from './AsyncPicker'
 import { loadChat, saveChat } from './agentStore'
 
@@ -11,7 +12,7 @@ const searchProducts = (q) => api.get('/products', { params: { q, size: 10 } }).
 let uid = 0
 const nextKey = () => ++uid
 
-const HELLO = 'Paste an order message from Facebook and I will prepare it for you. Nothing is saved until you press Confirm.'
+const HELLO = 'Paste an order message from Facebook, or attach a screenshot of the conversation, and I will prepare it for you. Nothing is saved until you press Confirm.'
 
 /** The draft the server sent, as editable form state (inputs hold text). */
 const toState = (d) => ({
@@ -207,6 +208,9 @@ export default function AgentChat() {
   const [text, setText] = useState('')
   const [busy, setBusy] = useState(false)
   const [platforms, setPlatforms] = useState([])
+  const [shot, setShot] = useState(null) // the screenshot waiting to be sent: { blob, thumb }
+  const [shotError, setShotError] = useState('')
+  const fileRef = useRef(null)
   const endRef = useRef(null)
   const inputRef = useRef(null)
 
@@ -225,14 +229,50 @@ export default function AgentChat() {
 
   const patch = (key, change) => setMessages((ms) => ms.map((m) => (m.key === key ? { ...m, ...change(m) } : m)))
 
+  const attach = async (file) => {
+    setShotError('')
+    try {
+      setShot(await prepareImage(file))
+    } catch (err) {
+      setShotError(err.message)
+    }
+  }
+
+  const imageIn = (files) => Array.from(files ?? []).find((f) => f.type.startsWith('image/'))
+
+  const onPaste = (e) => {
+    const file = imageIn(e.clipboardData?.files)
+    if (!file) return
+    e.preventDefault() // a pasted picture is a screenshot to read, not text
+    attach(file)
+  }
+
+  const onDrop = (e) => {
+    const file = imageIn(e.dataTransfer?.files)
+    if (!file) return
+    e.preventDefault()
+    attach(file)
+  }
+
   const send = async () => {
     const msg = text.trim()
-    if (!msg || busy) return
+    if ((!msg && !shot) || busy) return
+    const sent = shot
     setText('')
+    setShot(null)
+    setShotError('')
     setBusy(true)
-    setMessages((ms) => [...ms, { key: nextKey(), role: 'user', text: msg }])
+    setMessages((ms) => [...ms, { key: nextKey(), role: 'user', text: msg, ...(sent ? { screenshot: true, thumb: sent.thumb } : {}) }])
     try {
-      const { data } = await api.post('/agent/draft', { text: msg })
+      let data
+      if (sent) {
+        const form = new FormData()
+        form.append('image', sent.blob, 'screenshot.jpg')
+        if (msg) form.append('text', msg)
+        data = (await api.post('/agent/draft/image', form)).data
+      } else {
+        data = (await api.post('/agent/draft', { text: msg })).data
+      }
       setMessages((ms) => [...ms, { key: nextKey(), role: 'agent', draft: toState(data), status: 'open' }])
     } catch (err) {
       setMessages((ms) => [...ms, { key: nextKey(), role: 'agent', text: errorMessage(err), failed: true }])
@@ -261,7 +301,8 @@ export default function AgentChat() {
   return (
     <>
       {open && (
-        <section className="agent-panel" role="dialog" aria-label="Order assistant">
+        <section className="agent-panel" role="dialog" aria-label="Order assistant"
+                 onDragOver={(e) => e.preventDefault()} onDrop={onDrop}>
           <header className="agent-head">
             <b>Order assistant</b>
             <button type="button" className="link" aria-label="Close" onClick={() => setOpen(false)}>✕</button>
@@ -274,15 +315,37 @@ export default function AgentChat() {
                          onConfirm={() => confirm(m)}
                          onDiscard={() => patch(m.key, () => ({ status: 'discarded' }))} />
             ) : (
-              <p key={m.key} className={`agent-bubble ${m.role}${m.failed ? ' failed' : ''}`}>{m.text}</p>
+              <div key={m.key} className={`agent-bubble ${m.role}${m.failed ? ' failed' : ''}`}>
+                {m.screenshot && (m.thumb
+                  ? <img className="agent-thumb" src={m.thumb} alt="Screenshot you sent" />
+                  : <span className="agent-tag">Screenshot</span>)}
+                {m.text && <p>{m.text}</p>}
+              </div>
             )))}
             {busy && <p className="agent-bubble agent muted">Reading the message…</p>}
             <div ref={endRef} />
           </div>
+          {(shot || shotError) && (
+            <div className="agent-attached">
+              {shot && <img className="agent-thumb" src={shot.thumb} alt="Screenshot to send" />}
+              {shot && <button type="button" className="link danger" onClick={() => setShot(null)}>Remove</button>}
+              {shotError && <span className="error" role="alert">{shotError}</span>}
+            </div>
+          )}
           <div className="agent-input">
-            <textarea ref={inputRef} rows={2} value={text} placeholder="Paste or type the order…" maxLength={4000}
-                      aria-label="Order message" onChange={(e) => setText(e.target.value)} onKeyDown={onKeyDown} />
-            <button type="button" className="btn small" disabled={busy || !text.trim()} onClick={send}>Send</button>
+            <input ref={fileRef} type="file" accept="image/*" hidden aria-hidden="true" tabIndex={-1}
+                   onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) attach(f) }} />
+            <button type="button" className="btn secondary small agent-attach" aria-label="Attach a screenshot"
+                    title="Attach a screenshot (or paste one)" disabled={busy} onClick={() => fileRef.current?.click()}>
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8"
+                   strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M21 12.5l-8.6 8.6a5.5 5.5 0 0 1-7.8-7.8l9-9a3.7 3.7 0 0 1 5.2 5.2l-9 9a1.8 1.8 0 0 1-2.6-2.6l8.4-8.4" />
+              </svg>
+            </button>
+            <textarea ref={inputRef} rows={2} value={text} maxLength={4000} aria-label="Order message"
+                      placeholder="Paste or type the order, or attach a screenshot…"
+                      onChange={(e) => setText(e.target.value)} onKeyDown={onKeyDown} onPaste={onPaste} />
+            <button type="button" className="btn small" disabled={busy || (!text.trim() && !shot)} onClick={send}>Send</button>
           </div>
         </section>
       )}

@@ -903,6 +903,11 @@ thead th.hide-col { padding-left: 1.75rem; padding-right: 1.75rem; } /* room for
 .agent-warnings { background: var(--warning-soft); border: 1px solid var(--warning-line); }
 .agent-errors { background: var(--danger-tint); border: 1px solid var(--danger-line); color: var(--danger); }
 .agent-done { background: var(--success-tint); border-color: var(--success-line); }
+.agent-thumb { display: block; max-width: 9rem; max-height: 9rem; border-radius: 6px; border: 1px solid var(--border); }
+.agent-bubble .agent-thumb { margin-bottom: 0.3rem; }
+.agent-bubble p { margin: 0; }
+.agent-attached { display: flex; align-items: center; gap: 0.6rem; padding: 0.5rem 0.6rem 0; }
+.agent-attach { padding: 0.4rem; display: grid; place-items: center; }
 @media (max-width: 600px) {
   .agent-fab { right: 0.8rem; bottom: 0.8rem; }
   .agent-panel { right: 0.5rem; left: 0.5rem; bottom: 4.8rem; width: auto; }
