@@ -397,7 +397,13 @@ export default function AgentChat() {
               aria-expanded={open} title="Order assistant" onClick={() => setOpen((o) => !o)}>
         <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="1.8"
              strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-          {open ? <path d="M6 6l12 12M18 6L6 18" /> : <path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z" />}
+          {open ? <path d="M6 6l12 12M18 6L6 18" /> : (
+            <>
+              {/* Sparkles: the usual sign of an AI assistant, so it does not look like a personal chat button. */}
+              <path d="M9.9 15.5a2 2 0 0 0-1.4-1.4l-6.1-1.6a.5.5 0 0 1 0-1L8.5 9.9a2 2 0 0 0 1.4-1.4l1.6-6.1a.5.5 0 0 1 1 0l1.6 6.1a2 2 0 0 0 1.4 1.4l6.1 1.6a.5.5 0 0 1 0 1l-6.1 1.6a2 2 0 0 0-1.4 1.4l-1.6 6.1a.5.5 0 0 1-1 0z" />
+              <path d="M20 3v4M22 5h-4M4 17v2M5 18H3" />
+            </>
+          )}
         </svg>
       </button>
     </>
