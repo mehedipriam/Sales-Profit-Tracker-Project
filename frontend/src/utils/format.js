@@ -35,6 +35,12 @@ export const toLocalInput = (d = new Date()) => {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`
 }
 
+/** 01720034798 -> 017*****98: the first 3 and last 2 characters stay, the middle is starred. */
+export const maskPhone = (phone) => {
+  if (!phone) return '—'
+  return phone.length <= 5 ? '*'.repeat(phone.length) : `${phone.slice(0, 3)}${'*'.repeat(phone.length - 5)}${phone.slice(-2)}`
+}
+
 export const STATUSES = ['PAID', 'PENDING', 'RETURNED', 'CANCELLED']
 export const STATUS_LABEL = { PAID: 'Paid', PENDING: 'Pending', RETURNED: 'Returned / Refunded', CANCELLED: 'Cancelled' }
 

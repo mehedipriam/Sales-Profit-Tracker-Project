@@ -679,8 +679,17 @@ table.striped tbody tr.picked td { background: var(--primary-soft); }
   .inv-meta { align-items: flex-start; text-align: left; }
   .slip-ship { grid-template-columns: 1fr; }
 }
+/* The browser prints its own date, page title, web address and page number inside the page margin. When the page being
+   printed holds an invoice or a packing slip it uses a named page with no margin (the document keeps its spacing as
+   padding), so none of that is printed. Other printouts keep their normal margins.
+   The name goes on the whole document, not on the invoice itself: on the invoice alone, any element a browser extension
+   adds after it (Grammarly and the like) would start a second, blank page. For the same reason the screen-height
+   minimum of the app shell is dropped on paper, or one more pixel of content would spill onto a new page. */
+@page invoice { margin: 0; }
 @media print {
-  .invoice { border: 0; box-shadow: none; max-width: none; margin: 0; padding: 0.5rem 0 0; border-radius: 0; }
+  html:has(.invoice) { page: invoice; background: #fff; } /* the screen's grey page colour would otherwise print across the margin-less paper */
+  .shell { min-height: 0; }
+  .invoice { border: 0; box-shadow: none; max-width: none; margin: 0; padding: 14mm; border-radius: 0; }
   .inv-tip { display: none; }
   .inv-items tr, .inv-bottom, .slip-ship { break-inside: avoid; }
 }
@@ -912,6 +921,29 @@ thead th.hide-col { padding-left: 1.75rem; padding-right: 1.75rem; } /* room for
 .agent-revise form { display: flex; gap: 0.4rem; }
 .agent-revise form input { flex: 1; }
 .agent-reply { margin: 0; padding: 0.35rem 0.55rem; border-radius: 6px; font-size: 0.82rem; background: var(--info-soft); color: var(--info); }
+/* Orders list: a row opens that order's details. */
+.orders-table tbody tr.clickable { cursor: pointer; }
+.order-link { background: none; border: 0; padding: 0; font: inherit; font-weight: 600; color: inherit; font-variant-numeric: tabular-nums; }
+.order-link:hover { color: var(--primary); text-decoration: underline; }
+.order-link:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; border-radius: 3px; }
+.modal.wide { max-width: 760px; }
+.od { display: flex; flex-direction: column; gap: 1rem; }
+.od-top { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; }
+.od-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem; }
+.od-box { display: flex; flex-direction: column; gap: 0.2rem; min-width: 0; padding: 0.7rem 0.9rem; font-size: 0.9rem; overflow-wrap: anywhere; border: 1px solid var(--border); border-radius: 8px; }
+.od-box h3 { display: flex; align-items: center; gap: 0.3rem; margin: 0 0 0.2rem; font-size: 0.75rem; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); }
+/* The items table fits the popup without a sideways scrollbar: tighter cells, the eyes beside their headings instead of
+   hanging off the right edge, and long product names wrap. */
+.od .table-wrap { overflow-x: visible; }
+.od-items th, .od-items td { padding: 0.5rem 0.55rem; white-space: nowrap; }
+.od-items th:first-child, .od-items td:first-child { white-space: normal; }
+.od-items .hide-head .reveal { position: static; transform: none; margin-left: 0.2rem; vertical-align: middle; }
+@media (max-width: 600px) { .od .table-wrap { overflow-x: auto; } }
+.od-totals { display: grid; grid-template-columns: 1fr auto; gap: 0.25rem 1.5rem; align-self: flex-end; min-width: 16rem; font-size: 0.92rem; }
+.od-totals .num { text-align: right; font-variant-numeric: tabular-nums; }
+.od-totals .total { padding-top: 0.35rem; border-top: 1px solid var(--border); font-weight: 700; }
+.od-notes { margin: 0; font-size: 0.9rem; overflow-wrap: anywhere; }
+@media (max-width: 600px) { .od-grid { grid-template-columns: 1fr; } .od-totals { align-self: stretch; min-width: 0; } }
 @media (max-width: 600px) {
   .agent-fab { right: 0.8rem; bottom: 0.8rem; }
   .agent-panel { right: 0.5rem; left: 0.5rem; bottom: 4.8rem; width: auto; }

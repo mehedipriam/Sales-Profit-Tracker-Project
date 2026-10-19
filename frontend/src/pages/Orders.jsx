@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom'
 import api, { errorMessage } from '../api/client'
 import { useAuth } from '../auth/AuthContext'
 import { seesFinancials } from '../auth/roles'
+import OrderDetails from '../components/OrderDetails'
 import Pager from '../components/Pager'
 import { EyeHead, MASK, useReveal } from '../components/Reveal'
 import RangePicker from '../components/RangePicker'
@@ -30,6 +31,7 @@ export default function Orders() {
   const [data, setData] = useState(null)
   const [platforms, setPlatforms] = useState([])
   const [error, setError] = useState('')
+  const [viewing, setViewing] = useState(null) // id of the order whose details are open
 
   useEffect(() => {
     api.get('/platforms').then((res) => setPlatforms(res.data)).catch(() => {})
@@ -124,9 +126,12 @@ export default function Orders() {
           </thead>
           <tbody>
             {data?.content.map((o, i) => (
-              <tr key={o.id}>
+              <tr key={o.id} className="clickable" title="Click for the order's details"
+                  onClick={(e) => { if (!e.target.closest('a, button, select, input, label')) setViewing(o.id) }}>
                 <td className="serial" title="Position in this list, newest first">{data.totalElements - data.page * PAGE_SIZE - i}</td>
-                <td className="order-id">{o.orderNo}</td>
+                <td className="order-id">
+                  <button type="button" className="order-link" onClick={() => setViewing(o.id)}>{o.orderNo}</button>
+                </td>
                 <td className="when">{dateTime(o.orderedAt)}</td>
                 <td className="cust-name">{o.customerName}</td>
                 <td className="platform-cell">
@@ -173,6 +178,7 @@ export default function Orders() {
       </div>
       <Pager data={data} onPage={setPage} />
       {prompt}
+      {viewing && <OrderDetails id={viewing} onClose={() => setViewing(null)} />}
     </section>
   )
 }

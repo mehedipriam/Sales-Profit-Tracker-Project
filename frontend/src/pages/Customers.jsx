@@ -64,12 +64,6 @@ function CustomerForm({ customer, platforms, onSaved, onCancel }) {
 
 const PAGE_SIZE = 20
 
-/** 01720034798 -> 017*****98: the first 3 and last 2 characters stay, the middle is starred. */
-const maskPhone = (phone) => {
-  if (!phone) return '—'
-  return phone.length <= 5 ? '*'.repeat(phone.length) : `${phone.slice(0, 3)}${'*'.repeat(phone.length - 5)}${phone.slice(-2)}`
-}
-
 /** "2 of 5 orders" style breakdown of the returned / cancelled ones, for the return-rate tooltip. */
 const problemsText = (ins) =>
   `${ins.returned} returned, ${ins.cancelled} cancelled out of ${ins.paid + ins.returned + ins.cancelled} settled orders`
