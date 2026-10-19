@@ -36,9 +36,10 @@ public class CustomerService {
     }
 
     @Transactional(readOnly = true)
-    public PageResponse<CustomerResponse> list(Long tenantId, String q, Long platformId, int page, int size) {
+    /** sort is "name" (alphabetical, the default, good for pickers) or "created" (in the order they were added). */
+    public PageResponse<CustomerResponse> list(Long tenantId, String q, Long platformId, int page, int size, String sort) {
         Page<Customer> result = customers.search(tenantId, Search.pattern(q), platformId == null ? 0L : platformId,
-                Search.page(page, size, "name"));
+                Search.page(page, size, "created".equals(sort) ? "id" : "name"));
         Map<Long, Insights> insights = insights(tenantId, result.map(Customer::getId).toSet());
         return PageResponse.of(result, c -> CustomerResponse.of(c, insights.get(c.getId())));
     }

@@ -20,7 +20,7 @@ app:
     remember-me-days: 30   # "Remember me" on the login page
   gemini:
     api-key: ${GEMINI_API_KEY:}   # Google AI Studio key for the order agent; empty turns the agent off
-    model: ${GEMINI_MODEL:gemini-3.8-flash}
+    model: ${GEMINI_MODEL:gemini-3.5-flash-lite}
     base-url: https://generativelanguage.googleapis.com
   agent:
     max-requests-per-minute: ${AGENT_MAX_REQUESTS_PER_MINUTE:20}   # AI calls per user per minute (draft, screenshot, change)

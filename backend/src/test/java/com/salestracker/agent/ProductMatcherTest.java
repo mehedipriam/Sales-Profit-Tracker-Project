@@ -77,6 +77,30 @@ class ProductMatcherTest {
     }
 
     @Test
+    void aTypoInAWordStillFindsTheProduct() {
+        List<Product> shop = List.of(product(1, "Beans Pudding", null), product(2, "Rice 5kg", null), product(3, "Red Shirt", null));
+        assertEquals(1L, ProductMatcher.match("beanes pudding", shop).product().getId());   // an extra letter
+        assertEquals(1L, ProductMatcher.match("beans puding", shop).product().getId());     // a missing letter
+        assertEquals(1L, ProductMatcher.match("beons pudding", shop).product().getId());    // a wrong letter
+        assertEquals(MatchStatus.NOT_FOUND, ProductMatcher.match("red shrit", shop).status()); // swapped letters are two edits: not guessed
+    }
+
+    @Test
+    void typoToleranceNeverTouchesNumbersOrShortWords() {
+        assertFalse(ProductMatcher.oneTypoApart("1000ml", "1500ml"));
+        assertFalse(ProductMatcher.oneTypoApart("25kg", "26kg"));
+        assertFalse(ProductMatcher.oneTypoApart("red", "bed"));
+        assertFalse(ProductMatcher.oneTypoApart("shirt", "skirt-x"));
+        assertTrue(ProductMatcher.oneTypoApart("beanes", "beans"));
+        assertTrue(ProductMatcher.oneTypoApart("beans", "beanes"));
+        assertTrue(ProductMatcher.oneTypoApart("shirt", "shirk"));
+        assertFalse(ProductMatcher.oneTypoApart("shirt", "shirt"));  // equal words are handled before this
+
+        List<Product> sizes = List.of(product(1, "Oil 1000ml", null), product(2, "Oil 1500ml", null));
+        assertEquals(MatchStatus.NOT_FOUND, ProductMatcher.match("oil 1200ml", sizes).status()); // a different size is a different product
+    }
+
+    @Test
     void emptyNamesMatchNothing() {
         assertEquals(MatchStatus.NOT_FOUND, ProductMatcher.match("  ", catalog).status());
         assertEquals(MatchStatus.NOT_FOUND, ProductMatcher.match(null, catalog).status());

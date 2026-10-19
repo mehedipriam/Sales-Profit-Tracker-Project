@@ -23,8 +23,9 @@ public class CustomerController {
                                                @RequestParam(required = false) String q,
                                                @RequestParam(required = false) Long platformId,
                                                @RequestParam(defaultValue = "0") int page,
-                                               @RequestParam(defaultValue = "20") int size) {
-        return service.list(user.tenantId(), q, platformId, page, size);
+                                               @RequestParam(defaultValue = "20") int size,
+                                               @RequestParam(defaultValue = "name") String sort) {
+        return service.list(user.tenantId(), q, platformId, page, size, sort);
     }
 
     @PostMapping

@@ -93,7 +93,7 @@ export default function Customers() {
 
   const load = useCallback(() => {
     api
-      .get('/customers', { params: { q: dq, platformId: platformId || undefined, page, size: PAGE_SIZE } })
+      .get('/customers', { params: { q: dq, platformId: platformId || undefined, page, size: PAGE_SIZE, sort: 'created' } })
       .then((res) => { setData(res.data); setError('') })
       .catch((err) => setError(errorMessage(err)))
   }, [dq, platformId, page])

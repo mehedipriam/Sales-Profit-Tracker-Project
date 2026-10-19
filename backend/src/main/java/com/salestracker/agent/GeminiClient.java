@@ -11,11 +11,13 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
-import org.springframework.web.client.ResourceAccessException;
+import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientResponseException;
 
 import java.time.Duration;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
@@ -137,13 +139,13 @@ public class GeminiClient implements AiClient {
                     response = post(body);
                 } catch (RestClientResponseException again) {
                     throw failed(again);
-                } catch (ResourceAccessException again) {
+                } catch (RestClientException again) {
                     throw unreachable();
                 }
             } else {
                 throw failed(e);
             }
-        } catch (ResourceAccessException e) {
+        } catch (RestClientException e) {
             throw unreachable();
         }
         return answerText(response);
@@ -161,14 +163,34 @@ public class GeminiClient implements AiClient {
     private ApiException failed(RestClientResponseException e) {
         int code = e.getStatusCode().value();
         log.warn("Gemini request failed with status {}", code);
-        if (code == 429) return new ApiException(HttpStatus.TOO_MANY_REQUESTS, "The AI is busy or its quota is used up. Try again shortly");
+        if (code == 429) return new ApiException(HttpStatus.TOO_MANY_REQUESTS, quotaMessage(e.getResponseBodyAsString()));
         if (code == 400 || code == 401 || code == 403) return new ApiException(HttpStatus.BAD_GATEWAY, "The AI rejected the request. Check GEMINI_API_KEY and the model name");
         return new ApiException(HttpStatus.BAD_GATEWAY, "The AI service failed. Try again");
     }
 
+    /** No usable answer arrived: the service was unreachable, or it took too long (the read timed out mid-answer). */
     private ApiException unreachable() {
-        log.warn("Gemini could not be reached");
-        return new ApiException(HttpStatus.BAD_GATEWAY, "Could not reach the AI service. Try again");
+        log.warn("Gemini could not be reached or did not answer in time");
+        return new ApiException(HttpStatus.BAD_GATEWAY, "The AI did not answer in time. Try again");
+    }
+
+    private static final Pattern RETRY_SECONDS = Pattern.compile("\"retryDelay\"\\s*:\\s*\"(\\d+)(?:\\.\\d+)?s\"|retry in (\\d+)h");
+
+    /**
+     * Google's 429 says whether it is the per-minute limit or the daily one, and when it lifts. Only that is read out of
+     * the answer; nothing from it is logged or passed on.
+     */
+    static String quotaMessage(String body) {
+        if (body != null && body.contains("PerDay")) {
+            Matcher m = RETRY_SECONDS.matcher(body);
+            String when = "";
+            if (m.find()) {
+                long hours = m.group(1) != null ? Math.max(1, Math.round(Long.parseLong(m.group(1)) / 3600.0)) : Long.parseLong(m.group(2));
+                when = " It resets in about " + hours + (hours == 1 ? " hour." : " hours.");
+            }
+            return "The AI's free daily limit is used up." + when + " Switching GEMINI_MODEL to another model or enabling billing on the Gemini key lifts it";
+        }
+        return "The AI is busy or its quota is used up. Try again shortly";
     }
 
     private static void sleep(long ms) {

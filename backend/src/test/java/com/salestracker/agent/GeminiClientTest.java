@@ -141,6 +141,41 @@ class GeminiClientTest {
     }
 
     @Test
+    void aDailyQuotaAnswerSaysSoAndWhenItResets() {
+        String body = """
+                {"error":{"code":429,"status":"RESOURCE_EXHAUSTED","message":"Quota exceeded ... Please retry in 17h8m44.9s.",
+                 "details":[{"@type":"type.googleapis.com/google.rpc.QuotaFailure","violations":[{"quotaId":"GenerateRequestsPerDayPerProjectPerModel-FreeTier"}]},
+                            {"@type":"type.googleapis.com/google.rpc.RetryInfo","retryDelay":"61724s"}]}}
+                """;
+        server.expect(requestTo(URL)).andRespond(withStatus(HttpStatus.TOO_MANY_REQUESTS).body(body).contentType(MediaType.APPLICATION_JSON));
+
+        ApiException e = assertThrows(ApiException.class, () -> client("k").extractOrder("hi"));
+
+        assertEquals(HttpStatus.TOO_MANY_REQUESTS, e.getStatus());
+        assertTrue(e.getMessage().contains("free daily limit is used up"), e.getMessage());
+        assertTrue(e.getMessage().contains("about 17 hours"), e.getMessage());
+        assertTrue(e.getMessage().contains("GEMINI_MODEL"));
+    }
+
+    @Test
+    void aPerMinuteQuotaAnswerStaysGeneric() {
+        server.expect(requestTo(URL)).andRespond(withStatus(HttpStatus.TOO_MANY_REQUESTS).body("{\"error\":{\"message\":\"PerMinute\"}}"));
+        ApiException e = assertThrows(ApiException.class, () -> client("k").extractOrder("hi"));
+        assertTrue(e.getMessage().contains("busy"), e.getMessage());
+    }
+
+    @Test
+    void aReadFailureWhileTheAnswerArrivesIsBadGatewayNotAnInternalError() {
+        // What a read timeout looks like once the response has started: the body cannot be read as JSON.
+        server.expect(requestTo(URL)).andRespond(withSuccess("partial", MediaType.APPLICATION_OCTET_STREAM));
+
+        ApiException e = assertThrows(ApiException.class, () -> client("k").extractOrder("hi"));
+
+        assertEquals(HttpStatus.BAD_GATEWAY, e.getStatus());
+        assertTrue(e.getMessage().contains("did not answer in time"), e.getMessage());
+    }
+
+    @Test
     void rejectedKeyIsBadGatewayWithoutARetry() {
         server.expect(requestTo(URL)).andRespond(withStatus(HttpStatus.FORBIDDEN));
         assertEquals(HttpStatus.BAD_GATEWAY, assertThrows(ApiException.class, () -> client("k").extractOrder("hi")).getStatus());

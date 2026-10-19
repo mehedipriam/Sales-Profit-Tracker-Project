@@ -318,7 +318,7 @@ into a **draft** order. Nothing is saved until the user presses **Confirm**.
 **Set up**: create a key at https://aistudio.google.com ("Get API key") and put it in `.env`, never in the chat or in git:
 ```
 GEMINI_API_KEY=...
-# optional: GEMINI_MODEL=gemini-3.8-flash (the default; Google retires old model names, so a 404 means pick a newer one)
+# optional: GEMINI_MODEL=gemini-3.5-flash-lite (the default; Google retires old model names, so a 404 means pick a newer one)
 # optional: AGENT_MAX_REQUESTS_PER_MINUTE=20
 ```
 then `docker compose up -d --build backend` and restart `frontend` (nginx keeps the old backend's address). Without a key
