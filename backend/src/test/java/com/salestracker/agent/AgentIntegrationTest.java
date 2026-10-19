@@ -12,7 +12,7 @@ class AgentIntegrationTest extends AbstractIntegrationTest {
 
     @Test
     void everyAssistantEndpointNeedsALogin() throws Exception {
-        for (String url : new String[]{"/api/agent/draft", "/api/agent/revise", "/api/agent/confirm"}) {
+        for (String url : new String[]{"/api/agent/message", "/api/agent/draft", "/api/agent/revise", "/api/agent/confirm"}) {
             assertEquals(401, mvc.perform(MockMvcRequestBuilders.post(url)
                     .contentType(MediaType.APPLICATION_JSON).content("{}")).andReturn().getResponse().getStatus(), url);
         }
@@ -30,6 +30,18 @@ class AgentIntegrationTest extends AbstractIntegrationTest {
     void aBlankMessageIsRejected() throws Exception {
         Tenant owner = registerTenant();
         post(owner, "/api/agent/draft", "{\"text\":\"  \"}", 400);
+    }
+
+    @Test
+    void aBlankTypedMessageIsRejected() throws Exception {
+        Tenant owner = registerTenant();
+        post(owner, "/api/agent/message", "{\"text\":\"  \"}", 400);
+    }
+
+    @Test
+    void withoutAKeyATypedMessageSaysTheAssistantIsNotSetUp() throws Exception {
+        Tenant owner = registerTenant();
+        post(owner, "/api/agent/message", "{\"text\":\"What is this month's profit?\"}", 503);
     }
 
     @Test

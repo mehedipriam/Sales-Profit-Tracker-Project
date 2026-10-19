@@ -22,14 +22,26 @@ import org.springframework.web.multipart.MultipartFile;
 public class AgentController {
     public record TextRequest(@NotBlank @Size(max = 4000) String text) {}
 
+    private final AssistantService assistant;
     private final DraftService drafts;
     private final RevisionService revisions;
     private final AgentRateLimiter limiter;
 
-    public AgentController(DraftService drafts, RevisionService revisions, AgentRateLimiter limiter) {
+    public AgentController(DraftService drafts, RevisionService revisions, AgentRateLimiter limiter, AssistantService assistant) {
+        this.assistant = assistant;
         this.drafts = drafts;
         this.revisions = revisions;
         this.limiter = limiter;
+    }
+
+    /**
+     * A typed message of any kind: an order to draft, or a question about the business. Answers with a draft, an answer
+     * card or a plain message. Questions change nothing; money questions are for Owner and Admin.
+     */
+    @PostMapping("/message")
+    public AgentReply message(@AuthenticationPrincipal AuthUser user, @Valid @RequestBody TextRequest req) {
+        limiter.check(user.userId());
+        return assistant.handle(user, req.text());
     }
 
     @PostMapping("/draft")

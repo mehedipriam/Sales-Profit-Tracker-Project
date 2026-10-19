@@ -208,6 +208,31 @@ public interface SaleOrderRepository extends JpaRepository<SaleOrder, Long> {
     List<CustomerRevenue> paidRevenueByCustomer(@Param("tenantId") Long tenantId,
                                                 @Param("customerIds") Collection<Long> customerIds);
 
+    // ---- the assistant's "top customers": PAID orders per customer inside a date range ----
+
+    /** Order count and delivery charges per customer on PAID orders in the range. */
+    @Query("""
+            select new com.salestracker.order.CustomerStatusTotals(
+                o.customerId, o.status, count(o), sum(o.deliveryCharge), max(o.orderedAt))
+            from SaleOrder o
+            where o.tenantId = :tenantId and o.status = com.salestracker.order.OrderStatus.PAID
+              and o.orderedAt >= :from and o.orderedAt < :to
+            group by o.customerId, o.status
+            """)
+    List<CustomerStatusTotals> paidTotalsByCustomerInRange(@Param("tenantId") Long tenantId,
+                                                           @Param("from") LocalDateTime from, @Param("to") LocalDateTime to);
+
+    /** What each customer paid for products on PAID orders in the range. */
+    @Query("""
+            select new com.salestracker.order.CustomerRevenue(o.customerId, sum(i.soldPrice * i.quantity))
+            from OrderItem i join i.order o
+            where o.tenantId = :tenantId and o.status = com.salestracker.order.OrderStatus.PAID
+              and o.orderedAt >= :from and o.orderedAt < :to
+            group by o.customerId
+            """)
+    List<CustomerRevenue> paidRevenueByCustomerInRange(@Param("tenantId") Long tenantId,
+                                                       @Param("from") LocalDateTime from, @Param("to") LocalDateTime to);
+
     List<SaleOrder> findByTenantIdAndIdIn(Long tenantId, Collection<Long> ids);
 
     Optional<SaleOrder> findByIdAndTenantId(Long id, Long tenantId);

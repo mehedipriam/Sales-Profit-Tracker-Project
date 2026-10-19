@@ -87,7 +87,7 @@ public abstract class AbstractIntegrationTest {
 
     private JsonNode call(MockHttpServletRequestBuilder request, int expectedStatus) throws Exception {
         MvcResult result = mvc.perform(request).andReturn();
-        String text = result.getResponse().getContentAsString();
+        String text = result.getResponse().getContentAsString(java.nio.charset.StandardCharsets.UTF_8);
         if (result.getResponse().getStatus() != expectedStatus) {
             throw new AssertionError("Expected HTTP " + expectedStatus + " but got "
                     + result.getResponse().getStatus() + ": " + text);

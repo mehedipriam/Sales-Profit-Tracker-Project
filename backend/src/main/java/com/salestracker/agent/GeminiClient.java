@@ -16,6 +16,8 @@ import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientResponseException;
 
 import java.time.Duration;
+import java.time.LocalDate;
+import java.time.format.DateTimeParseException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.ArrayList;
@@ -51,6 +53,28 @@ public class GeminiClient implements AiClient {
             exist, or asks for something a draft cannot do, change nothing and explain in reply. If a detail needed \
             to do it is missing, change nothing and ask for it in reply. reply is one short sentence in the language \
             of the instruction saying what you did or what you need.""";
+
+    private static final String UNDERSTAND_PROMPT = """
+            You are the front door of an assistant for a small shop's sales tracker. Read one typed message, which may be \
+            Bengali, English or a mix, and decide what it wants. kind is ORDER when the message looks like a customer's \
+            order (a customer, products and quantities, usually a phone number or address). kind is QUESTION when it \
+            asks about the business: set question to one of PROFIT (profit or loss, revenue, costs, net result), \
+            TOP_PRODUCTS (best-selling or most sold products), LOWEST_MARGIN (products with the lowest margin or that \
+            lose money), TOP_CUSTOMERS (best customers, who spent the most), CUSTOMER_SPEND (what one named customer \
+            spent or bought: put the name in customerName), LOW_STOCK (what is running low or out of stock), \
+            ORDER_COUNTS (how many orders, by status: paid, pending, returned, cancelled), EXPENSES (what was spent, \
+            by type) or PLATFORMS (results by platform such as Facebook or Daraz). Set period to TODAY, YESTERDAY, \
+            THIS_WEEK, LAST_WEEK, THIS_MONTH, LAST_MONTH, THIS_YEAR, ALL_TIME, or CUSTOM when two dates are given (then \
+            fill from and to as yyyy-MM-dd; one date alone is both from and to). If the message names no period use \
+            ALL_TIME. kind is UNCLEAR for anything else, including requests to add or change customers, change an \
+            order's status, record an expense or change stock, which this assistant cannot do yet: then reply is one \
+            short sentence in the language of the message saying so or asking what they mean. Never invent a customer \
+            name; leave unused fields null.""";
+
+    private static final String WORD_PROMPT = """
+            You word the answer to a shop owner's question as ONE short, friendly sentence, in the language of the \
+            question (Bengali, English or other). Use only the figures you are given, written exactly as given: do not \
+            add, round, convert, compare or calculate any number, and do not add advice or anything else.""";
 
     private static final Logger log = LoggerFactory.getLogger(GeminiClient.class);
     /** Mutable only so a test does not have to wait. */
@@ -91,9 +115,6 @@ public class GeminiClient implements AiClient {
 
     @Override
     public ExtractedOrder extractOrder(String text, Image image) {
-        if (apiKey.isEmpty()) {
-            throw new ApiException(HttpStatus.SERVICE_UNAVAILABLE, "The order agent is not set up: GEMINI_API_KEY is missing");
-        }
         List<Map<String, Object>> parts = new ArrayList<>();
         if (image != null) {
             parts.add(Map.of("inlineData", Map.of("mimeType", image.mimeType(),
@@ -118,8 +139,58 @@ public class GeminiClient implements AiClient {
                 raw.status(), blankToNull(raw.platform()), raw.changes());
     }
 
+    @Override
+    public Intent understand(String text, LocalDate today) {
+        List<Map<String, Object>> parts = List.of(Map.of("text", "Today is " + today + " (" + today.getDayOfWeek() + ").\n\nMessage: " + text));
+        String out = generate(UNDERSTAND_PROMPT, parts, understandSchema());
+        JsonNode n;
+        try {
+            n = json.readTree(out);
+        } catch (Exception e) {
+            throw new ApiException(HttpStatus.BAD_GATEWAY, "The AI answer could not be read. Try again");
+        }
+        return new Intent(enumOf(Intent.Kind.class, n.path("kind")), enumOf(Intent.Question.class, n.path("question")),
+                enumOf(Intent.PeriodName.class, n.path("period")), date(n.path("from")), date(n.path("to")),
+                blankToNull(text(n.path("customerName"))), blankToNull(text(n.path("reply"))));
+    }
+
+    @Override
+    public String wordAnswer(String question, String facts) {
+        List<Map<String, Object>> parts = List.of(Map.of("text", "Question: " + question + "\n\nFigures:\n" + facts));
+        String out = generate(WORD_PROMPT, parts, Map.of("type", "OBJECT",
+                "properties", Map.of("sentence", Map.of("type", "STRING"))));
+        try {
+            return blankToNull(text(json.readTree(out).path("sentence")));
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private static String text(JsonNode n) {
+        return n.isTextual() ? n.asText() : null;
+    }
+
+    private static <E extends Enum<E>> E enumOf(Class<E> type, JsonNode n) {
+        try {
+            return n.isTextual() ? Enum.valueOf(type, n.asText().trim().toUpperCase()) : null;
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
+    }
+
+    private static LocalDate date(JsonNode n) {
+        try {
+            return n.isTextual() ? LocalDate.parse(n.asText().trim()) : null;
+        } catch (DateTimeParseException e) {
+            return null;
+        }
+    }
+
     /** Sends one request to Gemini (retrying once on a server error) and returns the JSON text the model answered with. */
     private String generate(String system, List<Map<String, Object>> parts, Map<String, Object> responseSchema) {
+        if (apiKey.isEmpty()) {
+            throw new ApiException(HttpStatus.SERVICE_UNAVAILABLE, "The assistant is not set up: GEMINI_API_KEY is missing");
+        }
         Map<String, Object> body = Map.of(
                 "systemInstruction", Map.of("parts", List.of(Map.of("text", system))),
                 "contents", List.of(Map.of("role", "user", "parts", parts)),
@@ -264,6 +335,20 @@ public class GeminiClient implements AiClient {
                 "status", Map.of("type", "STRING", "nullable", true, "enum", List.of("PAID", "PENDING", "RETURNED", "CANCELLED")),
                 "platform", Map.of("type", "STRING", "nullable", true),
                 "changes", Map.of("type", "ARRAY", "items", change)));
+    }
+
+    private static Map<String, Object> understandSchema() {
+        return Map.of("type", "OBJECT", "properties", Map.of(
+                "kind", Map.of("type", "STRING", "enum", List.of("ORDER", "QUESTION", "UNCLEAR")),
+                "question", Map.of("type", "STRING", "nullable", true, "enum", List.of("PROFIT", "TOP_PRODUCTS", "LOWEST_MARGIN",
+                        "TOP_CUSTOMERS", "CUSTOMER_SPEND", "LOW_STOCK", "ORDER_COUNTS", "EXPENSES", "PLATFORMS")),
+                "period", Map.of("type", "STRING", "nullable", true, "enum", List.of("TODAY", "YESTERDAY", "THIS_WEEK", "LAST_WEEK",
+                        "THIS_MONTH", "LAST_MONTH", "THIS_YEAR", "ALL_TIME", "CUSTOM")),
+                "from", Map.of("type", "STRING", "nullable", true),
+                "to", Map.of("type", "STRING", "nullable", true),
+                "customerName", Map.of("type", "STRING", "nullable", true),
+                "reply", Map.of("type", "STRING", "nullable", true)),
+                "required", List.of("kind"));
     }
 
     private static Map<String, Object> schema() {

@@ -2,8 +2,10 @@ import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import api, { errorMessage } from '../api/client'
 import { useAuth } from '../auth/AuthContext'
+import { seesFinancials } from '../auth/roles'
 import { STATUSES, STATUS_LABEL, money } from '../utils/format'
 import { prepareImage } from '../utils/image'
+import AnswerCard from './AnswerCard'
 import AsyncPicker from './AsyncPicker'
 import { loadChat, saveChat } from './agentStore'
 
@@ -12,7 +14,19 @@ const searchProducts = (q) => api.get('/products', { params: { q, size: 10 } }).
 let uid = 0
 const nextKey = () => ++uid
 
-const HELLO = 'Paste an order message from Facebook, or attach a screenshot of the conversation, and I will prepare it for you. Nothing is saved until you press Confirm.'
+const HELLO = 'Paste an order message from Facebook, or attach a screenshot of the conversation, and I will prepare it for you. Nothing is saved until you press Confirm. You can also ask me about your business.'
+
+/** What to try on an empty chat. Profit questions are for Owner and Admin only. */
+const SUGGESTIONS = [
+  { text: "This month's profit", money: true },
+  { text: "Last month's profit", money: true },
+  { text: 'Best-selling products this month', money: true },
+  { text: 'Top customers this month', money: true },
+  { text: 'How many orders this month?', money: false },
+  { text: 'What is running low on stock?', money: false },
+  { text: 'Expenses this month', money: true },
+  { text: 'Lowest-margin products', money: true },
+]
 
 /** The draft the server sent, as editable form state (inputs hold text). */
 const toState = (d) => ({
@@ -244,6 +258,7 @@ export default function AgentChat() {
   const [shot, setShot] = useState(null) // the screenshot waiting to be sent: { blob, thumb }
   const [shotError, setShotError] = useState('')
   const fileRef = useRef(null)
+  const suggestions = SUGGESTIONS.filter((x) => !x.money || seesFinancials(user)).map((x) => x.text)
   const endRef = useRef(null)
   const inputRef = useRef(null)
 
@@ -251,7 +266,8 @@ export default function AgentChat() {
     if (!open) return undefined
     api.get('/platforms').then((r) => setPlatforms(r.data)).catch(() => {})
     inputRef.current?.focus()
-    const onKey = (e) => e.key === 'Escape' && setOpen(false)
+    // Escape closes the assistant, unless a dialog (such as the password box of an eye) is open: that closes first.
+    const onKey = (e) => e.key === 'Escape' && !document.querySelector('.overlay') && setOpen(false)
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [open])
@@ -287,8 +303,8 @@ export default function AgentChat() {
     attach(file)
   }
 
-  const send = async () => {
-    const msg = text.trim()
+  const send = async (typed) => {
+    const msg = (typeof typed === 'string' ? typed : text).trim()
     if ((!msg && !shot) || busy) return
     const sent = shot
     setText('')
@@ -304,7 +320,15 @@ export default function AgentChat() {
         if (msg) form.append('text', msg)
         data = (await api.post('/agent/draft/image', form)).data
       } else {
-        data = (await api.post('/agent/draft', { text: msg })).data
+        const reply = (await api.post('/agent/message', { text: msg })).data
+        if (reply.type === 'ANSWER') {
+          setMessages((ms) => [...ms, { key: nextKey(), role: 'agent', answer: reply.answer }])
+        } else if (reply.type === 'MESSAGE') {
+          setMessages((ms) => [...ms, { key: nextKey(), role: 'agent', text: reply.message }])
+        } else {
+          setMessages((ms) => [...ms, { key: nextKey(), role: 'agent', draft: toState(reply.draft), status: 'open' }])
+        }
+        return
       }
       setMessages((ms) => [...ms, { key: nextKey(), role: 'agent', draft: toState(data), status: 'open' }])
     } catch (err) {
@@ -352,7 +376,16 @@ export default function AgentChat() {
           </header>
           <div className="agent-body">
             <p className="agent-bubble agent">{HELLO}</p>
-            {messages.map((m) => (m.draft ? (
+            {messages.length === 0 && (
+              <div className="agent-suggest" aria-label="Suggested questions">
+                {suggestions.map((t) => (
+                  <button key={t} type="button" className="agent-chip" disabled={busy || !!shot} onClick={() => send(t)}>{t}</button>
+                ))}
+              </div>
+            )}
+            {messages.map((m) => (m.answer ? (
+              <AnswerCard key={m.key} answer={m.answer} />
+            ) : m.draft ? (
               <DraftCard key={m.key} message={m} platforms={platforms}
                          onEdit={(fn) => patch(m.key, (cur) => ({ draft: fn(cur.draft) }))}
                          onConfirm={() => confirm(m)}
@@ -366,7 +399,7 @@ export default function AgentChat() {
                 {m.text && <p>{m.text}</p>}
               </div>
             )))}
-            {busy && <p className="agent-bubble agent muted">Reading the message…</p>}
+            {busy && <p className="agent-bubble agent muted">Thinking…</p>}
             <div ref={endRef} />
           </div>
           {(shot || shotError) && (
@@ -374,6 +407,13 @@ export default function AgentChat() {
               {shot && <img className="agent-thumb" src={shot.thumb} alt="Screenshot to send" />}
               {shot && <button type="button" className="link danger" onClick={() => setShot(null)}>Remove</button>}
               {shotError && <span className="error" role="alert">{shotError}</span>}
+            </div>
+          )}
+          {messages.length > 0 && (
+            <div className="agent-chips" aria-label="Suggested questions">
+              {suggestions.map((t) => (
+                <button key={t} type="button" className="agent-chip" disabled={busy || !!shot} onClick={() => send(t)}>{t}</button>
+              ))}
             </div>
           )}
           <div className="agent-input">
@@ -386,10 +426,10 @@ export default function AgentChat() {
                 <path d="M21 12.5l-8.6 8.6a5.5 5.5 0 0 1-7.8-7.8l9-9a3.7 3.7 0 0 1 5.2 5.2l-9 9a1.8 1.8 0 0 1-2.6-2.6l8.4-8.4" />
               </svg>
             </button>
-            <textarea ref={inputRef} rows={2} value={text} maxLength={4000} aria-label="Order message"
-                      placeholder="Paste or type the order, or attach a screenshot…"
+            <textarea ref={inputRef} rows={2} value={text} maxLength={4000} aria-label="Message to the assistant"
+                      placeholder="Paste an order, ask a question, or attach a screenshot…"
                       onChange={(e) => setText(e.target.value)} onKeyDown={onKeyDown} onPaste={onPaste} />
-            <button type="button" className="btn small" disabled={busy || (!text.trim() && !shot)} onClick={send}>Send</button>
+            <button type="button" className="btn small" disabled={busy || (!text.trim() && !shot)} onClick={() => send()}>Send</button>
           </div>
         </section>
       )}

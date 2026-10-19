@@ -22,7 +22,9 @@ COPY --from=build /build/layers/snapshot-dependencies/ ./
 COPY --from=build /build/layers/application/ ./
 USER app
 EXPOSE 8080
-ENV SPRING_PROFILES_ACTIVE=prod \
+# The shop's clock: orders are stamped, and "today" / "this month" resolved, in this zone (override with TZ).
+ENV TZ=Asia/Dhaka \
+    SPRING_PROFILES_ACTIVE=prod \
     JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=75 -XX:+ExitOnOutOfMemoryError"
 HEALTHCHECK --interval=15s --timeout=3s --start-period=60s --retries=5 \
     CMD wget -qO- http://localhost:8080/actuator/health | grep -q '"UP"' || exit 1

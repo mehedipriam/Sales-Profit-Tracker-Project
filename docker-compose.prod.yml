@@ -35,6 +35,7 @@ services:
       mysql: { condition: service_healthy }
     environment:
       SPRING_PROFILES_ACTIVE: prod
+      TZ: ${TIMEZONE:-Asia/Dhaka}
       DB_HOST: mysql
       MYSQL_DATABASE: ${MYSQL_DATABASE:-sales_tracker}
       MYSQL_USER: ${MYSQL_USER:-tracker}
