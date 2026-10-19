@@ -66,10 +66,16 @@ public class GeminiClient implements AiClient {
             by type) or PLATFORMS (results by platform such as Facebook or Daraz). Set period to TODAY, YESTERDAY, \
             THIS_WEEK, LAST_WEEK, THIS_MONTH, LAST_MONTH, THIS_YEAR, ALL_TIME, or CUSTOM when two dates are given (then \
             fill from and to as yyyy-MM-dd; one date alone is both from and to). If the message names no period use \
-            ALL_TIME. kind is UNCLEAR for anything else, including requests to add or change customers, change an \
-            order's status, record an expense or change stock, which this assistant cannot do yet: then reply is one \
-            short sentence in the language of the message saying so or asking what they mean. Never invent a customer \
-            name; leave unused fields null.""";
+            ALL_TIME. kind is CUSTOMER_ADD when asked to add or save a new customer (no products): customerName, phone \
+            (digits only, Bengali digits converted), address and platform as given. "Add a customer" with no \
+            details at all is still CUSTOMER_ADD, with every detail null: never ask for them in reply. kind is CUSTOMER_FIND when asked to \
+            show or look up a saved customer's phone, address, orders or details: customerName, or phone if only a \
+            number is given. kind is CUSTOMER_UPDATE when asked to change a saved customer's details, such as \
+            "Imdad's address is House 12": customerName is who (as written), and only the details to set go in phone, \
+            address, platform or newName (a new name). kind is UNCLEAR for anything else, including requests to \
+            change an order's status, record an expense or change stock, which this assistant cannot do yet: then \
+            reply is one short sentence in the language of the message saying so or asking what they mean. Never \
+            invent a value; leave unused fields null.""";
 
     private static final String WORD_PROMPT = """
             You word the answer to a shop owner's question as ONE short, friendly sentence, in the language of the \
@@ -151,7 +157,9 @@ public class GeminiClient implements AiClient {
         }
         return new Intent(enumOf(Intent.Kind.class, n.path("kind")), enumOf(Intent.Question.class, n.path("question")),
                 enumOf(Intent.PeriodName.class, n.path("period")), date(n.path("from")), date(n.path("to")),
-                blankToNull(text(n.path("customerName"))), blankToNull(text(n.path("reply"))));
+                blankToNull(text(n.path("customerName"))), blankToNull(text(n.path("reply"))),
+                cleanPhone(text(n.path("phone"))), blankToNull(text(n.path("address"))),
+                blankToNull(text(n.path("platform"))), blankToNull(text(n.path("newName"))));
     }
 
     @Override
@@ -338,16 +346,16 @@ public class GeminiClient implements AiClient {
     }
 
     private static Map<String, Object> understandSchema() {
-        return Map.of("type", "OBJECT", "properties", Map.of(
-                "kind", Map.of("type", "STRING", "enum", List.of("ORDER", "QUESTION", "UNCLEAR")),
-                "question", Map.of("type", "STRING", "nullable", true, "enum", List.of("PROFIT", "TOP_PRODUCTS", "LOWEST_MARGIN",
-                        "TOP_CUSTOMERS", "CUSTOMER_SPEND", "LOW_STOCK", "ORDER_COUNTS", "EXPENSES", "PLATFORMS")),
-                "period", Map.of("type", "STRING", "nullable", true, "enum", List.of("TODAY", "YESTERDAY", "THIS_WEEK", "LAST_WEEK",
-                        "THIS_MONTH", "LAST_MONTH", "THIS_YEAR", "ALL_TIME", "CUSTOM")),
-                "from", Map.of("type", "STRING", "nullable", true),
-                "to", Map.of("type", "STRING", "nullable", true),
-                "customerName", Map.of("type", "STRING", "nullable", true),
-                "reply", Map.of("type", "STRING", "nullable", true)),
+        Map<String, Object> text = Map.of("type", "STRING", "nullable", true);
+        return Map.of("type", "OBJECT", "properties", Map.ofEntries(
+                Map.entry("kind", Map.of("type", "STRING", "enum", List.of("ORDER", "QUESTION", "CUSTOMER_ADD", "CUSTOMER_FIND",
+                        "CUSTOMER_UPDATE", "UNCLEAR"))),
+                Map.entry("question", Map.of("type", "STRING", "nullable", true, "enum", List.of("PROFIT", "TOP_PRODUCTS",
+                        "LOWEST_MARGIN", "TOP_CUSTOMERS", "CUSTOMER_SPEND", "LOW_STOCK", "ORDER_COUNTS", "EXPENSES", "PLATFORMS"))),
+                Map.entry("period", Map.of("type", "STRING", "nullable", true, "enum", List.of("TODAY", "YESTERDAY", "THIS_WEEK",
+                        "LAST_WEEK", "THIS_MONTH", "LAST_MONTH", "THIS_YEAR", "ALL_TIME", "CUSTOM"))),
+                Map.entry("from", text), Map.entry("to", text), Map.entry("customerName", text), Map.entry("reply", text),
+                Map.entry("phone", text), Map.entry("address", text), Map.entry("platform", text), Map.entry("newName", text)),
                 "required", List.of("kind"));
     }
 

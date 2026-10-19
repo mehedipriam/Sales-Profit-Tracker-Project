@@ -7,6 +7,7 @@ import { STATUSES, STATUS_LABEL, money } from '../utils/format'
 import { prepareImage } from '../utils/image'
 import AnswerCard from './AnswerCard'
 import AsyncPicker from './AsyncPicker'
+import { CustomerInfoCard, CustomerProposalCard } from './CustomerCards'
 import { loadChat, saveChat } from './agentStore'
 
 const searchProducts = (q) => api.get('/products', { params: { q, size: 10 } }).then((r) => r.data.content)
@@ -14,7 +15,7 @@ const searchProducts = (q) => api.get('/products', { params: { q, size: 10 } }).
 let uid = 0
 const nextKey = () => ++uid
 
-const HELLO = 'Paste an order message from Facebook, or attach a screenshot of the conversation, and I will prepare it for you. Nothing is saved until you press Confirm. You can also ask me about your business.'
+const HELLO = 'Paste an order message from Facebook, or attach a screenshot of the conversation, and I will prepare it for you. Nothing is saved until you press Confirm. You can also ask me about your business, or to add, find or change a customer.'
 
 /** What to try on an empty chat. Profit questions are for Owner and Admin only. */
 const SUGGESTIONS = [
@@ -24,6 +25,7 @@ const SUGGESTIONS = [
   { text: 'Top customers this month', money: true },
   { text: 'How many orders this month?', money: false },
   { text: 'What is running low on stock?', money: false },
+  { text: 'Add a customer', money: false },
   { text: 'Expenses this month', money: true },
   { text: 'Lowest-margin products', money: true },
 ]
@@ -46,6 +48,12 @@ const toState = (d) => ({
   // Errors are worked out again from what is on screen as it is fixed; only the warnings come from the server.
   warnings: d.issues.filter((i) => i.level === 'WARNING').map((i) => i.message),
 })
+
+/** The fields of a new-customer proposal as form state (inputs hold text). */
+const toForm = (p) => {
+  const value = (key) => p.fields.find((f) => f.key === key)?.after ?? ''
+  return { name: value('name'), phone: value('phone'), address: value('address'), platformId: p.platformId ? String(p.platformId) : '' }
+}
 
 const price = (l) => Number(l.soldPrice) || 0
 const qty = (l) => Number(l.quantity) || 0
@@ -323,6 +331,10 @@ export default function AgentChat() {
         const reply = (await api.post('/agent/message', { text: msg })).data
         if (reply.type === 'ANSWER') {
           setMessages((ms) => [...ms, { key: nextKey(), role: 'agent', answer: reply.answer }])
+        } else if (reply.type === 'CUSTOMER') {
+          setMessages((ms) => [...ms, { key: nextKey(), role: 'agent', customer: reply.customer }])
+        } else if (reply.type === 'PROPOSAL') {
+          setMessages((ms) => [...ms, { key: nextKey(), role: 'agent', proposal: reply.proposal, status: 'open', form: toForm(reply.proposal) }])
         } else if (reply.type === 'MESSAGE') {
           setMessages((ms) => [...ms, { key: nextKey(), role: 'agent', text: reply.message }])
         } else {
@@ -358,6 +370,32 @@ export default function AgentChat() {
     }
   }
 
+  /** Confirm on a customer card: a new customer is created, a change saves only the fields shown. */
+  const confirmCustomer = async (m) => {
+    patch(m.key, () => ({ status: 'saving', error: '' }))
+    try {
+      const p = m.proposal
+      let data
+      if (p.kind === 'ADD') {
+        const f = m.form
+        data = (await api.post('/agent/customers', {
+          name: f.name.trim(), phone: f.phone.trim() || null, address: f.address.trim() || null,
+          sourcePlatformId: f.platformId ? Number(f.platformId) : null,
+        })).data
+      } else {
+        const body = {}
+        for (const f of p.fields) {
+          if (f.key === 'platform') body.sourcePlatformId = p.platformId
+          else body[f.key] = f.after
+        }
+        data = (await api.patch(`/agent/customers/${p.customerId}`, body)).data
+      }
+      patch(m.key, () => ({ status: 'done', saved: data }))
+    } catch (err) {
+      patch(m.key, () => ({ status: 'open', error: errorMessage(err) }))
+    }
+  }
+
   const onKeyDown = (e) => {
     if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
       e.preventDefault()
@@ -385,6 +423,13 @@ export default function AgentChat() {
             )}
             {messages.map((m) => (m.answer ? (
               <AnswerCard key={m.key} answer={m.answer} />
+            ) : m.customer ? (
+              <CustomerInfoCard key={m.key} customer={m.customer} />
+            ) : m.proposal ? (
+              <CustomerProposalCard key={m.key} message={m} platforms={platforms}
+                                    onEdit={(fn) => patch(m.key, (cur) => ({ form: fn(cur.form) }))}
+                                    onConfirm={() => confirmCustomer(m)}
+                                    onDiscard={() => patch(m.key, () => ({ status: 'discarded' }))} />
             ) : m.draft ? (
               <DraftCard key={m.key} message={m} platforms={platforms}
                          onEdit={(fn) => patch(m.key, (cur) => ({ draft: fn(cur.draft) }))}
@@ -427,7 +472,7 @@ export default function AgentChat() {
               </svg>
             </button>
             <textarea ref={inputRef} rows={2} value={text} maxLength={4000} aria-label="Message to the assistant"
-                      placeholder="Paste an order, ask a question, or attach a screenshot…"
+                      placeholder="Paste an order, ask a question, or add a customer…"
                       onChange={(e) => setText(e.target.value)} onKeyDown={onKeyDown} onPaste={onPaste} />
             <button type="button" className="btn small" disabled={busy || (!text.trim() && !shot)} onClick={() => send()}>Send</button>
           </div>

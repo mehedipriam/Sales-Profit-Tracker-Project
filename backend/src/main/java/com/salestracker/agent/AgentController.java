@@ -2,6 +2,9 @@ package com.salestracker.agent;
 
 import com.salestracker.auth.ApiException;
 import com.salestracker.auth.AuthUser;
+import com.salestracker.customer.CustomerDtos.CustomerPatch;
+import com.salestracker.customer.CustomerDtos.CustomerRequest;
+import com.salestracker.customer.CustomerDtos.CustomerResponse;
 import com.salestracker.order.OrderDtos.OrderDetail;
 import com.salestracker.order.OrderDtos.OrderRequest;
 import jakarta.validation.Valid;
@@ -23,11 +26,14 @@ public class AgentController {
     public record TextRequest(@NotBlank @Size(max = 4000) String text) {}
 
     private final AssistantService assistant;
+    private final CustomerAssistant customerAssistant;
     private final DraftService drafts;
     private final RevisionService revisions;
     private final AgentRateLimiter limiter;
 
-    public AgentController(DraftService drafts, RevisionService revisions, AgentRateLimiter limiter, AssistantService assistant) {
+    public AgentController(DraftService drafts, RevisionService revisions, AgentRateLimiter limiter, AssistantService assistant,
+                           CustomerAssistant customerAssistant) {
+        this.customerAssistant = customerAssistant;
         this.assistant = assistant;
         this.drafts = drafts;
         this.revisions = revisions;
@@ -58,6 +64,20 @@ public class AgentController {
         if (text != null && text.length() > 4000) throw new ApiException(HttpStatus.BAD_REQUEST, "The note is too long");
         limiter.check(user.userId());
         return drafts.prepare(user, text, ImageUpload.read(image));
+    }
+
+    /** Confirm on an "add customer" card. Anyone who can use the Customers page can; a phone number already on file is refused. */
+    @PostMapping("/customers")
+    @ResponseStatus(HttpStatus.CREATED)
+    public CustomerResponse addCustomer(@AuthenticationPrincipal AuthUser user, @Valid @RequestBody CustomerRequest req) {
+        return customerAssistant.confirmAdd(user, req);
+    }
+
+    /** Confirm on an "update customer" card: only the fields sent change. */
+    @PatchMapping("/customers/{id}")
+    public CustomerResponse updateCustomer(@AuthenticationPrincipal AuthUser user, @PathVariable Long id,
+                                           @Valid @RequestBody CustomerPatch patch) {
+        return customerAssistant.confirmUpdate(user, id, patch);
     }
 
     /** "Make it 3", "remove the red shirt": changes an open draft as asked and checks it again. Saves nothing. */

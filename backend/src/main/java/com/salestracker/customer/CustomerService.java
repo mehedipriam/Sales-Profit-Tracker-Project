@@ -44,6 +44,13 @@ public class CustomerService {
         return PageResponse.of(result, c -> CustomerResponse.of(c, insights.get(c.getId())));
     }
 
+    /** One customer with their order history. */
+    @Transactional(readOnly = true)
+    public CustomerResponse get(Long tenantId, Long id) {
+        Customer c = find(tenantId, id);
+        return CustomerResponse.of(c, insights(tenantId, Set.of(id)).get(id));
+    }
+
     public CustomerResponse create(Long tenantId, CustomerRequest req) {
         return save(new Customer(tenantId), req);
     }

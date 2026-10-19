@@ -7,7 +7,6 @@ import com.salestracker.agent.Answer.Table;
 import com.salestracker.agent.Answer.Tone;
 import com.salestracker.auth.AuthUser;
 import com.salestracker.common.DateRange;
-import com.salestracker.common.Search;
 import com.salestracker.customer.Customer;
 import com.salestracker.customer.CustomerRepository;
 import com.salestracker.order.CustomerRevenue;
@@ -20,7 +19,6 @@ import com.salestracker.report.ReportService.ProductRow;
 import com.salestracker.report.ReportService.SummaryResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -45,22 +43,23 @@ import java.util.stream.Collectors;
 public class QuestionService {
     private static final int TOP_CUSTOMERS = 10;
     private static final int LOW_STOCK_ROWS = 15;
-    private static final int NAME_CHOICES = 5;
 
     private final ReportService reports;
     private final SaleOrderRepository orders;
     private final CustomerRepository customers;
+    private final CustomerMatcher matcher;
     private final ProductRepository products;
     private final Clock clock;
 
     @Autowired
     public QuestionService(ReportService reports, SaleOrderRepository orders, CustomerRepository customers,
-                           ProductRepository products) {
-        this(reports, orders, customers, products, Clock.systemDefaultZone());
+                           CustomerMatcher matcher, ProductRepository products) {
+        this(reports, orders, customers, matcher, products, Clock.systemDefaultZone());
     }
 
     QuestionService(ReportService reports, SaleOrderRepository orders, CustomerRepository customers,
-                    ProductRepository products, Clock clock) {
+                    CustomerMatcher matcher, ProductRepository products, Clock clock) {
+        this.matcher = matcher;
         this.reports = reports;
         this.orders = orders;
         this.customers = customers;
@@ -165,15 +164,9 @@ public class QuestionService {
 
     private AgentReply customerSpend(Long tenant, Period p, String name) {
         if (name == null || name.isBlank()) return AgentReply.message("Whose spending do you want to know? Tell me the customer's name.");
-        List<Customer> found = customers.search(tenant, Search.pattern(name), 0L,
-                PageRequest.of(0, NAME_CHOICES + 1, Sort.by("name"))).getContent();
-        List<Customer> exact = found.stream().filter(c -> c.getName().equalsIgnoreCase(name.trim())).toList();
-        if (exact.size() == 1) found = exact;
+        List<Customer> found = matcher.find(tenant, name, null);
         if (found.isEmpty()) return AgentReply.message("No customer matches \"" + name.trim() + "\".");
-        if (found.size() > 1) {
-            String choices = found.stream().limit(NAME_CHOICES).map(QuestionService::describe).collect(Collectors.joining(", "));
-            return AgentReply.message("Which " + name.trim() + " did you mean? " + choices + (found.size() > NAME_CHOICES ? " ..." : ""));
-        }
+        if (found.size() > 1) return AgentReply.message(CustomerMatcher.which(name, found));
         Customer c = found.get(0);
         BigDecimal spent = spentByCustomer(tenant, p).getOrDefault(c.getId(), BigDecimal.ZERO);
         long paid = paidOrdersByCustomer(tenant, p).getOrDefault(c.getId(), 0L);
@@ -274,11 +267,5 @@ public class QuestionService {
     /** 12500.5 as 12,500.5 and 12500 as 12,500, without a currency symbol. */
     static String num(BigDecimal v) {
         return new DecimalFormat("#,##0.##", DecimalFormatSymbols.getInstance(Locale.ENGLISH)).format(v);
-    }
-
-    /** A customer told apart from others of the same name by the end of their phone number. */
-    private static String describe(Customer c) {
-        String phone = c.getPhone() == null ? "" : c.getPhone().replaceAll("\\D", "");
-        return phone.length() >= 3 ? c.getName() + " (..." + phone.substring(Math.max(0, phone.length() - 4)) + ")" : c.getName();
     }
 }

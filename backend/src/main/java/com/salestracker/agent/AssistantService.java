@@ -21,16 +21,18 @@ import java.util.regex.Pattern;
 @Service
 public class AssistantService {
     private static final Logger log = LoggerFactory.getLogger(AssistantService.class);
-    private static final String NOT_UNDERSTOOD = "I did not understand that. You can paste an order message, or ask about "
-            + "profit, best-selling products, top customers, stock, order counts or expenses.";
+    private static final String NOT_UNDERSTOOD = "I did not understand that. You can paste an order message, add, find or "
+            + "change a customer, or ask about profit, best-selling products, top customers, stock, order counts or expenses.";
     private static final String BENGALI_DIGITS = "০১২৩৪৫৬৭৮৯";
     private static final Pattern NUMBER = Pattern.compile("\\d[\\d,]*(?:\\.\\d+)?");
 
     private final AiClient ai;
     private final DraftService drafts;
     private final QuestionService questions;
+    private final CustomerAssistant customers;
 
-    public AssistantService(AiClient ai, DraftService drafts, QuestionService questions) {
+    public AssistantService(AiClient ai, DraftService drafts, QuestionService questions, CustomerAssistant customers) {
+        this.customers = customers;
         this.ai = ai;
         this.drafts = drafts;
         this.questions = questions;
@@ -39,6 +41,10 @@ public class AssistantService {
     public AgentReply handle(AuthUser user, String text) {
         Intent intent = ai.understand(text, questions.today());
         if (intent.kind() == Intent.Kind.ORDER) return AgentReply.draft(drafts.prepare(user, text));
+        if (intent.kind() == Intent.Kind.CUSTOMER_ADD || intent.kind() == Intent.Kind.CUSTOMER_FIND
+                || intent.kind() == Intent.Kind.CUSTOMER_UPDATE) {
+            return customers.handle(user, intent);
+        }
         if (intent.kind() == Intent.Kind.QUESTION && intent.question() != null) {
             AgentReply reply = questions.answer(user, intent);
             return reply.type() == AgentReply.Type.ANSWER ? AgentReply.answer(worded(reply.answer(), text)) : reply;

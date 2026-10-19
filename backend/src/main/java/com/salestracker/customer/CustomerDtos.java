@@ -16,6 +16,13 @@ public final class CustomerDtos {
             Long sourcePlatformId,
             @Size(max = 5000) String notes) {}
 
+    /** Only the fields to change; a null field stays as it is. Used by the assistant's Confirm on an update. */
+    public record CustomerPatch(
+            @Size(min = 1, max = 150) String name,
+            @Size(max = 32) String phone,
+            @Size(max = 500) String address,
+            Long sourcePlatformId) {}
+
     /**
      * A customer's history over all time. spent is what they paid on PAID orders (products + delivery charge).
      * returnRatePct is the share of their settled orders (paid, returned or cancelled; pending ones are still open)

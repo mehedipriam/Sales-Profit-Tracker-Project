@@ -12,7 +12,7 @@ export function loadChat(userId) {
     if (!saved || saved.userId !== userId || !Array.isArray(saved.messages)) return { open: false, messages: [], maxKey: 0 }
     const messages = saved.messages.map((m) => ({ ...m, revising: false })).map((m) => (m.status === 'saving'
       // A reload mid-save: the order may or may not have been stored.
-      ? { ...m, status: 'open', error: 'Reloaded while saving. Check Orders before confirming again.' }
+      ? { ...m, status: 'open', error: `Reloaded while saving. Check ${m.proposal ? 'Customers' : 'Orders'} before confirming again.` }
       : m))
     const keys = messages.flatMap((m) => [m.key, ...(m.draft?.lines ?? []).map((l) => l.key)])
     return { open: Boolean(saved.open), messages, maxKey: Math.max(0, ...keys.filter(Number.isFinite)) }
