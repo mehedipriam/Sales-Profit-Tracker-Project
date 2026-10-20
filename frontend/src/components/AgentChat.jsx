@@ -344,7 +344,7 @@ export default function AgentChat() {
         } else if (reply.type === 'PROPOSAL') {
           setMessages((ms) => [...ms, { key: nextKey(), role: 'agent', proposal: reply.proposal, status: 'open', form: toForm(reply.proposal) }])
         } else if (reply.type === 'MESSAGE') {
-          setMessages((ms) => [...ms, { key: nextKey(), role: 'agent', text: reply.message }])
+          setMessages((ms) => [...ms, { key: nextKey(), role: 'agent', text: reply.message, suggestions: reply.suggestions ?? [] }])
         } else {
           setMessages((ms) => [...ms, { key: nextKey(), role: 'agent', draft: toState(reply.draft), status: 'open' }])
         }
@@ -442,6 +442,14 @@ export default function AgentChat() {
     }
   }
 
+  const lastKey = messages[messages.length - 1]?.key
+
+  /** An example from a reply goes into the input box to be adjusted (a name, a number) and sent. */
+  const fillExample = (example) => {
+    setText(example)
+    inputRef.current?.focus()
+  }
+
   const onKeyDown = (e) => {
     if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
       e.preventDefault()
@@ -497,6 +505,14 @@ export default function AgentChat() {
                   ? <img className="agent-thumb" src={m.thumb} alt="Screenshot you sent" />
                   : <span className="agent-tag">Screenshot</span>)}
                 {m.text && <p>{m.text}</p>}
+                {m.suggestions?.length > 0 && m.key === lastKey && (
+                  <div className="agent-examples">
+                    <span className="muted">Try one of these. Tap to put it in the box, change it, then send:</span>
+                    {m.suggestions.map((t) => (
+                      <button key={t} type="button" className="agent-chip" onClick={() => fillExample(t)}>{t}</button>
+                    ))}
+                  </div>
+                )}
               </div>
             )))}
             {busy && <p className="agent-bubble agent muted">Thinking…</p>}

@@ -76,7 +76,11 @@ public class GeminiClient implements AiClient {
             address, platform or newName (a new name). kind is ORDER_STATUS when asked to mark, set or cancel an \
             order's status: status is PAID (paid, payment received), PENDING, RETURNED (returned, refunded) or \
             CANCELLED; orderRef is the order exactly as written (ORD-2610-0005, or just 4 for "order 4"), or leave it \
-            null and put the customer in customerName for "the last order of Imdad". kind is EXPENSE_ADD when asked \
+            null and put the customer in customerName for "the last order of Imdad". kind is ORDER_FIND when asked to see or check an order's \
+            status or a customer's orders without changing anything (including Bengali written in English letters, \
+            like "imdad er order gula ki"): orderRef as written, or customerName for "Imdad's orders" or "his last \
+            order"; if it only asks what an order's status is and gives a new status, it is ORDER_STATUS instead. \
+            kind is EXPENSE_ADD when asked \
             to record a cost: expense.type is DELIVERY, PACKAGING, ADS (advertising, Facebook ads, boosting), \
             PLATFORM_COMMISSION or MISC; expense.amount is a plain number (Bengali digits converted); expense.date is \
             yyyy-MM-dd, worked out from today's date for "today" or "yesterday", and null if no day is said; \
@@ -378,7 +382,7 @@ public class GeminiClient implements AiClient {
         Map<String, Object> text = Map.of("type", "STRING", "nullable", true);
         return Map.of("type", "OBJECT", "properties", Map.ofEntries(
                 Map.entry("kind", Map.of("type", "STRING", "enum", List.of("ORDER", "QUESTION", "CUSTOMER_ADD", "CUSTOMER_FIND",
-                        "CUSTOMER_UPDATE", "ORDER_STATUS", "EXPENSE_ADD", "STOCK_ADJUST", "UNCLEAR"))),
+                        "CUSTOMER_UPDATE", "ORDER_STATUS", "ORDER_FIND", "EXPENSE_ADD", "STOCK_ADJUST", "UNCLEAR"))),
                 Map.entry("orderRef", text),
                 Map.entry("expense", Map.of("type", "OBJECT", "nullable", true, "properties", Map.of(
                         "type", Map.of("type", "STRING", "nullable", true,

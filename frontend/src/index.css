@@ -932,6 +932,9 @@ thead th.hide-col { padding-left: 1.75rem; padding-right: 1.75rem; } /* room for
 .agent-chip:hover:not(:disabled) { background: var(--primary-soft); }
 .agent-chip:disabled { opacity: 0.5; cursor: default; }
 .agent-chip:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+/* Examples under a plain reply: wrapped, left-aligned, so a long one stays readable. */
+.agent-examples { display: flex; flex-direction: column; align-items: flex-start; gap: 0.35rem; margin-top: 0.5rem; }
+.agent-examples .agent-chip { text-align: left; white-space: normal; }
 .agent-answer-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 0.5rem; }
 .agent-answer-head > div { display: flex; flex-direction: column; }
 .agent-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(6.5rem, 1fr)); gap: 0.5rem; }

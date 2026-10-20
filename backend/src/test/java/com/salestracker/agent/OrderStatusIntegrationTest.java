@@ -45,6 +45,10 @@ class OrderStatusIntegrationTest extends AbstractIntegrationTest {
         return new Intent(Kind.ORDER_STATUS, null, null, null, null, customer, null, null, null, null, null, ref, to);
     }
 
+    private static Intent find(String ref, String customer) {
+        return new Intent(Kind.ORDER_FIND, null, null, null, null, customer, null, null, null, null, null, ref, null);
+    }
+
     private JsonNode say(Tenant who, Intent intent) throws Exception {
         when(ai.understand(anyString(), any())).thenReturn(intent);
         return post(who, "/api/agent/message", "{\"text\":\"a message\"}", 200);
@@ -205,6 +209,82 @@ class OrderStatusIntegrationTest extends AbstractIntegrationTest {
     void theStatusEndpointNeedsALogin() throws Exception {
         assertEquals(401, mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/agent/orders/1/status")
                 .contentType("application/json").content("{}")).andReturn().getResponse().getStatus());
+    }
+
+    // ---- looking at orders (read-only) ----
+
+    @Test
+    void anOrderOrACustomersOrdersCanBeLookedAtWithoutChangingAnything() throws Exception {
+        JsonNode paid = order(imdad, "PAID", 1, java.time.LocalDateTime.now().minusHours(3).withNano(0).toString());
+        JsonNode pending = order(imdad, "PENDING", 2, now());
+
+        JsonNode one = say(owner, find(paid.get("orderNo").asText(), null));
+        assertEquals("ANSWER", one.get("type").asText());
+        JsonNode a = one.get("answer");
+        assertEquals(paid.get("orderNo").asText(), a.get("title").asText());
+        assertEquals("Paid", a.get("stats").get(0).get("value").asText());
+        assertEquals("GOOD", a.get("stats").get(0).get("tone").asText());
+        assertEquals(200, a.get("stats").get(1).get("value").asInt()); // 150 + 50 delivery
+        assertEquals("Rice", a.at("/table/rows/0/0").asText());
+
+        JsonNode list = say(owner, find(null, "Imdad")).get("answer");
+        assertEquals("Imdad Hossain's orders", list.get("title").asText());
+        assertEquals(2, list.at("/table/rows").size());
+        assertEquals(pending.get("orderNo").asText(), list.at("/table/rows/0/0").asText()); // newest first
+        assertEquals("Pending", list.at("/table/rows/0/2").asText());
+        assertEquals("Paid", list.at("/table/rows/1/2").asText());
+        assertEquals(1, list.get("stats").get(0).get("value").asInt());
+        assertTrue(list.get("sentence").asText().contains("2 orders"));
+
+        assertEquals("PENDING", statusOf(pending.get("id").asLong()));
+        assertEquals(7, stock());
+    }
+
+    @Test
+    void lookingAtOrdersAsksForWhatIsMissing() throws Exception {
+        order(imdad, "PAID", 1, now());
+        assertTrue(say(owner, find("ORD-2601-9999", null)).get("message").asText().contains("No order matches"));
+        assertTrue(say(owner, find(null, null)).get("answer").get("title").asText().startsWith("ORD-")); // the newest order
+        assertTrue(say(owner, find(null, "Zubair")).get("message").asText().contains("No customer"));
+        long lonely = post(owner, "/api/customers", "{\"name\":\"Lonely\"}", 201).get("id").asLong();
+        assertTrue(say(owner, find(null, "Lonely")).get("message").asText().contains("no orders"));
+        assertTrue(lonely > 0);
+        assertEquals("ANSWER", say(staff(), find(null, "Imdad")).get("type").asText());
+    }
+
+    // ---- what to write instead ----
+
+    @Test
+    void plainRepliesComeWithExamplesFittingWhatWasAttempted() throws Exception {
+        // A refusal or a missing detail carries examples; a real answer does not.
+        JsonNode missing = say(owner, status(null, null, OrderStatus.PAID));
+        assertEquals("MESSAGE", missing.get("type").asText());
+        assertTrue(missing.get("suggestions").toString().contains("Mark ORD-2610-0005 as returned"));
+
+        JsonNode unclear = say(owner, new Intent(Kind.UNCLEAR, null, null, null, null, null, "I cannot do that yet."));
+        assertEquals("I cannot do that yet.", unclear.get("message").asText());
+        assertTrue(unclear.get("suggestions").size() >= 5);
+        assertTrue(unclear.get("suggestions").toString().contains("This month's profit"));
+
+        JsonNode noKind = say(owner, new Intent(null, null, null, null, null, null, null));
+        assertTrue(noKind.get("message").asText().contains("something is missing"));
+        assertTrue(noKind.get("suggestions").size() >= 5);
+
+        order(imdad, "PAID", 1, now());
+        JsonNode answer = say(owner, find(null, "Imdad"));
+        assertEquals(0, answer.get("suggestions").size());
+    }
+
+    @Test
+    void examplesNeverOfferWhatTheRoleCannotDo() throws Exception {
+        Tenant staff = staff();
+        String general = say(staff, new Intent(Kind.UNCLEAR, null, null, null, null, null, null)).get("suggestions").toString();
+        assertFalse(general.contains("profit"));
+        assertFalse(general.contains("ads"));
+        assertTrue(general.contains("Restock"));
+        String expense = say(staff, new Intent(Kind.EXPENSE_ADD, null, null, null, null, null, null)).get("suggestions").toString();
+        assertFalse(expense.contains("ads"));
+        assertFalse(say(staff, new Intent(Kind.QUESTION, null, null, null, null, null, null)).get("suggestions").toString().contains("profit"));
     }
 
     @Test

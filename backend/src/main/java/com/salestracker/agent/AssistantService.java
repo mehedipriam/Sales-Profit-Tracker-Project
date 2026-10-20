@@ -21,8 +21,8 @@ import java.util.regex.Pattern;
 @Service
 public class AssistantService {
     private static final Logger log = LoggerFactory.getLogger(AssistantService.class);
-    private static final String NOT_UNDERSTOOD = "I did not understand that. You can paste an order message, add, find or "
-            + "change a customer, change an order's status, record an expense, restock a product, or ask about profit, best-selling products, top customers, stock, order counts or expenses.";
+    private static final String NOT_UNDERSTOOD = "I did not understand that, or something is missing. Here are things I can do: "
+            + "tap one to use it as a starting point, change it, and send.";
     private static final String BENGALI_DIGITS = "০১২৩৪৫৬৭৮৯";
     private static final Pattern NUMBER = Pattern.compile("\\d[\\d,]*(?:\\.\\d+)?");
 
@@ -47,12 +47,19 @@ public class AssistantService {
 
     public AgentReply handle(AuthUser user, String text) {
         Intent intent = ai.understand(text, questions.today());
+        AgentReply reply = route(user, text, intent);
+        // Anything that is only a message (a refusal, a missing detail) comes with examples of what to write instead.
+        return reply.type() == AgentReply.Type.MESSAGE ? reply.withSuggestions(Suggestions.forIntent(intent, user)) : reply;
+    }
+
+    private AgentReply route(AuthUser user, String text, Intent intent) {
         if (intent.kind() == Intent.Kind.ORDER) return AgentReply.draft(drafts.prepare(user, text));
         if (intent.kind() == Intent.Kind.CUSTOMER_ADD || intent.kind() == Intent.Kind.CUSTOMER_FIND
                 || intent.kind() == Intent.Kind.CUSTOMER_UPDATE) {
             return customers.handle(user, intent);
         }
         if (intent.kind() == Intent.Kind.ORDER_STATUS) return orderStatus.handle(user, intent);
+        if (intent.kind() == Intent.Kind.ORDER_FIND) return orderStatus.find(user, intent);
         if (intent.kind() == Intent.Kind.EXPENSE_ADD) return expenseAssistant.handle(user, intent);
         if (intent.kind() == Intent.Kind.STOCK_ADJUST) return stockAssistant.handle(user, intent);
         if (intent.kind() == Intent.Kind.QUESTION && intent.question() != null) {
