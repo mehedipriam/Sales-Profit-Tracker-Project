@@ -70,8 +70,13 @@ public class OrderActivityService {
     }
 
     public void statusChanged(AuthUser actor, SaleOrder o, OrderStatus from) {
+        statusChanged(actor, o, from, false);
+    }
+
+    /** viaAgent: the change was made from the assistant's chat box. */
+    public void statusChanged(AuthUser actor, SaleOrder o, OrderStatus from, boolean viaAgent) {
         if (from == o.getStatus()) return;
-        write(actor, o, OrderAction.STATUS_CHANGED, null, OrderSnapshot.total(o), from, o.getStatus(), null, false);
+        write(actor, o, OrderAction.STATUS_CHANGED, null, OrderSnapshot.total(o), from, o.getStatus(), null, viaAgent);
     }
 
     public void deleted(AuthUser actor, SaleOrder o) {

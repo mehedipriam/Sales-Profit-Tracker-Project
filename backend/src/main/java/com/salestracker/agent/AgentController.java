@@ -8,7 +8,9 @@ import com.salestracker.customer.CustomerDtos.CustomerResponse;
 import com.salestracker.order.OrderDtos.OrderDetail;
 import com.salestracker.order.OrderDtos.OrderRequest;
 import jakarta.validation.Valid;
+import com.salestracker.order.OrderStatus;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -27,12 +29,14 @@ public class AgentController {
 
     private final AssistantService assistant;
     private final CustomerAssistant customerAssistant;
+    private final OrderStatusAssistant orderStatus;
     private final DraftService drafts;
     private final RevisionService revisions;
     private final AgentRateLimiter limiter;
 
     public AgentController(DraftService drafts, RevisionService revisions, AgentRateLimiter limiter, AssistantService assistant,
-                           CustomerAssistant customerAssistant) {
+                           CustomerAssistant customerAssistant, OrderStatusAssistant orderStatus) {
+        this.orderStatus = orderStatus;
         this.customerAssistant = customerAssistant;
         this.assistant = assistant;
         this.drafts = drafts;
@@ -78,6 +82,19 @@ public class AgentController {
     public CustomerResponse updateCustomer(@AuthenticationPrincipal AuthUser user, @PathVariable Long id,
                                            @Valid @RequestBody CustomerPatch patch) {
         return customerAssistant.confirmUpdate(user, id, patch);
+    }
+
+    public record StatusConfirm(@NotNull OrderStatus from, @NotNull OrderStatus to) {}
+
+    /**
+     * Confirm on a status card. Uses the app's own status change (stock, commission and the Activity log follow), and
+     * refuses if the order is no longer in the status the card showed.
+     */
+    @PostMapping("/orders/{id}/status")
+    public OrderDetail changeStatus(@AuthenticationPrincipal AuthUser user, @PathVariable Long id,
+                                    @Valid @RequestBody StatusConfirm req) {
+        OrderDetail changed = orderStatus.confirm(user, id, req.from(), req.to());
+        return user.role().seesFinancials() ? changed : changed.hideFinancials();
     }
 
     /** "Make it 3", "remove the red shirt": changes an open draft as asked and checks it again. Saves nothing. */

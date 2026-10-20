@@ -132,10 +132,15 @@ public class OrderService {
     }
 
     public OrderDetail changeStatus(AuthUser actor, Long id, OrderStatus status) {
+        return changeStatus(actor, id, status, false);
+    }
+
+    /** viaAgent: the change comes from the assistant, which the activity log notes. */
+    public OrderDetail changeStatus(AuthUser actor, Long id, OrderStatus status, boolean viaAgent) {
         SaleOrder order = find(actor.tenantId(), id);
         OrderStatus from = order.getStatus();
         order.setStatus(status);
-        activity.statusChanged(actor, order, from);
+        activity.statusChanged(actor, order, from, viaAgent);
         return saved(order);
     }
 

@@ -8,6 +8,7 @@ import { prepareImage } from '../utils/image'
 import AnswerCard from './AnswerCard'
 import AsyncPicker from './AsyncPicker'
 import { CustomerInfoCard, CustomerProposalCard } from './CustomerCards'
+import StatusCard from './StatusCard'
 import { loadChat, saveChat } from './agentStore'
 
 const searchProducts = (q) => api.get('/products', { params: { q, size: 10 } }).then((r) => r.data.content)
@@ -15,7 +16,7 @@ const searchProducts = (q) => api.get('/products', { params: { q, size: 10 } }).
 let uid = 0
 const nextKey = () => ++uid
 
-const HELLO = 'Paste an order message from Facebook, or attach a screenshot of the conversation, and I will prepare it for you. Nothing is saved until you press Confirm. You can also ask me about your business, or to add, find or change a customer.'
+const HELLO = 'Paste an order message from Facebook, or attach a screenshot of the conversation, and I will prepare it for you. Nothing is saved until you press Confirm. You can also ask me about your business, add, find or change a customer, or change the status of an order.'
 
 /** What to try on an empty chat. Profit questions are for Owner and Admin only. */
 const SUGGESTIONS = [
@@ -333,6 +334,8 @@ export default function AgentChat() {
           setMessages((ms) => [...ms, { key: nextKey(), role: 'agent', answer: reply.answer }])
         } else if (reply.type === 'CUSTOMER') {
           setMessages((ms) => [...ms, { key: nextKey(), role: 'agent', customer: reply.customer }])
+        } else if (reply.type === 'STATUS') {
+          setMessages((ms) => [...ms, { key: nextKey(), role: 'agent', statusChange: reply.statusChange, status: 'open' }])
         } else if (reply.type === 'PROPOSAL') {
           setMessages((ms) => [...ms, { key: nextKey(), role: 'agent', proposal: reply.proposal, status: 'open', form: toForm(reply.proposal) }])
         } else if (reply.type === 'MESSAGE') {
@@ -396,6 +399,18 @@ export default function AgentChat() {
     }
   }
 
+  /** Confirm on a status card: the order must still be in the status the card showed. */
+  const confirmStatus = async (m) => {
+    patch(m.key, () => ({ status: 'saving', error: '' }))
+    try {
+      const c = m.statusChange
+      await api.post(`/agent/orders/${c.orderId}/status`, { from: c.from, to: c.to })
+      patch(m.key, () => ({ status: 'done' }))
+    } catch (err) {
+      patch(m.key, () => ({ status: 'open', error: errorMessage(err) }))
+    }
+  }
+
   const onKeyDown = (e) => {
     if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
       e.preventDefault()
@@ -425,6 +440,9 @@ export default function AgentChat() {
               <AnswerCard key={m.key} answer={m.answer} />
             ) : m.customer ? (
               <CustomerInfoCard key={m.key} customer={m.customer} />
+            ) : m.statusChange ? (
+              <StatusCard key={m.key} message={m} onConfirm={() => confirmStatus(m)}
+                          onDiscard={() => patch(m.key, () => ({ status: 'discarded' }))} />
             ) : m.proposal ? (
               <CustomerProposalCard key={m.key} message={m} platforms={platforms}
                                     onEdit={(fn) => patch(m.key, (cur) => ({ form: fn(cur.form) }))}

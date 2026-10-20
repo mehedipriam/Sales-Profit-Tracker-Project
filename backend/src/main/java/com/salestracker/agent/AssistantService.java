@@ -30,8 +30,11 @@ public class AssistantService {
     private final DraftService drafts;
     private final QuestionService questions;
     private final CustomerAssistant customers;
+    private final OrderStatusAssistant orderStatus;
 
-    public AssistantService(AiClient ai, DraftService drafts, QuestionService questions, CustomerAssistant customers) {
+    public AssistantService(AiClient ai, DraftService drafts, QuestionService questions, CustomerAssistant customers,
+                            OrderStatusAssistant orderStatus) {
+        this.orderStatus = orderStatus;
         this.customers = customers;
         this.ai = ai;
         this.drafts = drafts;
@@ -45,6 +48,7 @@ public class AssistantService {
                 || intent.kind() == Intent.Kind.CUSTOMER_UPDATE) {
             return customers.handle(user, intent);
         }
+        if (intent.kind() == Intent.Kind.ORDER_STATUS) return orderStatus.handle(user, intent);
         if (intent.kind() == Intent.Kind.QUESTION && intent.question() != null) {
             AgentReply reply = questions.answer(user, intent);
             return reply.type() == AgentReply.Type.ANSWER ? AgentReply.answer(worded(reply.answer(), text)) : reply;

@@ -950,6 +950,12 @@ thead th.hide-col { padding-left: 1.75rem; padding-right: 1.75rem; } /* room for
 .agent-facts { display: grid; grid-template-columns: auto 1fr; gap: 0.3rem 0.8rem; margin: 0; }
 .agent-facts dt { color: var(--muted); }
 .agent-facts dd { margin: 0; overflow-wrap: anywhere; }
+/* An order's status change: "Pending → Returned". */
+.agent-status-move { display: flex; align-items: center; gap: 0.5rem; }
+.agent-status { padding: 0.15rem 0.6rem; border-radius: 999px; font-size: 0.82rem; font-weight: 600; background: var(--bg); border: 1px solid var(--border); }
+.agent-status.PAID { color: var(--success); background: var(--success-soft); border-color: var(--success-line); }
+.agent-status.PENDING { color: var(--warning); background: var(--warning-soft); border-color: var(--warning-line); }
+.agent-status.RETURNED, .agent-status.CANCELLED { color: var(--danger); background: var(--danger-tint); border-color: var(--danger-line); }
 /* Orders list: a row opens that order's details. */
 .orders-table tbody tr.clickable { cursor: pointer; }
 .order-link { background: none; border: 0; padding: 0; font: inherit; font-weight: 600; color: inherit; font-variant-numeric: tabular-nums; }

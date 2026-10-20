@@ -233,6 +233,14 @@ public interface SaleOrderRepository extends JpaRepository<SaleOrder, Long> {
     List<CustomerRevenue> paidRevenueByCustomerInRange(@Param("tenantId") Long tenantId,
                                                        @Param("from") LocalDateTime from, @Param("to") LocalDateTime to);
 
+    Optional<SaleOrder> findByTenantIdAndOrderNo(Long tenantId, String orderNo);
+
+    /** Order numbers matching a LIKE pattern, such as "ORD-26__-0004" (any month of a year, one yearly count). */
+    List<SaleOrder> findByTenantIdAndOrderNoLike(Long tenantId, String pattern);
+
+    /** A customer's newest order of any status. */
+    Optional<SaleOrder> findFirstByTenantIdAndCustomerIdOrderByOrderedAtDescIdDesc(Long tenantId, Long customerId);
+
     List<SaleOrder> findByTenantIdAndIdIn(Long tenantId, Collection<Long> ids);
 
     Optional<SaleOrder> findByIdAndTenantId(Long id, Long tenantId);

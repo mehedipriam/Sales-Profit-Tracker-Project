@@ -72,8 +72,11 @@ public class GeminiClient implements AiClient {
             show or look up a saved customer's phone, address, orders or details: customerName, or phone if only a \
             number is given. kind is CUSTOMER_UPDATE when asked to change a saved customer's details, such as \
             "Imdad's address is House 12": customerName is who (as written), and only the details to set go in phone, \
-            address, platform or newName (a new name). kind is UNCLEAR for anything else, including requests to \
-            change an order's status, record an expense or change stock, which this assistant cannot do yet: then \
+            address, platform or newName (a new name). kind is ORDER_STATUS when asked to mark, set or cancel an \
+            order's status: status is PAID (paid, payment received), PENDING, RETURNED (returned, refunded) or \
+            CANCELLED; orderRef is the order exactly as written (ORD-2610-0005, or just 4 for "order 4"), or leave it \
+            null and put the customer in customerName for "the last order of Imdad". kind is UNCLEAR for anything \
+            else, including requests to record an expense or change stock, which this assistant cannot do yet: then \
             reply is one short sentence in the language of the message saying so or asking what they mean. Never \
             invent a value; leave unused fields null.""";
 
@@ -159,7 +162,8 @@ public class GeminiClient implements AiClient {
                 enumOf(Intent.PeriodName.class, n.path("period")), date(n.path("from")), date(n.path("to")),
                 blankToNull(text(n.path("customerName"))), blankToNull(text(n.path("reply"))),
                 cleanPhone(text(n.path("phone"))), blankToNull(text(n.path("address"))),
-                blankToNull(text(n.path("platform"))), blankToNull(text(n.path("newName"))));
+                blankToNull(text(n.path("platform"))), blankToNull(text(n.path("newName"))),
+                blankToNull(text(n.path("orderRef"))), enumOf(com.salestracker.order.OrderStatus.class, n.path("status")));
     }
 
     @Override
@@ -349,7 +353,9 @@ public class GeminiClient implements AiClient {
         Map<String, Object> text = Map.of("type", "STRING", "nullable", true);
         return Map.of("type", "OBJECT", "properties", Map.ofEntries(
                 Map.entry("kind", Map.of("type", "STRING", "enum", List.of("ORDER", "QUESTION", "CUSTOMER_ADD", "CUSTOMER_FIND",
-                        "CUSTOMER_UPDATE", "UNCLEAR"))),
+                        "CUSTOMER_UPDATE", "ORDER_STATUS", "UNCLEAR"))),
+                Map.entry("orderRef", text),
+                Map.entry("status", Map.of("type", "STRING", "nullable", true, "enum", List.of("PAID", "PENDING", "RETURNED", "CANCELLED"))),
                 Map.entry("question", Map.of("type", "STRING", "nullable", true, "enum", List.of("PROFIT", "TOP_PRODUCTS",
                         "LOWEST_MARGIN", "TOP_CUSTOMERS", "CUSTOMER_SPEND", "LOW_STOCK", "ORDER_COUNTS", "EXPENSES", "PLATFORMS"))),
                 Map.entry("period", Map.of("type", "STRING", "nullable", true, "enum", List.of("TODAY", "YESTERDAY", "THIS_WEEK",
