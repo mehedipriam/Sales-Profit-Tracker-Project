@@ -5,7 +5,7 @@ import Modal from '../components/Modal'
 import Pager from '../components/Pager'
 import { MASK, useReveal } from '../components/Reveal'
 import useDebounce from '../hooks/useDebounce'
-import { dateTime, money } from '../utils/format'
+import { dateTime, maskPhone, money } from '../utils/format'
 
 const EMPTY = { name: '', phone: '', address: '', sourcePlatformId: '', notes: '' }
 
