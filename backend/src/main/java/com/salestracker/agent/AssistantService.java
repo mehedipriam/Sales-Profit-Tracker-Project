@@ -22,7 +22,7 @@ import java.util.regex.Pattern;
 public class AssistantService {
     private static final Logger log = LoggerFactory.getLogger(AssistantService.class);
     private static final String NOT_UNDERSTOOD = "I did not understand that. You can paste an order message, add, find or "
-            + "change a customer, or ask about profit, best-selling products, top customers, stock, order counts or expenses.";
+            + "change a customer, change an order's status, record an expense, restock a product, or ask about profit, best-selling products, top customers, stock, order counts or expenses.";
     private static final String BENGALI_DIGITS = "০১২৩৪৫৬৭৮৯";
     private static final Pattern NUMBER = Pattern.compile("\\d[\\d,]*(?:\\.\\d+)?");
 
@@ -31,9 +31,13 @@ public class AssistantService {
     private final QuestionService questions;
     private final CustomerAssistant customers;
     private final OrderStatusAssistant orderStatus;
+    private final ExpenseAssistant expenseAssistant;
+    private final StockAssistant stockAssistant;
 
     public AssistantService(AiClient ai, DraftService drafts, QuestionService questions, CustomerAssistant customers,
-                            OrderStatusAssistant orderStatus) {
+                            OrderStatusAssistant orderStatus, ExpenseAssistant expenseAssistant, StockAssistant stockAssistant) {
+        this.expenseAssistant = expenseAssistant;
+        this.stockAssistant = stockAssistant;
         this.orderStatus = orderStatus;
         this.customers = customers;
         this.ai = ai;
@@ -49,6 +53,8 @@ public class AssistantService {
             return customers.handle(user, intent);
         }
         if (intent.kind() == Intent.Kind.ORDER_STATUS) return orderStatus.handle(user, intent);
+        if (intent.kind() == Intent.Kind.EXPENSE_ADD) return expenseAssistant.handle(user, intent);
+        if (intent.kind() == Intent.Kind.STOCK_ADJUST) return stockAssistant.handle(user, intent);
         if (intent.kind() == Intent.Kind.QUESTION && intent.question() != null) {
             AgentReply reply = questions.answer(user, intent);
             return reply.type() == AgentReply.Type.ANSWER ? AgentReply.answer(worded(reply.answer(), text)) : reply;

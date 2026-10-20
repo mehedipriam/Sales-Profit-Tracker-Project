@@ -8,6 +8,7 @@ import { prepareImage } from '../utils/image'
 import AnswerCard from './AnswerCard'
 import AsyncPicker from './AsyncPicker'
 import { CustomerInfoCard, CustomerProposalCard } from './CustomerCards'
+import { ExpenseCard, StockCard } from './LedgerCards'
 import StatusCard from './StatusCard'
 import { loadChat, saveChat } from './agentStore'
 
@@ -16,7 +17,7 @@ const searchProducts = (q) => api.get('/products', { params: { q, size: 10 } }).
 let uid = 0
 const nextKey = () => ++uid
 
-const HELLO = 'Paste an order message from Facebook, or attach a screenshot of the conversation, and I will prepare it for you. Nothing is saved until you press Confirm. You can also ask me about your business, add, find or change a customer, or change the status of an order.'
+const HELLO = 'Paste an order message from Facebook, or attach a screenshot of the conversation, and I will prepare it for you. Nothing is saved until you press Confirm. You can also ask me about your business, add, find or change a customer, change the status of an order, record an expense, or restock a product.'
 
 /** What to try on an empty chat. Profit questions are for Owner and Admin only. */
 const SUGGESTIONS = [
@@ -334,6 +335,10 @@ export default function AgentChat() {
           setMessages((ms) => [...ms, { key: nextKey(), role: 'agent', answer: reply.answer }])
         } else if (reply.type === 'CUSTOMER') {
           setMessages((ms) => [...ms, { key: nextKey(), role: 'agent', customer: reply.customer }])
+        } else if (reply.type === 'EXPENSE') {
+          setMessages((ms) => [...ms, { key: nextKey(), role: 'agent', expense: reply.expense, status: 'open' }])
+        } else if (reply.type === 'STOCK') {
+          setMessages((ms) => [...ms, { key: nextKey(), role: 'agent', stock: reply.stock, status: 'open' }])
         } else if (reply.type === 'STATUS') {
           setMessages((ms) => [...ms, { key: nextKey(), role: 'agent', statusChange: reply.statusChange, status: 'open' }])
         } else if (reply.type === 'PROPOSAL') {
@@ -411,6 +416,32 @@ export default function AgentChat() {
     }
   }
 
+  /** Confirm on an expense card: saved like one typed on the Expenses page. */
+  const confirmExpense = async (m) => {
+    patch(m.key, () => ({ status: 'saving', error: '' }))
+    try {
+      const e = m.expense
+      await api.post('/agent/expenses', {
+        type: e.type, amount: e.amount, expenseDate: e.date, description: e.description, orderId: e.orderId,
+      })
+      patch(m.key, () => ({ status: 'done' }))
+    } catch (err) {
+      patch(m.key, () => ({ status: 'open', error: errorMessage(err) }))
+    }
+  }
+
+  /** Confirm on a stock card: refused if the stock has moved since the card was shown. */
+  const confirmStock = async (m) => {
+    patch(m.key, () => ({ status: 'saving', error: '' }))
+    try {
+      const s = m.stock
+      await api.post('/agent/stock', { productId: s.productId, change: s.change, reason: s.reason, before: s.before })
+      patch(m.key, () => ({ status: 'done' }))
+    } catch (err) {
+      patch(m.key, () => ({ status: 'open', error: errorMessage(err) }))
+    }
+  }
+
   const onKeyDown = (e) => {
     if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
       e.preventDefault()
@@ -440,6 +471,12 @@ export default function AgentChat() {
               <AnswerCard key={m.key} answer={m.answer} />
             ) : m.customer ? (
               <CustomerInfoCard key={m.key} customer={m.customer} />
+            ) : m.expense ? (
+              <ExpenseCard key={m.key} message={m} onConfirm={() => confirmExpense(m)}
+                           onDiscard={() => patch(m.key, () => ({ status: 'discarded' }))} />
+            ) : m.stock ? (
+              <StockCard key={m.key} message={m} onConfirm={() => confirmStock(m)}
+                         onDiscard={() => patch(m.key, () => ({ status: 'discarded' }))} />
             ) : m.statusChange ? (
               <StatusCard key={m.key} message={m} onConfirm={() => confirmStatus(m)}
                           onDiscard={() => patch(m.key, () => ({ status: 'discarded' }))} />

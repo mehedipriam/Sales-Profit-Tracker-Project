@@ -15,6 +15,7 @@ import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientResponseException;
 
+import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
@@ -75,9 +76,17 @@ public class GeminiClient implements AiClient {
             address, platform or newName (a new name). kind is ORDER_STATUS when asked to mark, set or cancel an \
             order's status: status is PAID (paid, payment received), PENDING, RETURNED (returned, refunded) or \
             CANCELLED; orderRef is the order exactly as written (ORD-2610-0005, or just 4 for "order 4"), or leave it \
-            null and put the customer in customerName for "the last order of Imdad". kind is UNCLEAR for anything \
-            else, including requests to record an expense or change stock, which this assistant cannot do yet: then \
-            reply is one short sentence in the language of the message saying so or asking what they mean. Never \
+            null and put the customer in customerName for "the last order of Imdad". kind is EXPENSE_ADD when asked \
+            to record a cost: expense.type is DELIVERY, PACKAGING, ADS (advertising, Facebook ads, boosting), \
+            PLATFORM_COMMISSION or MISC; expense.amount is a plain number (Bengali digits converted); expense.date is \
+            yyyy-MM-dd, worked out from today's date for "today" or "yesterday", and null if no day is said; \
+            expense.description says what it was for; expense.orderRef is an order the cost belongs to, as written, \
+            else null. kind is STOCK_ADJUST for restocking or changing stock: stock.product is the product name as \
+            written; stock.reason is RESTOCK (units arrived or were added), DAMAGE (units damaged, lost or thrown \
+            away) or CORRECTION (the count was wrong); stock.quantity is the number of units (always positive) for a \
+            restock or damage; for a correction that says what the stock really is ("stock of X is 15") put that in \
+            stock.newStock, and for one that says how many to add or remove put the signed number in stock.quantity. \
+            kind is UNCLEAR for anything else: then reply is one short sentence in the language of the message saying so or asking what they mean. Never \
             invent a value; leave unused fields null.""";
 
     private static final String WORD_PROMPT = """
@@ -163,7 +172,8 @@ public class GeminiClient implements AiClient {
                 blankToNull(text(n.path("customerName"))), blankToNull(text(n.path("reply"))),
                 cleanPhone(text(n.path("phone"))), blankToNull(text(n.path("address"))),
                 blankToNull(text(n.path("platform"))), blankToNull(text(n.path("newName"))),
-                blankToNull(text(n.path("orderRef"))), enumOf(com.salestracker.order.OrderStatus.class, n.path("status")));
+                blankToNull(text(n.path("orderRef"))), enumOf(com.salestracker.order.OrderStatus.class, n.path("status")),
+                expense(n.path("expense")), stock(n.path("stock")));
     }
 
     @Override
@@ -176,6 +186,21 @@ public class GeminiClient implements AiClient {
         } catch (Exception e) {
             return null;
         }
+    }
+
+    private static Intent.ExpenseDetails expense(JsonNode n) {
+        if (!n.isObject()) return null;
+        BigDecimal amount = n.path("amount").isNumber() ? n.path("amount").decimalValue() : null;
+        return new Intent.ExpenseDetails(enumOf(com.salestracker.expense.ExpenseType.class, n.path("type")), amount,
+                date(n.path("date")), blankToNull(text(n.path("description"))), blankToNull(text(n.path("orderRef"))));
+    }
+
+    private static Intent.StockDetails stock(JsonNode n) {
+        if (!n.isObject()) return null;
+        return new Intent.StockDetails(blankToNull(text(n.path("product"))),
+                n.path("quantity").isIntegralNumber() ? n.path("quantity").asInt() : null,
+                n.path("newStock").isIntegralNumber() ? n.path("newStock").asInt() : null,
+                enumOf(com.salestracker.stock.StockReason.class, n.path("reason")));
     }
 
     private static String text(JsonNode n) {
@@ -353,8 +378,18 @@ public class GeminiClient implements AiClient {
         Map<String, Object> text = Map.of("type", "STRING", "nullable", true);
         return Map.of("type", "OBJECT", "properties", Map.ofEntries(
                 Map.entry("kind", Map.of("type", "STRING", "enum", List.of("ORDER", "QUESTION", "CUSTOMER_ADD", "CUSTOMER_FIND",
-                        "CUSTOMER_UPDATE", "ORDER_STATUS", "UNCLEAR"))),
+                        "CUSTOMER_UPDATE", "ORDER_STATUS", "EXPENSE_ADD", "STOCK_ADJUST", "UNCLEAR"))),
                 Map.entry("orderRef", text),
+                Map.entry("expense", Map.of("type", "OBJECT", "nullable", true, "properties", Map.of(
+                        "type", Map.of("type", "STRING", "nullable", true,
+                                "enum", List.of("DELIVERY", "PACKAGING", "ADS", "PLATFORM_COMMISSION", "MISC")),
+                        "amount", Map.of("type", "NUMBER", "nullable", true),
+                        "date", text, "description", text, "orderRef", text))),
+                Map.entry("stock", Map.of("type", "OBJECT", "nullable", true, "properties", Map.of(
+                        "product", text,
+                        "quantity", Map.of("type", "INTEGER", "nullable", true),
+                        "newStock", Map.of("type", "INTEGER", "nullable", true),
+                        "reason", Map.of("type", "STRING", "nullable", true, "enum", List.of("RESTOCK", "DAMAGE", "CORRECTION"))))),
                 Map.entry("status", Map.of("type", "STRING", "nullable", true, "enum", List.of("PAID", "PENDING", "RETURNED", "CANCELLED"))),
                 Map.entry("question", Map.of("type", "STRING", "nullable", true, "enum", List.of("PROFIT", "TOP_PRODUCTS",
                         "LOWEST_MARGIN", "TOP_CUSTOMERS", "CUSTOMER_SPEND", "LOW_STOCK", "ORDER_COUNTS", "EXPENSES", "PLATFORMS"))),

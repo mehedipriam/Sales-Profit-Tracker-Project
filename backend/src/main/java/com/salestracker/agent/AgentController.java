@@ -8,7 +8,11 @@ import com.salestracker.customer.CustomerDtos.CustomerResponse;
 import com.salestracker.order.OrderDtos.OrderDetail;
 import com.salestracker.order.OrderDtos.OrderRequest;
 import jakarta.validation.Valid;
+import com.salestracker.expense.ExpenseDtos.ExpenseRequest;
+import com.salestracker.expense.ExpenseDtos.ExpenseResponse;
 import com.salestracker.order.OrderStatus;
+import com.salestracker.stock.StockDtos.AdjustmentResponse;
+import com.salestracker.stock.StockReason;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -30,12 +34,17 @@ public class AgentController {
     private final AssistantService assistant;
     private final CustomerAssistant customerAssistant;
     private final OrderStatusAssistant orderStatus;
+    private final ExpenseAssistant expenseAssistant;
+    private final StockAssistant stockAssistant;
     private final DraftService drafts;
     private final RevisionService revisions;
     private final AgentRateLimiter limiter;
 
     public AgentController(DraftService drafts, RevisionService revisions, AgentRateLimiter limiter, AssistantService assistant,
-                           CustomerAssistant customerAssistant, OrderStatusAssistant orderStatus) {
+                           CustomerAssistant customerAssistant, OrderStatusAssistant orderStatus, ExpenseAssistant expenseAssistant,
+                           StockAssistant stockAssistant) {
+        this.expenseAssistant = expenseAssistant;
+        this.stockAssistant = stockAssistant;
         this.orderStatus = orderStatus;
         this.customerAssistant = customerAssistant;
         this.assistant = assistant;
@@ -82,6 +91,23 @@ public class AgentController {
     public CustomerResponse updateCustomer(@AuthenticationPrincipal AuthUser user, @PathVariable Long id,
                                            @Valid @RequestBody CustomerPatch patch) {
         return customerAssistant.confirmUpdate(user, id, patch);
+    }
+
+    public record StockConfirm(@NotNull Long productId, @NotNull Integer change, @NotNull StockReason reason,
+                               @NotNull Integer before) {}
+
+    /** Confirm on an expense card: saved like an expense typed on the Expenses page (Owner and Admin only). */
+    @PostMapping("/expenses")
+    @ResponseStatus(HttpStatus.CREATED)
+    public ExpenseResponse addExpense(@AuthenticationPrincipal AuthUser user, @Valid @RequestBody ExpenseRequest req) {
+        return expenseAssistant.confirm(user, req);
+    }
+
+    /** Confirm on a stock card: logged like the Stock page, refused if the stock moved since the card was shown. */
+    @PostMapping("/stock")
+    @ResponseStatus(HttpStatus.CREATED)
+    public AdjustmentResponse adjustStock(@AuthenticationPrincipal AuthUser user, @Valid @RequestBody StockConfirm req) {
+        return stockAssistant.confirm(user, req.productId(), req.change(), req.reason(), req.before());
     }
 
     public record StatusConfirm(@NotNull OrderStatus from, @NotNull OrderStatus to) {}
