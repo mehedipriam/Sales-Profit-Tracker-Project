@@ -46,10 +46,10 @@ public record Intent(Kind kind, Question question, PeriodName period, LocalDate 
      * the details given). ORDER_STATUS: change an order's status (orderRef is the order as written, or customerName for
      * "the last order of ..."; status is the new one). ORDER_FIND: look at an order's status, or a customer's orders,
      * without changing anything. EXPENSE_ADD: record an expense. STOCK_ADJUST: restock, damaged
-     * goods or a count correction. UNCLEAR: none of these, or not supported.
+     * goods or a count correction. HELP: asks what the assistant can do. UNCLEAR: none of these, or not supported.
      */
     public enum Kind {
-        ORDER, QUESTION, CUSTOMER_ADD, CUSTOMER_FIND, CUSTOMER_UPDATE, ORDER_STATUS, ORDER_FIND, EXPENSE_ADD, STOCK_ADJUST, UNCLEAR
+        ORDER, QUESTION, CUSTOMER_ADD, CUSTOMER_FIND, CUSTOMER_UPDATE, ORDER_STATUS, ORDER_FIND, EXPENSE_ADD, STOCK_ADJUST, HELP, UNCLEAR
     }
 
     public enum Question {

@@ -90,7 +90,7 @@ public class GeminiClient implements AiClient {
             away) or CORRECTION (the count was wrong); stock.quantity is the number of units (always positive) for a \
             restock or damage; for a correction that says what the stock really is ("stock of X is 15") put that in \
             stock.newStock, and for one that says how many to add or remove put the signed number in stock.quantity. \
-            kind is UNCLEAR for anything else: then reply is one short sentence in the language of the message saying so or asking what they mean. Never \
+            kind is HELP when asked what you can do, how to use you, or for help or examples. kind is UNCLEAR for anything else: then reply is one short sentence in the language of the message saying so or asking what they mean. Never \
             invent a value; leave unused fields null.""";
 
     private static final String WORD_PROMPT = """
@@ -382,7 +382,7 @@ public class GeminiClient implements AiClient {
         Map<String, Object> text = Map.of("type", "STRING", "nullable", true);
         return Map.of("type", "OBJECT", "properties", Map.ofEntries(
                 Map.entry("kind", Map.of("type", "STRING", "enum", List.of("ORDER", "QUESTION", "CUSTOMER_ADD", "CUSTOMER_FIND",
-                        "CUSTOMER_UPDATE", "ORDER_STATUS", "ORDER_FIND", "EXPENSE_ADD", "STOCK_ADJUST", "UNCLEAR"))),
+                        "CUSTOMER_UPDATE", "ORDER_STATUS", "ORDER_FIND", "EXPENSE_ADD", "STOCK_ADJUST", "HELP", "UNCLEAR"))),
                 Map.entry("orderRef", text),
                 Map.entry("expense", Map.of("type", "OBJECT", "nullable", true, "properties", Map.of(
                         "type", Map.of("type", "STRING", "nullable", true,

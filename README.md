@@ -312,8 +312,17 @@ The **Settings** page (the top-bar link, or click your name) lets the signed-in 
   Covered by `AccountIntegrationTest`.
 
 ## Order assistant (Gemini)
-The floating chat button (bottom right of every page) turns a pasted Facebook order, or a screenshot of the conversation,
-into a **draft** order. Nothing is saved until the user presses **Confirm**.
+The floating chat button (bottom right of every page) is one entry point for typed messages and screenshots. A pasted
+Facebook order, or a screenshot of the conversation, becomes a **draft** order. Typed messages can also:
+- **ask about the business** (profit or loss, best-selling and lowest-margin products, top customers, one customer's spending,
+  low stock, order counts, expenses, results by platform) for a day, week, month, year, all time or two dates; answered with a
+  card of figures from the same reports as the Dashboard and Reports. Money questions are Owner and Admin only.
+- **add, find and update customers**, **change an order's status**, **look up an order**, **record an expense** (Owner and
+  Admin) and **restock or adjust stock**. Each change shows a card and only **Confirm** saves it; nothing is deleted from the chat.
+- **say what it can do**: "What can you do?" (or "help") lists the abilities for the signed-in role, with example messages.
+  Any plain reply (a refusal, a missing detail) also carries example messages, shown as chips that fill the input box.
+
+Nothing is saved until the user presses **Confirm**.
 
 **Set up**: create a key at https://aistudio.google.com ("Get API key") and put it in `.env`, never in the chat or in git:
 ```
@@ -336,7 +345,10 @@ include API access; the key is separate.
   changes, the backend applies them and checks the draft again. A saved customer is never rewritten from here.
 - `POST /api/agent/confirm` takes an ordinary order request (`customerId` or `newCustomer`) and creates the order through
   the normal order logic, so stock, commission, order numbers and the cost rule (Owner/Admin only) all apply. The
-  Activity log marks these orders "via the order assistant" (`via_agent`, V18).
+  Activity log marks these orders, and assistant status changes, "via the order assistant" (`via_agent`, V18).
+- `POST /api/agent/message` `{text}` is the entry point for typed text: the AI only chooses the kind of request, the report
+  and the period (`Intent`, including `HELP`); the app calculates every figure. Replies are one of a draft, an answer card, a
+  card to confirm, or a plain message with `suggestions`.
 - Each user may make `AGENT_MAX_REQUESTS_PER_MINUTE` AI calls a minute (default 20, `429` beyond that). The count is per
   backend instance, so behind two instances the real ceiling is up to double.
 

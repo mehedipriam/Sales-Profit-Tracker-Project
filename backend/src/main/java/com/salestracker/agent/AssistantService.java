@@ -23,6 +23,12 @@ public class AssistantService {
     private static final Logger log = LoggerFactory.getLogger(AssistantService.class);
     private static final String NOT_UNDERSTOOD = "I did not understand that, or something is missing. Here are things I can do: "
             + "tap one to use it as a starting point, change it, and send.";
+    private static final String HELP_ALL = "I can answer questions about your business, manage customers, change an order's status, "
+            + "and change stock. Nothing is saved until you press Confirm. Tap an example to use it as a starting point, "
+            + "change it, and send. You can also paste an order message or a screenshot to make an order draft.";
+    private static final String HELP_STAFF = "I can answer questions about stock and order counts, look up orders, add and find "
+            + "customers, change an order's status, and restock. Nothing is saved until you press Confirm. Tap an example "
+            + "to use it as a starting point, change it, and send. You can also paste an order message or a screenshot to make an order draft.";
     private static final String BENGALI_DIGITS = "০১২৩৪৫৬৭৮৯";
     private static final Pattern NUMBER = Pattern.compile("\\d[\\d,]*(?:\\.\\d+)?");
 
@@ -66,6 +72,7 @@ public class AssistantService {
             AgentReply reply = questions.answer(user, intent);
             return reply.type() == AgentReply.Type.ANSWER ? AgentReply.answer(worded(reply.answer(), text)) : reply;
         }
+        if (intent.kind() == Intent.Kind.HELP) return AgentReply.message(user.role().seesFinancials() ? HELP_ALL : HELP_STAFF);
         return AgentReply.message(intent.reply() != null ? intent.reply() : NOT_UNDERSTOOD);
     }
 

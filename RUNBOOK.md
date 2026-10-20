@@ -118,8 +118,12 @@ then redeploy (quick or rolling, as above) with that older code.
 - **Rotating the key**: create a new key in AI Studio, change `GEMINI_API_KEY` in `.env` on every server, recreate the
   backend containers (both `backend` and `backend2` in production), then delete the old key in AI Studio. Do this
   whenever the key may have been seen by anyone, for example pasted into a chat or a ticket.
-- Pasted messages and screenshots are not stored by this app; they go to Google. Orders the assistant creates show
-  "via the order assistant" on the Activity page.
+- Pasted messages and screenshots are not stored by this app; they go to Google. Orders the assistant creates, and
+  order status changes made from the chat, show "via the order assistant" on the Activity page.
+- **The assistant misunderstands often**: a typed message uses one AI request to work out what is wanted, and a question
+  uses a second to word the answer. If the default model gets it wrong too often, set `GEMINI_MODEL` to a stronger one.
+- **"Today" or "this month" looks off**: the server and database run on Dhaka time (`TIMEZONE`); check it is set.
+- **"What can you do?"** is a quick way to check the assistant is answering at all: it lists what the signed-in role may do.
 
 ## Backup & restore (Phase 8a)
 

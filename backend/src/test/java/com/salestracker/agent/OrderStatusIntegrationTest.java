@@ -288,6 +288,20 @@ class OrderStatusIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void helpListsWhatTheAssistantCanDoWithExamplesForTheRole() throws Exception {
+        JsonNode owned = say(owner, new Intent(Kind.HELP, null, null, null, null, null, null));
+        assertEquals("MESSAGE", owned.get("type").asText());
+        assertTrue(owned.get("message").asText().contains("questions about your business"));
+        assertTrue(owned.get("suggestions").toString().contains("This month's profit"));
+
+        Tenant staff = staff();
+        JsonNode limited = say(staff, new Intent(Kind.HELP, null, null, null, null, null, null));
+        assertFalse(limited.get("message").asText().contains("your business"));
+        assertFalse(limited.get("suggestions").toString().contains("profit"));
+        assertTrue(limited.get("suggestions").toString().contains("Restock"));
+    }
+
+    @Test
     void effectsAreDescribedForEveryKindOfMove() {
         assertTrue(OrderStatusAssistant.effect(OrderStatus.PAID, OrderStatus.RETURNED).contains("put back"));
         assertTrue(OrderStatusAssistant.effect(OrderStatus.RETURNED, OrderStatus.CANCELLED).contains("stays back"));
