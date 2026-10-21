@@ -287,11 +287,13 @@ select.status.RETURNED, select.status.CANCELLED { color: var(--danger); }
 .orders-table th.hide-col, .orders-table td.hide-col { text-align: center; }
 .orders-table .serial { text-align: left; width: 2.5rem; }
 .orders-table .order-id { font-weight: 600; font-variant-numeric: tabular-nums; }
-.orders-table .cust-name { font-weight: 500; max-width: 11rem; overflow: hidden; text-overflow: ellipsis; }
-.orders-table .platform-cell { max-width: 17rem; overflow: hidden; text-overflow: ellipsis; }
+.orders-table { width: 100%; }
+.orders-table .when { white-space: normal; min-width: 5.5rem; }
+.orders-table .cust-name { font-weight: 500; white-space: normal; overflow-wrap: anywhere; min-width: 6rem; }
+.orders-table .platform-cell { white-space: normal; min-width: 7rem; }
 .platform-name { font-weight: 500; }
-/* The courier detail sits on the same line, after the platform, and is cut short rather than adding a second line. */
-.orders-table .via { display: inline; margin-left: 0.4rem; }
+/* The courier detail goes on its own line under the platform, so the column never forces a sideways scroll. */
+.orders-table .via { display: block; margin-left: 0; white-space: normal; overflow-wrap: anywhere; }
 .profit-chip { display: inline-block; padding: 0.05rem 0.5rem; border-radius: 999px; font-weight: 600; }
 .profit-chip.pos { background: var(--success-soft); color: var(--success); }
 .profit-chip.neg { background: var(--danger-soft); color: var(--danger); }
@@ -301,7 +303,6 @@ select.status.RETURNED, select.status.CANCELLED { color: var(--danger); }
 .orders-table .row-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.1rem 0; margin-top: 0.3rem; font-size: 0.82rem; white-space: normal; }
 .orders-table .row-actions .link { padding: 0 0.3rem; }
 .orders-search { flex: 1 1 16rem; min-width: 12rem; }
-@media (max-width: 1250px) { .orders-table .via { display: none; } }
 @media (max-width: 1000px) { .orders-table .hide-md { display: none; } }
 @media (max-width: 700px) { .card .row { flex-direction: column; } }
 
