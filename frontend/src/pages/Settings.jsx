@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import api, { errorMessage } from '../api/client'
 import { useAuth } from '../auth/AuthContext'
 import { seesFinancials } from '../auth/roles'
@@ -31,6 +32,29 @@ function useSave() {
   return { error, done, busy, run, fail }
 }
 
+const ICONS = {
+  store: <><path d="M3 9l1.5-5h15L21 9" /><path d="M4 9v11h16V9" /><path d="M3 9a3 3 0 0 0 6 0 3 3 0 0 0 6 0 3 3 0 0 0 6 0" /><path d="M10 20v-5h4v5" /></>,
+  user: <><circle cx="12" cy="8" r="4" /><path d="M4 21a8 8 0 0 1 16 0" /></>,
+  lock: <><rect x="4" y="11" width="16" height="10" rx="2" /><path d="M8 11V7a4 4 0 0 1 8 0v4" /></>,
+  key: <><circle cx="8" cy="15" r="4" /><path d="M11 12l9-9" /><path d="M16 7l3 3" /></>,
+}
+
+/** The card title with an icon tile and a one-line description of what the card is for. */
+function CardHead({ icon, title, text }) {
+  return (
+    <div className="settings-head">
+      <span className="settings-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8"
+             strokeLinecap="round" strokeLinejoin="round">{ICONS[icon]}</svg>
+      </span>
+      <div>
+        <h2>{title}</h2>
+        <p className="muted">{text}</p>
+      </div>
+    </div>
+  )
+}
+
 function Feedback({ save }) {
   return <>
     {save.error && <p className="error" role="alert">{save.error}</p>}
@@ -53,7 +77,7 @@ function BusinessCard({ user, setSession }) {
 
   return (
     <form className="card" onSubmit={submit}>
-      <h2>Store</h2>
+      <CardHead icon="store" title="Store" text="Your shop's name, currency and what is printed on invoices." />
       <label>Store name<input required maxLength={150} value={name} onChange={(e) => setName(e.target.value)} /></label>
       <label>
         Currency
@@ -99,7 +123,7 @@ function ProfileCard({ user, setSession }) {
 
   return (
     <form className="card" onSubmit={submit}>
-      <h2>Your profile</h2>
+      <CardHead icon="user" title="Your profile" text="The name and email you use to log in." />
       <label>Full name<input required maxLength={150} value={fullName} onChange={(e) => setFullName(e.target.value)} /></label>
       <label>
         Email
@@ -141,7 +165,7 @@ function PasswordCard() {
 
   return (
     <form className="card" onSubmit={submit}>
-      <h2>Password</h2>
+      <CardHead icon="lock" title="Password" text="Change the password you log in with." />
       <label>Current password
         <input required type="password" autoComplete="current-password" value={currentPassword}
                onChange={(e) => setCurrentPassword(e.target.value)} />
@@ -200,8 +224,8 @@ function PinCard() {
 
   return (
     <form className="card" onSubmit={submit}>
-      <h2>PIN for costs</h2>
-      <p className="hint">
+      <CardHead icon="key" title="PIN for costs" text="A quick code that unlocks cost prices and margins." />
+      <p className="hint pin-status">
         {status?.set
           ? (status.locked ? 'Your PIN is locked after too many wrong tries - enter your password once on the Products page, or set a new PIN here.'
             : 'You have a PIN. It is stored securely and cannot be shown - you can change or remove it.')
@@ -234,14 +258,34 @@ function PinCard() {
 
 export default function Settings() {
   const { user, setSession } = useAuth()
+  const [params, setParams] = useSearchParams()
+  const sections = [
+    user.role === 'OWNER' && { id: 'store', label: 'Store', icon: 'store', render: () => <BusinessCard user={user} setSession={setSession} /> },
+    { id: 'profile', label: 'Your profile', icon: 'user', render: () => <ProfileCard user={user} setSession={setSession} /> },
+    { id: 'password', label: 'Password', icon: 'lock', render: () => <PasswordCard /> },
+    seesFinancials(user) && { id: 'pin', label: 'PIN for costs', icon: 'key', render: () => <PinCard /> },
+  ].filter(Boolean)
+  const active = sections.find((x) => x.id === params.get('tab')) ?? sections[0]
+
   return (
-    <section>
-      <h1>Settings</h1>
+    <section className="settings-page">
+      <div className="settings-title">
+        <h1>Settings</h1>
+        <p className="muted">Manage your store, your account and your security.</p>
+      </div>
       <div className="settings">
-        {user.role === 'OWNER' && <BusinessCard user={user} setSession={setSession} />}
-        <ProfileCard user={user} setSession={setSession} />
-        <PasswordCard />
-        {seesFinancials(user) && <PinCard />}
+        <nav className="settings-nav" aria-label="Settings sections">
+          {sections.map((x) => (
+            <button key={x.id} type="button" className={x.id === active.id ? 'active' : ''}
+                    aria-current={x.id === active.id ? 'page' : undefined}
+                    onClick={() => setParams({ tab: x.id }, { replace: true })}>
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8"
+                   strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{ICONS[x.icon]}</svg>
+              {x.label}
+            </button>
+          ))}
+        </nav>
+        <div className="settings-panel" key={active.id}>{active.render()}</div>
       </div>
     </section>
   )
