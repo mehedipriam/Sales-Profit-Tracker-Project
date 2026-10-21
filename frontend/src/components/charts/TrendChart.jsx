@@ -55,14 +55,17 @@ export default function TrendChart({ trend }) {
 
   const line = (dataKey, color, text, dashed = false) => (
     <Line
-      type="linear"
+      type="monotone"
       dataKey={dataKey}
       stroke={color}
-      strokeWidth={2}
+      strokeWidth={2.5}
       strokeDasharray={dashed ? '6 4' : undefined}
       strokeLinecap="round"
       strokeLinejoin="round"
-      dot={showDots ? { r: 4, fill: color, stroke: SURFACE, strokeWidth: 2 } : false}
+      // A dot only on days that had sales; the zero days in between are just the line resting on the floor.
+      dot={showDots ? (d) => (d.payload.orders > 0
+        ? <circle key={d.key} cx={d.cx} cy={d.cy} r={4} fill={color} stroke={SURFACE} strokeWidth={2} />
+        : <g key={d.key} />) : false}
       activeDot={{ r: 5, fill: color, stroke: SURFACE, strokeWidth: 2 }}
       label={labelsFit && text ? (props) => <EndLabel {...props} last={last} text={text} fill={TEXT_SECONDARY} /> : false}
       isAnimationActive={false}

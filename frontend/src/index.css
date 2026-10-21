@@ -399,7 +399,7 @@ select.status.RETURNED, select.status.CANCELLED { color: var(--danger); }
 
 /* ---- charts ---- */
 .stale { opacity: 0.55; transition: opacity 0.15s; }
-.viz-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 1rem 1.1rem 1.1rem; margin-top: 1rem; position: relative; }
+.viz-card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 1.1rem 1.2rem 1.2rem; margin-top: 1rem; position: relative; }
 .viz-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; margin-bottom: 0.75rem; }
 .viz-title { font-size: 1rem; margin: 0; }
 .viz-sub { margin: 0.15rem 0 0; font-size: 0.82rem; }
@@ -438,8 +438,9 @@ select.status.RETURNED, select.status.CANCELLED { color: var(--danger); }
 .viz-table { table-layout: fixed; min-width: 400px; }
 .viz-table td, .viz-table th { padding: 0.5rem 0.5rem; font-size: 0.88rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .viz-table .c-rank { width: 2rem; }
-.viz-table .c-bar { width: 34%; }
-.viz-table .c-money { width: 6.5rem; }
+.viz-table .c-bar { width: 22%; }
+.viz-table .c-money { width: 5.8rem; }
+.viz-table td.name { white-space: normal; overflow-wrap: anywhere; }
 .viz-table .rank { color: var(--muted); }
 .barcell { display: flex; align-items: center; gap: 0.4rem; min-width: 0; }
 .barcell:focus-visible { outline: 2px solid var(--text); outline-offset: -2px; }
@@ -1067,3 +1068,27 @@ thead th.hide-col { padding-left: 1.75rem; padding-right: 1.75rem; } /* room for
 @media (max-width: 850px) {
   .dash-hero, .dash-three { grid-template-columns: minmax(0, 1fr); }
 }
+
+/* Reports: one filter bar with period tabs, the net profit card beside a platform ring, gross profit beside the headline. */
+.rep-bar { display: flex; align-items: center; gap: 0.7rem; flex-wrap: wrap; margin-bottom: 1rem; padding: 0.6rem 0.8rem; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; }
+.rep-bar .dash-tabs { margin: 0; background: var(--bg); border: 0; flex-wrap: wrap; }
+.rep-bar select, .rep-bar input { padding: 0.4rem 0.7rem; border-radius: 9px; background: var(--bg); }
+.rep-period { margin-left: auto; font-size: 0.82rem; }
+.rep-hero { display: grid; grid-template-columns: 1.4fr 1fr; gap: 1rem; margin-bottom: 1rem; }
+.rep-hero .net-hero { margin: 0; }
+.net-hero.stacked { flex-direction: column; align-items: stretch; justify-content: flex-start; flex-wrap: nowrap; gap: 0.9rem; }
+.net-hero-top { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+.net-hero-gross { display: flex; flex-direction: column; align-items: flex-end; padding: 0.6rem 1rem; border-radius: 12px; background: rgba(0, 0, 0, 0.2); text-align: right; }
+.net-hero-gross span { font-size: 0.78rem; opacity: 0.85; }
+.net-hero-gross b { font-size: 1.5rem; font-variant-numeric: tabular-nums; line-height: 1.2; }
+.net-hero-gross small { font-size: 0.7rem; opacity: 0.7; }
+.net-hero.stacked .net-flow { flex-wrap: nowrap; gap: 0.4rem; }
+.net-hero.stacked .net-flow li:not(.op) { flex: 1; min-width: 0; }
+.dash-donut.big { width: 120px; height: 120px; }
+.dash-donut.big div { width: 80px; height: 80px; }
+.dash-donut.big b { font-size: 0.95rem; }
+.rep-pill { display: inline-block; padding: 0.15rem 0.65rem; border-radius: 999px; background: var(--primary-soft); color: var(--primary); font-size: 0.8rem; font-weight: 600; }
+.rep-mbar { display: inline-block; width: 56px; height: 6px; margin-right: 0.5rem; border-radius: 9px; background: var(--line-soft); vertical-align: middle; overflow: hidden; }
+.rep-mbar i { display: block; height: 100%; background: var(--success); }
+@media (max-width: 850px) { .rep-hero { grid-template-columns: minmax(0, 1fr); } .rep-period { margin-left: 0; } }
+@media (max-width: 600px) { .net-hero.stacked .net-flow { flex-wrap: wrap; } }

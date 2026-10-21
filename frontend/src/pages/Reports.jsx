@@ -6,17 +6,45 @@ import ExportButtons from '../components/ExportButtons'
 import ShareBars from '../components/charts/ShareBars'
 import TrendChart from '../components/charts/TrendChart'
 import Change from '../components/Change'
-import RangePicker from '../components/RangePicker'
 import { MASK, useReveal } from '../components/Reveal'
 import NetHero from '../components/NetHero'
 import Stat from '../components/Stat'
 import {
   BoxIcon, CancelIcon, ChartIcon, ClockIcon, ReceiptIcon, ReturnIcon, TrendUpIcon, TruckIcon,
 } from '../components/icons'
-import { describeRange, previousRange, resolveRange } from '../utils/dateRange'
+import { PRESETS, describeRange, previousRange, resolveRange } from '../utils/dateRange'
+import { platformColorMap } from '../components/charts/tokens'
 import { EXPENSE_LABEL, money as fmt } from '../utils/format'
 
 const pctOf = (part, whole) => (Number(whole) > 0 ? `${((Number(part) / Number(whole)) * 100).toFixed(1)}%` : '—')
+
+/** Each platform's part of paid revenue as a ring. Shares are derived from money, so it waits for the eye. */
+function PlatformDonut({ rows, platforms, total, show }) {
+  const colors = platformColorMap(platforms)
+  const sum = rows.reduce((n, r) => n + Number(r.revenue), 0)
+  let at = 0
+  const parts = rows.filter((r) => Number(r.revenue) > 0).map((r) => {
+    const from = at
+    at += (Number(r.revenue) / sum) * 100
+    return { name: r.platformName, color: colors.get(r.platformId), pct: (Number(r.revenue) / sum) * 100, from, to: at }
+  })
+  return (
+    <div className="dash-card rep-donut">
+      <h3>Revenue share by platform</h3>
+      {!show ? <p className="veiled-note">Hidden with the figures. Use the eye at the top to show it.</p>
+        : parts.length === 0 ? <p className="muted">No paid orders in this period.</p> : (
+          <div className="dash-donut-wrap">
+            <div className="dash-donut big" style={{ background: `conic-gradient(${parts.map((p) => `${p.color} ${p.from}% ${p.to}%`).join(', ')})` }}>
+              <div><b>{fmt(total)}</b><span>revenue</span></div>
+            </div>
+            <ul className="dash-legend">
+              {parts.map((p) => <li key={p.name}><i style={{ background: p.color }} />{p.name} · {p.pct.toFixed(0)}%</li>)}
+            </ul>
+          </div>
+        )}
+    </div>
+  )
+}
 
 export default function Reports() {
   const { user } = useAuth()
@@ -96,12 +124,31 @@ export default function Reports() {
         )}
       </div>
 
-      <div className="filters">
-        <RangePicker value={range} onChange={setRange} />
+      <div className="rep-bar no-print">
+        <div className="dash-tabs" role="tablist" aria-label="Period">
+          {PRESETS.map((p) => (
+            <button key={p.value} type="button" role="tab" aria-selected={range.preset === p.value}
+                    className={range.preset === p.value ? 'on' : ''}
+                    onClick={() => setRange({ ...range, preset: p.value })}>{p.label.replace(' range', '')}</button>
+          ))}
+        </div>
+        {range.preset === 'custom' && (
+          <>
+            <label className="inline-label">From
+              <input type="date" value={range.from} max={range.to || undefined}
+                     onChange={(e) => setRange({ ...range, from: e.target.value })} />
+            </label>
+            <label className="inline-label">To
+              <input type="date" value={range.to} min={range.from || undefined}
+                     onChange={(e) => setRange({ ...range, to: e.target.value })} />
+            </label>
+          </>
+        )}
         <select aria-label="Platform" value={platformId} onChange={(e) => setPlatformId(e.target.value)}>
           <option value="">All platforms</option>
           {platforms.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
         </select>
+        <span className="rep-period muted">{periodLabel}</span>
       </div>
 
       {resolved.error && <p className="error" role="alert">{resolved.error}</p>}
@@ -109,14 +156,12 @@ export default function Reports() {
 
       {data && !resolved.error && (
         <div className={loading ? 'stale' : undefined} aria-busy={loading}>
-          <p className="muted period no-print">
-            {periodLabel}
-            {platformName && ` · ${platformName}`}
-            {' · paid orders, less expenses'}
-          </p>
-
-          <NetHero realized={realized} expenses={summary.expenses.total} netProfit={summary.netProfit} hidden={!show}
-                   change={change(summary.netProfit, previous?.netProfit, 'up')} />
+          
+          <div className="rep-hero">
+            <NetHero realized={realized} expenses={summary.expenses.total} netProfit={summary.netProfit} hidden={!show}
+                     change={change(summary.netProfit, previous?.netProfit, 'up')} />
+            <PlatformDonut rows={soldRows} platforms={platforms} total={realized.revenue} show={show} />
+          </div>
 
           <div className="stats kpis">
             <Stat label="Revenue" value={money(realized.revenue)} tone={plain} hint={`${realized.orders} paid orders`}
@@ -181,12 +226,12 @@ export default function Reports() {
           {show && <>
           <TrendChart trend={data.trend} />
 
-          <ShareBars
+          {soldRows.length > 1 && <ShareBars
             rows={soldRows}
             platforms={platforms}
             revenueTotal={realized.revenue}
             profitTotal={soldRows.filter((r) => r.profit > 0).reduce((s, r) => s + Number(r.profit), 0)}
-          />
+          />}
 
           </>}
 
@@ -204,7 +249,7 @@ export default function Reports() {
               <tbody>
                 {summary.byPlatform.map((r) => (
                   <tr key={r.platformId}>
-                    <td>{r.platformName}</td>
+                    <td><span className="rep-pill">{r.platformName}</span></td>
                     <td className="num">{r.orders}</td>
                     <td className={`num ${plain}`}>{money(r.revenue)}</td>
                     <td className={`num ${plain}`}>{money(r.cost)}</td>
@@ -212,7 +257,14 @@ export default function Reports() {
                     <td className={`num ${plain}`}>{money(r.delivery)}</td>
                     <td className={`num ${plain}`}>{money(r.expenses)}</td>
                     <td className={`num ${tone(r.netProfit)}`}>{money(r.netProfit)}</td>
-                    <td className={`num ${plain}`}>{pct(r.netProfit, r.revenue)}</td>
+                    <td className={`num ${plain}`}>
+                      {show && Number(r.revenue) > 0 && (
+                        <span className="rep-mbar" aria-hidden="true">
+                          <i style={{ width: `${Math.min(100, Math.max(0, (Number(r.netProfit) / Number(r.revenue)) * 100))}%` }} />
+                        </span>
+                      )}
+                      {pct(r.netProfit, r.revenue)}
+                    </td>
                     <td className={`num ${plain}`}>{pct(r.revenue, realized.revenue)}</td>
                   </tr>
                 ))}
