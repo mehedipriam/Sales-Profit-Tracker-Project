@@ -46,7 +46,7 @@ public class CustomerService {
     /** sort is "name" (alphabetical, the default, good for pickers) or "created" (in the order they were added). */
     public PageResponse<CustomerResponse> list(Long tenantId, String q, Long platformId, String group, int page, int size,
                                                String sort) {
-        if (Set.of("repeat", "new", "risk").contains(group)) return listGroup(tenantId, q, platformId, group, page, size, sort);
+        if (group != null && Set.of("repeat", "new", "risk").contains(group)) return listGroup(tenantId, q, platformId, group, page, size, sort);
         Page<Customer> result = customers.search(tenantId, Search.pattern(q), platformId == null ? 0L : platformId,
                 Search.page(page, size, "created".equals(sort) ? "id" : "name"));
         Map<Long, Insights> insights = insights(tenantId, result.map(Customer::getId).toSet());
