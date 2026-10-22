@@ -18,9 +18,15 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
             where p.tenantId = :tenantId and p.active = true
               and (lower(p.name) like :q escape '\\' or lower(coalesce(p.sku, '')) like :q escape '\\')
               and (:category = '' or p.category = :category)
+              and (:stock = ''
+                   or (:stock = 'out' and p.stockQty is not null and p.stockQty <= 0)
+                   or (:stock = 'low' and p.stockQty > 0 and p.lowStockThreshold is not null
+                       and p.stockQty <= p.lowStockThreshold)
+                   or (:stock = 'in' and p.stockQty > 0
+                       and (p.lowStockThreshold is null or p.stockQty > p.lowStockThreshold)))
             """)
     Page<Product> search(@Param("tenantId") Long tenantId, @Param("q") String q,
-                         @Param("category") String category, Pageable pageable);
+                         @Param("category") String category, @Param("stock") String stock, Pageable pageable);
 
     @Query("select distinct p.category from Product p where p.tenantId = :tenantId and p.active = true "
             + "and p.category is not null order by p.category")

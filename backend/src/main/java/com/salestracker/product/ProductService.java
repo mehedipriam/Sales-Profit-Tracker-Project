@@ -10,6 +10,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 @Service
@@ -24,12 +25,34 @@ public class ProductService {
     }
 
     @Transactional(readOnly = true)
-    public PageResponse<ProductResponse> list(Long tenantId, String q, String category, int page, int size) {
+    public PageResponse<ProductResponse> list(Long tenantId, String q, String category, String stock, int page, int size) {
         String cat = category == null ? "" : category.trim();
+        // in = above its alert level, low = at or under it (but not gone), out = none left; anything else = no filter
+        String level = stock == null ? "" : stock.trim().toLowerCase();
+        if (!List.of("in", "low", "out").contains(level)) level = "";
         return PageResponse.of(
-                products.search(tenantId, Search.pattern(q), cat, Search.page(page, size, "name")),
+                products.search(tenantId, Search.pattern(q), cat, level, Search.page(page, size, "name")),
                 ProductResponse::of);
     }
+
+    /** Counts for the cards above the product list; stockValue is what the stock on hand cost. */
+    @Transactional(readOnly = true)
+    public ProductSummary summary(Long tenantId) {
+        List<Product> all = products.findByTenantIdAndActiveTrue(tenantId);
+        long low = 0;
+        long out = 0;
+        BigDecimal value = BigDecimal.ZERO;
+        for (Product p : all) {
+            Integer qty = p.getStockQty();
+            if (qty == null) continue;
+            if (qty <= 0) out++;
+            else if (p.getLowStockThreshold() != null && qty <= p.getLowStockThreshold()) low++;
+            if (qty > 0 && p.getCostPrice() != null) value = value.add(p.getCostPrice().multiply(BigDecimal.valueOf(qty)));
+        }
+        return new ProductSummary(all.size(), low, out, value);
+    }
+
+    public record ProductSummary(long products, long lowStock, long outOfStock, BigDecimal stockValue) {}
 
     @Transactional(readOnly = true)
     public List<String> categories(Long tenantId) {

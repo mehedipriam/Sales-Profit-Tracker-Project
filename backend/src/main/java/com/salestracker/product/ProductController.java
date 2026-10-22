@@ -25,9 +25,17 @@ public class ProductController {
     public PageResponse<ProductResponse> list(@AuthenticationPrincipal AuthUser user,
                                               @RequestParam(required = false) String q,
                                               @RequestParam(required = false) String category,
+                                              @RequestParam(required = false) String stock,
                                               @RequestParam(defaultValue = "0") int page,
                                               @RequestParam(defaultValue = "20") int size) {
-        return service.list(user.tenantId(), q, category, page, size).map(redaction(user));
+        return service.list(user.tenantId(), q, category, stock, page, size).map(redaction(user));
+    }
+
+    /** Cost prices are Owner/Admin-only, so Staff get the counts without the stock value. */
+    @GetMapping("/summary")
+    public ProductService.ProductSummary summary(@AuthenticationPrincipal AuthUser user) {
+        ProductService.ProductSummary s = service.summary(user.tenantId());
+        return user.role().seesFinancials() ? s : new ProductService.ProductSummary(s.products(), s.lowStock(), s.outOfStock(), null);
     }
 
     @GetMapping("/categories")

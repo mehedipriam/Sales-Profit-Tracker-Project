@@ -1092,3 +1092,29 @@ thead th.hide-col { padding-left: 1.75rem; padding-right: 1.75rem; } /* room for
 .rep-mbar i { display: block; height: 100%; background: var(--success); }
 @media (max-width: 850px) { .rep-hero { grid-template-columns: minmax(0, 1fr); } .rep-period { margin-left: 0; } }
 @media (max-width: 600px) { .net-hero.stacked .net-flow { flex-wrap: wrap; } }
+
+/* Products: summary cards, one filter bar, and rows with a coloured tile, category pill, margin pill and stock bar. */
+.prod-sub { margin: 0.15rem 0 0; }
+.prod-search { flex: 1 1 14rem; min-width: 12rem; padding: 0.45rem 0.8rem; border-radius: 9px; background: var(--bg); }
+.stat-value.warn { color: var(--warning); }
+.prod-table { padding: 0.3rem 0.4rem; overflow-x: auto; margin-top: 1rem; }
+.prod-table tbody tr:hover td { background: var(--row-hover); }
+.prod-name { display: flex; align-items: center; gap: 0.7rem; min-width: 11rem; }
+.prod-name b { display: block; overflow-wrap: anywhere; }
+.prod-name small { color: var(--muted); font-size: 0.74rem; }
+.prod-tile { flex: none; display: grid; place-items: center; width: 2.4rem; height: 2.4rem; border-radius: 11px; font-weight: 700; }
+.prod-cat { display: inline-block; padding: 0.18rem 0.65rem; border-radius: 999px; font-size: 0.74rem; font-weight: 600; white-space: nowrap; }
+.prod-margin { display: inline-block; padding: 0.15rem 0.6rem; border-radius: 999px; font-size: 0.82rem; font-weight: 600; white-space: nowrap; }
+.prod-margin.pos { background: var(--success-soft); color: var(--success); }
+.prod-margin.neg { background: var(--danger-soft); color: var(--danger); }
+.prod-stock { min-width: 7.5rem; }
+.prod-stock-top { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; margin-bottom: 0.25rem; font-size: 0.78rem; }
+.prod-stock-top b { font-size: 0.95rem; }
+.prod-stock-bar { height: 6px; border-radius: 9px; background: var(--line-soft); overflow: hidden; }
+.prod-stock-bar i { display: block; height: 100%; border-radius: 9px; }
+.prod-stock-bar i.ok { background: var(--success); }
+.prod-stock-bar i.low { background: var(--warning); }
+.prod-stock-bar i.out { background: var(--danger); }
+.badge.out { background: var(--danger-soft); color: var(--danger); }
+.prod-stock-top .badge { margin-left: 0; }
+.prod-stock-top .badge.low { background: var(--warning-soft); color: var(--warning); }

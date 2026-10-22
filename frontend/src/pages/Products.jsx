@@ -5,6 +5,8 @@ import { seesFinancials } from '../auth/roles'
 import Modal from '../components/Modal'
 import Pager from '../components/Pager'
 import { EyeHead, MASK, useReveal } from '../components/Reveal'
+import Stat from '../components/Stat'
+import { BoxIcon, CancelIcon, ClockIcon, WalletIcon } from '../components/icons'
 import useDebounce from '../hooks/useDebounce'
 import { Link } from 'react-router-dom'
 import { money } from '../utils/format'
@@ -95,12 +97,39 @@ function ProductForm({ product, categories, showMoney, costHidden, onSaved, onCa
 }
 
 const PAGE_SIZE = 20
+const STOCK_FILTERS = [['', 'All'], ['in', 'In stock'], ['low', 'Low'], ['out', 'Out']]
+const HUES = [210, 160, 270, 35, 330, 185, 95]
+
+/** A steady colour per name, so the same category or product always gets the same tile. */
+const hue = (text) => HUES[[...(text || '?')].reduce((n, c) => n + c.charCodeAt(0), 0) % HUES.length]
+const tint = (text) => ({ background: `hsl(${hue(text)} 70% 60% / 0.18)`, color: `hsl(${hue(text)} 80% 68%)` })
+
+/** Stock level as a count, a bar and a status: none left, low (at or under its own alert level), or fine. */
+function StockCell({ p }) {
+  if (p.stockQty == null) return <span className="muted">—</span>
+  const out = p.stockQty <= 0
+  const low = !out && p.lowStockThreshold != null && p.stockQty <= p.lowStockThreshold
+  const full = Math.max((p.lowStockThreshold ?? 5) * 4, 10) // the amount the bar counts as a full shelf
+  const state = out ? 'out' : low ? 'low' : 'ok'
+  return (
+    <div className="prod-stock">
+      <div className="prod-stock-top">
+        <Link to={`/stock?productId=${p.id}`} title="View stock history"><b>{p.stockQty}</b></Link>
+        {out ? <span className="badge out">Out</span> : low ? <span className="badge low">Low</span>
+          : <span className="muted">in stock</span>}
+      </div>
+      <div className="prod-stock-bar"><i className={state} style={{ width: `${Math.min(100, (Math.max(p.stockQty, 0) / full) * 100)}%` }} /></div>
+    </div>
+  )
+}
 
 export default function Products() {
   const { user } = useAuth()
   const showMoney = seesFinancials(user)
   const [q, setQ] = useState('')
   const [category, setCategory] = useState('')
+  const [stock, setStock] = useState('')
+  const [summary, setSummary] = useState(null)
   const [page, setPage] = useState(0)
   const [data, setData] = useState(null)
   const [categories, setCategories] = useState([])
@@ -112,11 +141,12 @@ export default function Products() {
 
   const load = useCallback(() => {
     api
-      .get('/products', { params: { q: dq, category, page, size: PAGE_SIZE } })
+      .get('/products', { params: { q: dq, category, stock, page, size: PAGE_SIZE } })
       .then((res) => { setData(res.data); setError('') })
       .catch((err) => setError(errorMessage(err)))
     api.get('/products/categories').then((res) => setCategories(res.data)).catch(() => {})
-  }, [dq, category, page])
+    api.get('/products/summary').then((res) => setSummary(res.data)).catch(() => {})
+  }, [dq, category, stock, page])
 
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { load() }, [load])
@@ -136,18 +166,42 @@ export default function Products() {
   return (
     <section>
       <div className="page-head">
-        <h1>Products</h1>
+        <div>
+          <h1>Products</h1>
+          <p className="muted prod-sub">What you sell, what it costs and what is left</p>
+        </div>
         <button className="btn" onClick={() => setEditing({})}>+ Add product</button>
       </div>
 
-      <div className="filters">
+      {summary && (
+        <div className="stats kpis">
+          <Stat label="Products" value={summary.products} icon={<BoxIcon />} accent="blue" />
+          {showMoney && (
+            <Stat label="Stock value" value={shown.cost ? money(summary.stockValue) : MASK} tone={shown.cost ? '' : 'masked'}
+                  hint="stock on hand, at cost" icon={<WalletIcon />} accent="green" />
+          )}
+          <Stat label="Low stock" value={summary.lowStock} tone={summary.lowStock ? 'warn' : ''}
+                hint="at or under the alert level" icon={<ClockIcon />} accent="amber" />
+          <Stat label="Out of stock" value={summary.outOfStock} tone={summary.outOfStock ? 'neg' : ''}
+                hint="none left" icon={<CancelIcon />} accent="red" />
+        </div>
+      )}
+
+      <div className="rep-bar">
         <input
+          className="prod-search"
           type="search"
           placeholder="Search name or SKU…"
           value={q}
           onChange={(e) => { setQ(e.target.value); setPage(0) }}
         />
-        <select value={category} onChange={(e) => { setCategory(e.target.value); setPage(0) }}>
+        <div className="dash-tabs" role="tablist" aria-label="Stock level">
+          {STOCK_FILTERS.map(([value, label]) => (
+            <button key={value} type="button" role="tab" aria-selected={stock === value}
+                    className={stock === value ? 'on' : ''} onClick={() => { setStock(value); setPage(0) }}>{label}</button>
+          ))}
+        </div>
+        <select aria-label="Category" value={category} onChange={(e) => { setCategory(e.target.value); setPage(0) }}>
           <option value="">All categories</option>
           {categories.map((c) => <option key={c} value={c}>{c}</option>)}
         </select>
@@ -155,42 +209,44 @@ export default function Products() {
 
       {error && <p className="error" role="alert">{error}</p>}
 
-      <div className="table-wrap">
-        <table className="striped">
+      <div className="dash-card prod-table">
+        <table>
           <thead>
             <tr>
-              <th className="serial">#</th><th>Name</th><th>SKU</th><th>Category</th>
+              <th>Product</th><th>Category</th>
               {showMoney && <th className="num hide-col"><EyeHead eye={eye('cost', 'costs')}>Cost</EyeHead></th>}
               <th className="num">Price</th>
               {showMoney && <th className="num hide-col"><EyeHead eye={eye('margin', 'margins')}>Margin</EyeHead></th>}
-              <th className="num">Stock</th><th />
+              <th>Stock</th><th />
             </tr>
           </thead>
           <tbody>
-            {data?.content.map((p, i) => {
+            {data?.content.map((p) => {
               const margin = p.sellingPrice - p.costPrice
+              const pct = p.sellingPrice > 0 ? (margin / p.sellingPrice) * 100 : null
               return (
                 <tr key={p.id}>
-                  {/* Counts on from the previous page, so page 2 starts at 21. */}
-                  <td className="serial">{data.page * PAGE_SIZE + i + 1}</td>
-                  <td>{p.name}</td>
-                  <td>{p.sku || '—'}</td>
-                  <td>{p.category || '—'}</td>
+                  <td>
+                    <div className="prod-name">
+                      <span className="prod-tile" style={tint(p.name)} aria-hidden="true">{p.name.trim().charAt(0).toUpperCase()}</span>
+                      <div><b>{p.name}</b><small>{p.sku ? `SKU ${p.sku}` : 'No SKU'}</small></div>
+                    </div>
+                  </td>
+                  <td>{p.category ? <span className="prod-cat" style={tint(p.category)}>{p.category}</span> : <span className="muted">—</span>}</td>
                   {showMoney && (
                     <td className={`num ${shown.cost ? '' : 'masked hide-col'}`}>{shown.cost ? money(p.costPrice) : MASK}</td>
                   )}
                   <td className="num">{money(p.sellingPrice)}</td>
                   {showMoney && (shown.margin
-                    ? <td className={`num ${margin < 0 ? 'neg' : 'pos'}`}>{money(margin)}</td>
+                    ? (
+                      <td className="num">
+                        <span className={`prod-margin ${margin < 0 ? 'neg' : 'pos'}`}>
+                          {money(margin)}{pct !== null && ` · ${pct.toFixed(0)}%`}
+                        </span>
+                      </td>
+                    )
                     : <td className="num masked hide-col">{MASK}</td>)}
-                  <td className="num">
-                    {p.stockQty == null ? '—' : (
-                      <Link to={`/stock?productId=${p.id}`} title="View stock history">{p.stockQty}</Link>
-                    )}
-                    {p.stockQty != null && p.lowStockThreshold != null && p.stockQty <= p.lowStockThreshold && (
-                      <span className="badge low">Low</span>
-                    )}
-                  </td>
+                  <td><StockCell p={p} /></td>
                   <td className="row-actions">
                     <button className="link" onClick={() => setEditing(p)}>Edit</button>
                     <button className="link danger" onClick={() => remove(p)}>Delete</button>
@@ -199,7 +255,7 @@ export default function Products() {
               )
             })}
             {data && data.content.length === 0 && (
-              <tr><td colSpan={showMoney ? 9 : 7} className="empty">No products found.</td></tr>
+              <tr><td colSpan={showMoney ? 7 : 5} className="empty">No products found.</td></tr>
             )}
           </tbody>
         </table>
