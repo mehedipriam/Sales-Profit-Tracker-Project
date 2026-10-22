@@ -19,6 +19,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -42,11 +43,11 @@ public class StockService {
     }
 
     @Transactional(readOnly = true)
-    public PageResponse<AdjustmentResponse> list(Long tenantId, Long productId, StockReason reason, int page, int size) {
+    public PageResponse<AdjustmentResponse> list(Long tenantId, Long productId, StockReason reason, String q, int page, int size) {
         Collection<StockReason> reasons = reason == null ? List.of(StockReason.values()) : List.of(reason);
         Pageable newestFirst = PageRequest.of(Math.max(page, 0), Math.min(Math.max(size, 1), 100),
                 Sort.by(Sort.Order.desc("createdAt"), Sort.Order.desc("id")));
-        Page<StockAdjustment> result = adjustments.search(tenantId, productId == null ? 0L : productId, reasons, newestFirst);
+        Page<StockAdjustment> result = adjustments.search(tenantId, productId == null ? 0L : productId, reasons, Search.pattern(q), newestFirst);
 
         Map<Long, Product> productById = products.findAllById(
                         result.stream().map(StockAdjustment::getProductId).collect(Collectors.toSet()))
@@ -59,6 +60,25 @@ public class StockService {
                 a.getOrderId() != null ? orderNote(a.getQuantityChange(),
                         orderNoById.getOrDefault(a.getOrderId(), "#" + a.getOrderId())) : a.getNote(),
                 a.getOrderId()));
+    }
+
+    /** Numbers for the cards above the log: stock on hand, this month's movement and what needs restocking. */
+    @Transactional(readOnly = true)
+    public StockSummary summary(Long tenantId) {
+        List<Product> tracked = products.findByTenantIdAndActiveTrue(tenantId).stream()
+                .filter(p -> p.getStockQty() != null).toList();
+        long units = tracked.stream().mapToLong(p -> Math.max(p.getStockQty(), 0)).sum();
+        Object[] moved = adjustments.movedSince(tenantId, LocalDate.now().withDayOfMonth(1).atStartOfDay()).get(0);
+        List<Product> low = products.lowStock(tenantId, PageRequest.of(0, 1000));
+        List<StockSummary.Item> first = low.stream().limit(3)
+                .map(p -> new StockSummary.Item(p.getId(), p.getName(), p.getStockQty())).toList();
+        return new StockSummary(units, tracked.size(), ((Number) moved[0]).longValue(), ((Number) moved[1]).longValue(),
+                low.size(), first);
+    }
+
+    public record StockSummary(long unitsInStock, long products, long addedThisMonth, long takenOutThisMonth,
+                               long needRestocking, List<Item> restockFirst) {
+        public record Item(Long productId, String name, int stockQty) {}
     }
 
     /** Built from the order number when shown, not taken from the stored text, so it always names the order it links to. */

@@ -1141,3 +1141,19 @@ thead th.hide-col { padding-left: 1.75rem; padding-right: 1.75rem; } /* room for
 .ord-act svg { width: 14px; height: 14px; }
 .ord-act:hover { color: var(--primary); border-color: var(--primary); }
 .ord-act.danger:hover { color: var(--danger); border-color: var(--danger); }
+
+/* Stock: reason pills, change pills and the before-to-after stock figure. */
+.stk-when b { display: block; font-weight: 600; }
+.stk-when small { color: var(--muted); font-size: 0.76rem; }
+.stk-pill { display: inline-block; padding: 0.18rem 0.65rem; border-radius: 999px; font-size: 0.74rem; font-weight: 600; white-space: nowrap; background: var(--surface-2); }
+.stk-pill.RESTOCK { background: var(--success-soft); color: var(--success); }
+.stk-pill.ORDER { background: var(--primary-soft); color: var(--primary); }
+.stk-pill.DAMAGE { background: var(--danger-soft); color: var(--danger); }
+.stk-pill.CORRECTION { background: rgba(167, 139, 250, 0.18); color: #a78bfa; }
+.stk-pill.INITIAL { background: rgba(45, 212, 191, 0.16); color: #14b8a6; }
+.stk-auto { margin-left: 0.4rem; font-size: 0.68rem; }
+.stk-chg { display: inline-block; min-width: 3.2rem; padding: 0.18rem 0.6rem; border-radius: 999px; text-align: center; font-weight: 700; font-variant-numeric: tabular-nums; }
+.stk-chg.up { background: var(--success-soft); color: var(--success); }
+.stk-chg.down { background: var(--danger-soft); color: var(--danger); }
+.stk-flow { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.dash-lowstock > .link { margin-left: auto; white-space: nowrap; }

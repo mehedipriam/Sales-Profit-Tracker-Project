@@ -23,9 +23,15 @@ public class StockController {
     public PageResponse<AdjustmentResponse> list(@AuthenticationPrincipal AuthUser user,
                                                  @RequestParam(required = false) Long productId,
                                                  @RequestParam(required = false) StockReason reason,
+                                                 @RequestParam(required = false) String q,
                                                  @RequestParam(defaultValue = "0") int page,
                                                  @RequestParam(defaultValue = "20") int size) {
-        return service.list(user.tenantId(), productId, reason, page, size);
+        return service.list(user.tenantId(), productId, reason, q, page, size);
+    }
+
+    @GetMapping("/summary")
+    public StockService.StockSummary summary(@AuthenticationPrincipal AuthUser user) {
+        return service.summary(user.tenantId());
     }
 
     @PostMapping
