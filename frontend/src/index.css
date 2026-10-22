@@ -1118,3 +1118,11 @@ thead th.hide-col { padding-left: 1.75rem; padding-right: 1.75rem; } /* room for
 .badge.out { background: var(--danger-soft); color: var(--danger); }
 .prod-stock-top .badge { margin-left: 0; }
 .prod-stock-top .badge.low { background: var(--warning-soft); color: var(--warning); }
+
+/* Customers: avatar, small contact line under the name, and group badges next to it. */
+.cust-av { flex: none; display: grid; place-items: center; width: 2.5rem; height: 2.5rem; border-radius: 50%; font-weight: 700; }
+.prod-name small { display: block; }
+.cust-note { max-width: 18rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.badge.repeat { margin-left: 0.4rem; background: rgba(167, 139, 250, 0.18); color: #a78bfa; }
+.badge.fresh { margin-left: 0.4rem; background: rgba(45, 212, 191, 0.16); color: #14b8a6; }
+.badge.risk { margin-left: 0.4rem; }

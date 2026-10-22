@@ -4,8 +4,11 @@ import api, { errorMessage } from '../api/client'
 import Modal from '../components/Modal'
 import Pager from '../components/Pager'
 import { MASK, useReveal } from '../components/Reveal'
+import Stat from '../components/Stat'
+import { ClockIcon, ReturnIcon, TrendUpIcon, WalletIcon } from '../components/icons'
 import useDebounce from '../hooks/useDebounce'
 import { dateTime, maskPhone, money } from '../utils/format'
+import { tint } from '../utils/tint'
 
 const EMPTY = { name: '', phone: '', address: '', sourcePlatformId: '', notes: '' }
 
@@ -63,6 +66,7 @@ function CustomerForm({ customer, platforms, onSaved, onCancel }) {
 }
 
 const PAGE_SIZE = 20
+const GROUPS = [['', 'All'], ['repeat', 'Repeat'], ['new', 'New'], ['risk', 'Often returns']]
 
 /** "2 of 5 orders" style breakdown of the returned / cancelled ones, for the return-rate tooltip. */
 const problemsText = (ins) =>
@@ -71,6 +75,8 @@ const problemsText = (ins) =>
 export default function Customers() {
   const [q, setQ] = useState('')
   const [platformId, setPlatformId] = useState('')
+  const [group, setGroup] = useState('')
+  const [summary, setSummary] = useState(null)
   const [page, setPage] = useState(0)
   const [data, setData] = useState(null)
   const [platforms, setPlatforms] = useState([])
@@ -87,10 +93,11 @@ export default function Customers() {
 
   const load = useCallback(() => {
     api
-      .get('/customers', { params: { q: dq, platformId: platformId || undefined, page, size: PAGE_SIZE, sort: 'created' } })
+      .get('/customers', { params: { q: dq, platformId: platformId || undefined, group, page, size: PAGE_SIZE, sort: 'created' } })
       .then((res) => { setData(res.data); setError('') })
       .catch((err) => setError(errorMessage(err)))
-  }, [dq, platformId, page])
+    api.get('/customers/summary').then((res) => setSummary(res.data)).catch(() => {})
+  }, [dq, platformId, group, page])
 
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { load() }, [load])
@@ -111,19 +118,40 @@ export default function Customers() {
   return (
     <section>
       <div className="page-head">
-        <h1>Customers</h1>
+        <div>
+          <h1>Customers</h1>
+          <p className="muted prod-sub">Who buys from you, how often and how much</p>
+        </div>
         <span className="page-eye">{show ? 'Hide' : 'Show'} details{eye('all', 'customer details')}</span>
         <button className="btn" onClick={() => setEditing({})}>+ Add customer</button>
       </div>
 
-      <div className="filters">
+      {summary && (
+        <div className="stats kpis">
+          <Stat label="Customers" value={summary.customers} icon={<TrendUpIcon />} accent="blue" />
+          <Stat label="Repeat buyers" value={summary.repeat} hint="ordered 2 or more times" icon={<ReturnIcon />} accent="violet" />
+          <Stat label="Total spent" value={show ? money(summary.totalSpent) : MASK} tone={show ? '' : 'masked'}
+                hint="paid orders, with delivery" icon={<WalletIcon />} accent="green" />
+          <Stat label="Often return" value={summary.oftenReturn} tone={summary.oftenReturn ? 'neg' : ''}
+                hint="returns or cancels a lot" icon={<ClockIcon />} accent="red" />
+        </div>
+      )}
+
+      <div className="rep-bar">
         <input
+          className="prod-search"
           type="search"
           placeholder="Search name, phone or address…"
           value={q}
           onChange={(e) => { setQ(e.target.value); setPage(0) }}
         />
-        <select value={platformId} onChange={(e) => { setPlatformId(e.target.value); setPage(0) }}>
+        <div className="dash-tabs" role="tablist" aria-label="Customer group">
+          {GROUPS.map(([value, label]) => (
+            <button key={value} type="button" role="tab" aria-selected={group === value}
+                    className={group === value ? 'on' : ''} onClick={() => { setGroup(value); setPage(0) }}>{label}</button>
+          ))}
+        </div>
+        <select aria-label="Platform" value={platformId} onChange={(e) => { setPlatformId(e.target.value); setPage(0) }}>
           <option value="">All platforms</option>
           {platforms.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
         </select>
@@ -131,28 +159,36 @@ export default function Customers() {
 
       {error && <p className="error" role="alert">{error}</p>}
 
-      <div className="table-wrap">
-        <table className="striped">
+      <div className="dash-card prod-table">
+        <table>
           <thead>
             <tr>
-              <th className="serial">#</th><th>Name</th><th>Phone</th><th>Address</th><th>Platform</th>
-              <th className="num">Orders</th><th className="num">Spent</th><th className="num">Returns</th><th>Notes</th><th />
+              <th>Customer</th><th>Platform</th><th className="num">Orders</th><th className="num">Spent</th>
+              <th className="num">Return rate</th><th>Last order</th><th />
             </tr>
           </thead>
           <tbody>
-            {data?.content.map((c, i) => (
+            {data?.content.map((c) => (
               <tr key={c.id}>
-                {/* Counts on from the previous page, so page 2 starts at 21. */}
-                <td className="serial">{data.page * PAGE_SIZE + i + 1}</td>
                 <td>
-                  {c.name}
-                  {c.insights.flagged && (
-                    <span className="badge risk" title={problemsText(c.insights)}>Often returns</span>
-                  )}
+                  <div className="prod-name">
+                    <span className="cust-av" style={tint(c.name)} aria-hidden="true">{c.name.trim().charAt(0).toUpperCase()}</span>
+                    <div>
+                      <b>
+                        {c.name}
+                        {c.insights.flagged ? <span className="badge risk" title={problemsText(c.insights)}>Often returns</span>
+                          : c.insights.orders >= 2 ? <span className="badge repeat">Repeat</span>
+                            : <span className="badge fresh">New</span>}
+                      </b>
+                      <small className={show ? '' : 'masked'}>
+                        {show ? (c.phone || 'No phone') : maskPhone(c.phone)}
+                        {' · '}{show ? (c.address || 'No address') : (c.address ? MASK : 'No address')}
+                      </small>
+                      {c.notes && <small className="cust-note" title={c.notes}>📝 {c.notes}</small>}
+                    </div>
+                  </div>
                 </td>
-                <td>{show ? (c.phone || '—') : maskPhone(c.phone)}</td>
-                <td className={show ? '' : 'masked'}>{show ? (c.address || '—') : (c.address ? MASK : '—')}</td>
-                <td>{platformName(c.sourcePlatformId)}</td>
+                <td>{c.sourcePlatformId ? <span className="rep-pill">{platformName(c.sourcePlatformId)}</span> : <span className="muted">—</span>}</td>
                 <td className="num">
                   {c.insights.orders > 0 ? (
                     <Link to={`/orders?customerId=${c.id}&customer=${encodeURIComponent(c.name)}`}
@@ -162,11 +198,11 @@ export default function Customers() {
                   ) : '0'}
                 </td>
                 <td className={`num${show ? '' : ' masked'}`}>{show ? money(c.insights.spent) : MASK}</td>
-                <td className={`num${c.insights.flagged ? ' neg' : ''}`}
-                    title={c.insights.returnRatePct == null ? 'No settled orders yet' : problemsText(c.insights)}>
-                  {c.insights.returnRatePct == null ? '—' : `${c.insights.returnRatePct}%`}
+                <td className="num" title={c.insights.returnRatePct == null ? 'No settled orders yet' : problemsText(c.insights)}>
+                  {c.insights.returnRatePct == null ? <span className="muted">—</span>
+                    : <span className={`prod-margin ${c.insights.flagged ? 'neg' : 'pos'}`}>{c.insights.returnRatePct}%</span>}
                 </td>
-                <td className="notes">{c.notes || '—'}</td>
+                <td className="muted">{c.insights.lastOrderAt ? dateTime(c.insights.lastOrderAt) : '—'}</td>
                 <td className="row-actions">
                   <button className="link" onClick={() => setEditing(c)}>Edit</button>
                   <button className="link danger" onClick={() => remove(c)}>Delete</button>
@@ -174,7 +210,7 @@ export default function Customers() {
               </tr>
             ))}
             {data && data.content.length === 0 && (
-              <tr><td colSpan={10} className="empty">No customers found.</td></tr>
+              <tr><td colSpan={7} className="empty">No customers found.</td></tr>
             )}
           </tbody>
         </table>

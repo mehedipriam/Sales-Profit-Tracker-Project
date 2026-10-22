@@ -10,6 +10,7 @@ import { BoxIcon, CancelIcon, ClockIcon, WalletIcon } from '../components/icons'
 import useDebounce from '../hooks/useDebounce'
 import { Link } from 'react-router-dom'
 import { money } from '../utils/format'
+import { tint } from '../utils/tint'
 
 const EMPTY = { name: '', sku: '', category: '', costPrice: '', sellingPrice: '', stockQty: '', lowStockThreshold: '' }
 
@@ -98,11 +99,6 @@ function ProductForm({ product, categories, showMoney, costHidden, onSaved, onCa
 
 const PAGE_SIZE = 20
 const STOCK_FILTERS = [['', 'All'], ['in', 'In stock'], ['low', 'Low'], ['out', 'Out']]
-const HUES = [210, 160, 270, 35, 330, 185, 95]
-
-/** A steady colour per name, so the same category or product always gets the same tile. */
-const hue = (text) => HUES[[...(text || '?')].reduce((n, c) => n + c.charCodeAt(0), 0) % HUES.length]
-const tint = (text) => ({ background: `hsl(${hue(text)} 70% 60% / 0.18)`, color: `hsl(${hue(text)} 80% 68%)` })
 
 /** Stock level as a count, a bar and a status: none left, low (at or under its own alert level), or fine. */
 function StockCell({ p }) {

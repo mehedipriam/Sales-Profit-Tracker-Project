@@ -22,10 +22,16 @@ public class CustomerController {
     public PageResponse<CustomerResponse> list(@AuthenticationPrincipal AuthUser user,
                                                @RequestParam(required = false) String q,
                                                @RequestParam(required = false) Long platformId,
+                                               @RequestParam(required = false) String group,
                                                @RequestParam(defaultValue = "0") int page,
                                                @RequestParam(defaultValue = "20") int size,
                                                @RequestParam(defaultValue = "name") String sort) {
-        return service.list(user.tenantId(), q, platformId, page, size, sort);
+        return service.list(user.tenantId(), q, platformId, group, page, size, sort);
+    }
+
+    @GetMapping("/summary")
+    public CustomerService.CustomerSummary summary(@AuthenticationPrincipal AuthUser user) {
+        return service.summary(user.tenantId());
     }
 
     @PostMapping
