@@ -11,6 +11,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/orders")
@@ -33,6 +34,16 @@ public class OrderController {
                                            @RequestParam(defaultValue = "20") int size) {
         PageResponse<OrderSummary> result = service.list(user.tenantId(), platformId, customerId, status, q, DateRange.of(from, to), page, size);
         return seesFinancials(user) ? result : result.map(OrderSummary::hideFinancials);
+    }
+
+    @GetMapping("/summary")
+    public List<StatusCount> summary(@AuthenticationPrincipal AuthUser user,
+                                      @RequestParam(required = false) Long platformId,
+                                      @RequestParam(required = false) Long customerId,
+                                      @RequestParam(required = false) String q,
+                                      @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+                                      @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        return service.summary(user.tenantId(), platformId, customerId, q, DateRange.of(from, to));
     }
 
     @GetMapping("/{id}")

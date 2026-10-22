@@ -7,9 +7,12 @@ import OrderDetails from '../components/OrderDetails'
 import Pager from '../components/Pager'
 import { EyeHead, MASK, useReveal } from '../components/Reveal'
 import RangePicker from '../components/RangePicker'
+import Stat from '../components/Stat'
 import Tracking from '../components/Tracking'
+import { ClockIcon, PencilIcon, ReceiptIcon, ReturnIcon, TrashIcon, TrendUpIcon, WalletIcon } from '../components/icons'
 import { resolveRange } from '../utils/dateRange'
 import { STATUSES, STATUS_LABEL, dateTime, money } from '../utils/format'
+import { tint } from '../utils/tint'
 
 const PAGE_SIZE = 20 // the API's default page size
 
@@ -29,6 +32,7 @@ export default function Orders() {
   const [search, setSearch] = useState('') // what is typed
   const [q, setQ] = useState('') // what is sent, a moment after typing stops
   const [data, setData] = useState(null)
+  const [totals, setTotals] = useState(null) // { PENDING: { orders, revenue }, ... } for the cards and chips
   const [platforms, setPlatforms] = useState([])
   const [error, setError] = useState('')
   const [viewing, setViewing] = useState(null) // id of the order whose details are open
@@ -55,9 +59,20 @@ export default function Orders() {
       })
       .then((res) => { setData(res.data); setError('') })
       .catch((err) => setError(errorMessage(err)))
+    // Counts per status ignore the status chip itself, so every chip keeps showing its own number.
+    api
+      .get('/orders/summary', {
+        params: { platformId: platformId || undefined, customerId: customerId || undefined, q: q || undefined, from: resolved.from, to: resolved.to },
+      })
+      .then((res) => setTotals(Object.fromEntries(res.data.map((t) => [t.status, t]))))
+      .catch(() => {})
   }, [platformId, customerId, status, q, resolved, page])
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { load() }, [load])
+
+  const count = (which) => (which
+    ? totals?.[which]?.orders ?? 0
+    : Object.values(totals ?? {}).reduce((n, t) => n + t.orders, 0))
 
   const changeStatus = async (o, next) => {
     try {
@@ -83,21 +98,37 @@ export default function Orders() {
       <div className="page-head">
         <div>
           <h1>Orders</h1>
-          {data && <p className="page-sub">{data.totalElements} {data.totalElements === 1 ? 'order' : 'orders'}</p>}
+          <p className="muted prod-sub">Every sale, its status and what it earned</p>
         </div>
         <Link className="btn" to="/orders/new">+ New sale</Link>
       </div>
 
-      <div className="filters orders-filters">
-        <input type="search" className="orders-search" value={search} onChange={(e) => setSearch(e.target.value)}
+      {totals && (
+        <div className="stats kpis">
+          <Stat label="Orders" value={count()} hint={customerId ? `for ${customerName}` : 'in this view'} icon={<ReceiptIcon />} accent="blue" />
+          <Stat label="Pending" value={count('PENDING')} tone={count('PENDING') ? 'warn' : ''}
+                hint={`${money(totals.PENDING?.revenue ?? 0)} on the way`} icon={<ClockIcon />} accent="amber" />
+          <Stat label="Paid" value={count('PAID')} tone={count('PAID') ? 'pos' : ''}
+                hint={`${money(totals.PAID?.revenue ?? 0)} revenue`} icon={<TrendUpIcon />} accent="green" />
+          <Stat label="Returned / cancelled" value={count('RETURNED') + count('CANCELLED')}
+                hint="not counted in profit" icon={<ReturnIcon />} accent="red" />
+        </div>
+      )}
+
+      <div className="rep-bar">
+        <input type="search" className="prod-search" value={search} onChange={(e) => setSearch(e.target.value)}
                placeholder="Search customer name or order no." aria-label="Search orders by customer name or order number" />
-        <select value={platformId} onChange={(e) => { setPlatformId(e.target.value); setPage(0) }}>
+        <div className="dash-tabs" role="tablist" aria-label="Order status">
+          {[['', 'All'], ...STATUSES.map((s) => [s, STATUS_LABEL[s]])].map(([value, label]) => (
+            <button key={value} type="button" role="tab" aria-selected={status === value}
+                    className={status === value ? 'on' : ''} onClick={() => { setStatus(value); setPage(0) }}>
+              {label}{totals && <em className="tab-count">{count(value)}</em>}
+            </button>
+          ))}
+        </div>
+        <select value={platformId} onChange={(e) => { setPlatformId(e.target.value); setPage(0) }} aria-label="Platform">
           <option value="">All platforms</option>
           {platforms.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-        </select>
-        <select value={status} onChange={(e) => { setStatus(e.target.value); setPage(0) }}>
-          <option value="">All statuses</option>
-          {STATUSES.map((s) => <option key={s} value={s}>{STATUS_LABEL[s]}</option>)}
         </select>
         <RangePicker value={range} onChange={(r) => { setRange(r); setPage(0) }} />
         {customerId && (
@@ -109,13 +140,13 @@ export default function Orders() {
       </div>
 
       {resolved.error && <p className="error" role="alert">{resolved.error}</p>}
-      {error &&<p className="error" role="alert">{error}</p>}
+      {error && <p className="error" role="alert">{error}</p>}
 
-      <div className="table-wrap">
-        <table className="orders-table striped">
+      <div className="dash-card prod-table">
+        <table className="orders-table">
           <thead>
             <tr>
-              <th className="serial">#</th><th className="order-id">Order no.</th><th>Date</th><th>Customer</th><th>Platform / courier</th><th className="num hide-md">Items</th>
+              <th>Order</th><th>Customer</th><th>Platform</th><th className="num hide-md">Items</th>
               <th className="num">Revenue</th>
               {showMoney && <>
                 <th className="num hide-col"><EyeHead eye={eye('cost', 'costs')}>Cost</EyeHead></th>
@@ -125,17 +156,21 @@ export default function Orders() {
             </tr>
           </thead>
           <tbody>
-            {data?.content.map((o, i) => (
+            {data?.content.map((o) => (
               <tr key={o.id} className="clickable" title="Click for the order's details"
                   onClick={(e) => { if (!e.target.closest('a, button, select, input, label')) setViewing(o.id) }}>
-                <td className="serial" title="Position in this list, newest first">{data.totalElements - data.page * PAGE_SIZE - i}</td>
                 <td className="order-id">
                   <button type="button" className="order-link" onClick={() => setViewing(o.id)}>{o.orderNo}</button>
+                  <small className="muted when">{dateTime(o.orderedAt)}</small>
                 </td>
-                <td className="when">{dateTime(o.orderedAt)}</td>
-                <td className="cust-name">{o.customerName}</td>
+                <td>
+                  <div className="ord-who">
+                    <span className="ord-av" style={tint(o.customerName)} aria-hidden="true">{o.customerName.trim().charAt(0).toUpperCase()}</span>
+                    <span className="cust-name">{o.customerName}</span>
+                  </div>
+                </td>
                 <td className="platform-cell">
-                  <span className="platform-name">{o.platformName}</span>
+                  <span className="rep-pill">{o.platformName}</span>
                   {o.courier && (
                     <span className="via">
                       via {o.courier.courierName}
@@ -159,18 +194,18 @@ export default function Orders() {
                           onChange={(e) => changeStatus(o, e.target.value)}>
                     {STATUSES.map((s) => <option key={s} value={s}>{STATUS_LABEL[s]}</option>)}
                   </select>
-                  <div className="row-actions">
-                    <Link className="link" to={`/orders/${o.id}`}>Edit</Link>
-                    <Link className="link" to={`/orders/${o.id}/invoice`}>Invoice</Link>
-                    {showMoney && <Link className="link" to={`/expenses?newFor=${o.id}`}>Expense</Link>}
-                    {showMoney && <Link className="link" to={`/activity?orderId=${o.id}`}>History</Link>}
-                    <button className="link danger" onClick={() => remove(o)}>Delete</button>
+                  <div className="ord-acts">
+                    <Link className="ord-act" to={`/orders/${o.id}`} title="Edit" aria-label="Edit"><PencilIcon /></Link>
+                    <Link className="ord-act" to={`/orders/${o.id}/invoice`} title="Invoice" aria-label="Invoice"><ReceiptIcon /></Link>
+                    {showMoney && <Link className="ord-act" to={`/expenses?newFor=${o.id}`} title="Add expense" aria-label="Add expense"><WalletIcon /></Link>}
+                    {showMoney && <Link className="ord-act" to={`/activity?orderId=${o.id}`} title="History" aria-label="History"><ClockIcon /></Link>}
+                    <button type="button" className="ord-act danger" title="Delete" aria-label="Delete" onClick={() => remove(o)}><TrashIcon /></button>
                   </div>
                 </td>
               </tr>
             ))}
             {data && data.content.length === 0 && (
-              <tr><td colSpan={showMoney ? 10 : 8} className="empty">{q || platformId || status || customerId || range.preset !== 'all'
+              <tr><td colSpan={showMoney ? 8 : 6} className="empty">{q || platformId || status || customerId || range.preset !== 'all'
                 ? 'No orders match these filters.' : 'No orders yet. Record your first sale.'}</td></tr>
             )}
           </tbody>

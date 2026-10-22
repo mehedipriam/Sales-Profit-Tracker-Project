@@ -85,4 +85,7 @@ public final class OrderDtos {
                     deliveryCharge, null, null);
         }
     }
+
+    /** How many orders, and how much revenue, one status holds within the current filters. */
+    public record StatusCount(OrderStatus status, long orders, BigDecimal revenue) {}
 }

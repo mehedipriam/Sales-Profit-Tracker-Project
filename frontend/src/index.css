@@ -1126,3 +1126,18 @@ thead th.hide-col { padding-left: 1.75rem; padding-right: 1.75rem; } /* room for
 .badge.repeat { margin-left: 0.4rem; background: rgba(167, 139, 250, 0.18); color: #a78bfa; }
 .badge.fresh { margin-left: 0.4rem; background: rgba(45, 212, 191, 0.16); color: #14b8a6; }
 .badge.risk { margin-left: 0.4rem; }
+
+/* Orders: avatar beside the customer, status with its action icons stacked under it, counts inside the status tabs. */
+.tab-count { margin-left: 0.3rem; font-style: normal; font-size: 0.72rem; opacity: 0.7; }
+.orders-table.orders-table th, .orders-table.orders-table td { white-space: normal; padding: 0.7rem 0.6rem; }
+.orders-table .order-id { white-space: nowrap; }
+.orders-table .order-id .when { display: block; margin-top: 0.1rem; font-size: 0.76rem; font-weight: 400; }
+.ord-who { display: flex; align-items: center; gap: 0.55rem; min-width: 8rem; }
+.ord-av { flex: none; display: grid; place-items: center; width: 2.1rem; height: 2.1rem; border-radius: 50%; font-weight: 700; font-size: 0.8rem; }
+.orders-table .via { margin-top: 0.25rem; font-size: 0.74rem; }
+.orders-table .status-col { text-align: center; width: 9rem; }
+.orders-table .ord-acts { display: flex; justify-content: center; gap: 0.3rem; margin-top: 0.45rem; }
+.ord-act { display: grid; place-items: center; width: 1.65rem; height: 1.65rem; padding: 0; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); color: var(--muted); cursor: pointer; }
+.ord-act svg { width: 14px; height: 14px; }
+.ord-act:hover { color: var(--primary); border-color: var(--primary); }
+.ord-act.danger:hover { color: var(--danger); border-color: var(--danger); }

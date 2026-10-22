@@ -36,6 +36,9 @@ import java.util.stream.Collectors;
 @Service
 @Transactional
 public class OrderService {
+    /** The most orders read at once to count them per status for the cards and chips. */
+    private static final int MAX_SUMMARY_SCAN = 20_000;
+
     private final SaleOrderRepository orders;
     private final PlatformRepository platforms;
     private final CustomerRepository customers;
@@ -101,6 +104,20 @@ public class OrderService {
                 sum(o, OrderItem::lineRevenue), o.getDeliveryCharge(),
                 sum(o, OrderItem::lineCost), sum(o, OrderItem::lineProfit))).toList();
         return new PageResponse<>(content, result.getNumber(), result.getTotalPages(), result.getTotalElements());
+    }
+
+    /** Orders and revenue per status for the same filters as the list (all statuses, so the chips can show every count). */
+    @Transactional(readOnly = true)
+    public List<StatusCount> summary(Long tenantId, Long platformId, Long customerId, String q, DateRange range) {
+        Pageable all = PageRequest.of(0, MAX_SUMMARY_SCAN);
+        List<SaleOrder> found = orders.search(tenantId, platformId == null ? 0L : platformId,
+                customerId == null ? 0L : customerId, List.of(OrderStatus.values()), searchPattern(q),
+                range.from(), range.toExclusive(), all).getContent();
+        return Arrays.stream(OrderStatus.values()).map(status -> {
+            List<SaleOrder> of = found.stream().filter(o -> o.getStatus() == status).toList();
+            BigDecimal revenue = of.stream().map(o -> sum(o, OrderItem::lineRevenue)).reduce(BigDecimal.ZERO, BigDecimal::add);
+            return new StatusCount(status, of.size(), revenue);
+        }).toList();
     }
 
     @Transactional(readOnly = true)
