@@ -6,9 +6,12 @@ import { seesFinancials } from '../auth/roles'
 import Modal from '../components/Modal'
 import Stat from '../components/Stat'
 import Tracking from '../components/Tracking'
-import { ClockIcon, TruckIcon, WalletIcon } from '../components/icons'
+import { ClockIcon, PencilIcon, TrashIcon, TruckIcon, WalletIcon } from '../components/icons'
 import { toDateStr } from '../utils/dateRange'
 import { dateTime, money } from '../utils/format'
+import { tint } from '../utils/tint'
+
+const daysSince = (iso) => Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 86400000))
 
 function CourierForm({ courier, onSaved, onCancel }) {
   const [name, setName] = useState(courier?.name ?? '')
@@ -83,7 +86,7 @@ function PayoutsDue({ rows, couriers, courierId, onCourier, onDone, setError }) 
   }
 
   return (
-    <div className="viz-card">
+    <div className="cour-block">
       <div className="viz-head">
         <div>
           <h2 className="viz-title">Waiting for payout</h2>
@@ -96,46 +99,52 @@ function PayoutsDue({ rows, couriers, courierId, onCourier, onDone, setError }) 
       </div>
 
       {rows.length === 0 ? (
-        <p className="empty-note">Nothing waiting: every courier has paid out what it collected.</p>
+        <div className="dash-card"><p className="empty-note">Nothing waiting: every courier has paid out what it collected.</p></div>
       ) : (
         <>
-          <div className="table-wrap">
-            <table className="striped pick-table">
+          <div className="dash-card prod-table">
+            <table className="pick-table">
               <thead>
                 <tr>
                   <th className="check-col">
                     <input type="checkbox" aria-label="Select all" checked={allPicked}
                            onChange={() => setSelected(allPicked ? new Set() : new Set(rows.map((r) => r.id)))} />
                   </th>
-                  <th>Order</th><th>Date</th><th>Customer</th><th>Courier</th><th>Parcel ID</th><th>Tracking</th>
+                  <th>Order</th><th>Customer</th><th>Courier</th><th>Parcel / tracking</th>
                   <th className="num">Cash collected</th>
                 </tr>
               </thead>
               <tbody>
-                {rows.map((r) => (
-                  <tr key={r.id} className={selected.has(r.id) ? 'picked' : ''} onClick={() => toggle(r.id)}>
-                    <td className="check-col" onClick={(e) => e.stopPropagation()}>
-                      <input type="checkbox" aria-label={`Select order ${r.id}`} checked={selected.has(r.id)}
-                             onChange={() => toggle(r.id)} />
-                    </td>
-                    <td onClick={(e) => e.stopPropagation()}><Link to={`/orders/${r.id}`}>#{r.id}</Link></td>
-                    <td className="nowrap">{dateTime(r.orderedAt)}</td>
-                    <td>{r.customerName}</td>
-                    <td>{r.courierName}</td>
-                    <td>{r.consignmentId}</td>
-                    <td onClick={(e) => e.stopPropagation()}>
-                      {r.trackingNumber
-                        ? <Tracking number={r.trackingNumber} link={r.trackingLink} />
-                        : r.trackingLink && <a href={r.trackingLink} target="_blank" rel="noopener noreferrer">Track ↗</a>}
-                    </td>
-                    <td className="num"><b>{money(r.codAmount)}</b></td>
-                  </tr>
-                ))}
+                {rows.map((r) => {
+                  const age = daysSince(r.orderedAt)
+                  return (
+                    <tr key={r.id} className={selected.has(r.id) ? 'picked' : ''} onClick={() => toggle(r.id)}>
+                      <td className="check-col" onClick={(e) => e.stopPropagation()}>
+                        <input type="checkbox" aria-label={`Select order ${r.id}`} checked={selected.has(r.id)}
+                               onChange={() => toggle(r.id)} />
+                      </td>
+                      <td onClick={(e) => e.stopPropagation()}>
+                        <Link to={`/orders/${r.id}`}><b>#{r.id}</b></Link>
+                        <small className="muted cour-when">{dateTime(r.orderedAt)}</small>
+                        <span className={`cour-age${age >= 7 ? ' late' : ''}`}>{age === 0 ? 'today' : `${age} day${age === 1 ? '' : 's'}`}</span>
+                      </td>
+                      <td>{r.customerName}</td>
+                      <td><span className="rep-pill" style={tint(r.courierName)}>{r.courierName}</span></td>
+                      <td onClick={(e) => e.stopPropagation()}>
+                        {r.consignmentId && <span className="muted">{r.consignmentId}</span>}
+                        {r.trackingNumber
+                          ? <> <Tracking number={r.trackingNumber} link={r.trackingLink} /></>
+                          : r.trackingLink && <> <a href={r.trackingLink} target="_blank" rel="noopener noreferrer">Track ↗</a></>}
+                      </td>
+                      <td className="num"><b>{money(r.codAmount)}</b></td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           </div>
-          <div className="payout-bar">
-            <span className="payout-sum">
+          <div className="pay-bar">
+            <span className="pay-sum">
               {picked.length === 0 ? 'Tick the orders the courier paid you for'
                 : <><b>{money(pickedTotal)}</b> from {picked.length} order{picked.length === 1 ? '' : 's'}</>}
             </span>
@@ -143,7 +152,7 @@ function PayoutsDue({ rows, couriers, courierId, onCourier, onDone, setError }) 
               Received on
               <input type="date" required value={paidOn} onChange={(e) => setPaidOn(e.target.value)} />
             </label>
-            <button className="btn" disabled={busy || picked.length === 0 || !paidOn} onClick={markPaid}>
+            <button className="pay-go" disabled={busy || picked.length === 0 || !paidOn} onClick={markPaid}>
               {busy ? 'Saving…' : 'Mark as received'}
             </button>
           </div>
@@ -166,31 +175,27 @@ function RecentPayouts({ rows, onDone, setError }) {
 
   if (rows.length === 0) return null
   return (
-    <div className="viz-card">
+    <div className="cour-block">
       <div className="viz-head">
         <div>
           <h2 className="viz-title">Recently received</h2>
           <p className="muted viz-sub">The latest payouts you recorded · undo one entered by mistake</p>
         </div>
       </div>
-      <div className="table-wrap">
-        <table>
-          <thead>
-            <tr><th>Received</th><th>Order</th><th>Customer</th><th>Courier</th><th className="num">Amount</th><th /></tr>
-          </thead>
-          <tbody>
-            {rows.map((r) => (
-              <tr key={r.id}>
-                <td className="nowrap">{new Date(`${r.paidOn}T00:00:00`).toLocaleDateString('en-GB', { dateStyle: 'medium' })}</td>
-                <td><Link to={`/orders/${r.id}`}>#{r.id}</Link></td>
-                <td>{r.customerName}</td>
-                <td>{r.courierName}</td>
-                <td className="num">{money(r.codAmount)}</td>
-                <td className="row-actions"><button className="link" onClick={() => undo(r)}>Undo</button></td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      <div className="dash-card cour-recent">
+        {rows.map((r) => (
+          <div key={r.id} className="cour-recent-row">
+            <span className="cour-tick" aria-hidden="true">✓</span>
+            <div className="cour-recent-main">
+              <b>{money(r.codAmount)}</b> from {r.courierName}
+              <small className="muted">
+                <Link to={`/orders/${r.id}`}>Order #{r.id}</Link> · {r.customerName} · received{' '}
+                {new Date(`${r.paidOn}T00:00:00`).toLocaleDateString('en-GB', { dateStyle: 'medium' })}
+              </small>
+            </div>
+            <button className="link" onClick={() => undo(r)}>Undo</button>
+          </div>
+        ))}
       </div>
     </div>
   )
@@ -233,7 +238,10 @@ export default function Couriers() {
   return (
     <section>
       <div className="page-head">
-        <h1>Couriers</h1>
+        <div>
+          <h1>Couriers</h1>
+          <p className="muted prod-sub">Your delivery services and the cash they owe you</p>
+        </div>
         <button className="btn" onClick={() => setEditing({})}>+ Add courier</button>
       </div>
       {error && <p className="error" role="alert">{error}</p>}
@@ -250,42 +258,48 @@ export default function Couriers() {
       )}
 
       <h2 className="section-title">Your couriers</h2>
-      <div className="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>Name</th>
-              {showMoney && <><th className="num">Waiting for payout</th><th className="num">On the way</th></>}
-              <th>Tracking link</th><th />
-            </tr>
-          </thead>
-          <tbody>
-            {couriers.map((c) => {
-              const b = balanceById.get(c.id)
-              return (
-                <tr key={c.id}>
-                  <td><b>{c.name}</b></td>
-                  {showMoney && <>
-                    <td className="num">
-                      {b && b.dueOrders > 0
-                        ? <button className="link strong" onClick={() => setCourierId(String(c.id))}>{money(b.dueAmount)} · {b.dueOrders}</button>
-                        : <span className="muted">—</span>}
-                    </td>
-                    <td className="num">{b && b.transitOrders > 0 ? `${money(b.transitAmount)} · ${b.transitOrders}` : <span className="muted">—</span>}</td>
-                  </>}
-                  <td className="notes" title={c.trackingUrl ?? ''}>{c.trackingUrl ?? <span className="muted">Not set</span>}</td>
-                  <td className="row-actions">
-                    <button className="link" onClick={() => setEditing(c)}>Edit</button>
-                    <button className="link danger" onClick={() => remove(c)}>Remove</button>
-                  </td>
-                </tr>
-              )
-            })}
-            {couriers.length === 0 && (
-              <tr><td colSpan={showMoney ? 5 : 3} className="empty">No couriers yet. Add the ones you ship with.</td></tr>
-            )}
-          </tbody>
-        </table>
+      <div className="cour-grid">
+        {couriers.map((c) => {
+          const b = balanceById.get(c.id)
+          const due = b && b.dueOrders > 0
+          return (
+            <div key={c.id} className="dash-card cour-card">
+              <div className="cour-top">
+                <span className="cust-av cour-tile" style={tint(c.name)} aria-hidden="true">{c.name.trim().charAt(0).toUpperCase()}</span>
+                <b className="cour-name">{c.name}</b>
+                <span className="cour-acts">
+                  <button type="button" className="ord-act" title="Edit" aria-label={`Edit ${c.name}`} onClick={() => setEditing(c)}><PencilIcon /></button>
+                  <button type="button" className="ord-act danger" title="Remove" aria-label={`Remove ${c.name}`} onClick={() => remove(c)}><TrashIcon /></button>
+                </span>
+              </div>
+              {showMoney && (
+                <div className="cour-two">
+                  {due ? (
+                    <button type="button" className="cour-mini due" title="Show only this courier's orders below"
+                            onClick={() => setCourierId(String(c.id))}>
+                      <span>Waiting for payout</span><b>{money(b.dueAmount)}</b><small>{b.dueOrders} order{b.dueOrders === 1 ? '' : 's'}</small>
+                    </button>
+                  ) : (
+                    <div className="cour-mini"><span>Waiting for payout</span><b className="muted">—</b><small>nothing</small></div>
+                  )}
+                  <div className="cour-mini">
+                    <span>On the way</span>
+                    {b && b.transitOrders > 0
+                      ? <><b>{money(b.transitAmount)}</b><small>{b.transitOrders} parcel{b.transitOrders === 1 ? '' : 's'}</small></>
+                      : <><b className="muted">—</b><small>nothing</small></>}
+                  </div>
+                </div>
+              )}
+              <div className={`cour-track${c.trackingUrl ? ' ok' : ''}`} title={c.trackingUrl ?? ''}>
+                {c.trackingUrl ?? 'No tracking link set'}
+              </div>
+            </div>
+          )
+        })}
+        <button type="button" className="cour-add" onClick={() => setEditing({})}>
+          <span>＋</span>
+          {couriers.length === 0 ? 'No couriers yet. Add the ones you ship with.' : 'Add a courier'}
+        </button>
       </div>
 
       {showMoney && payouts && (
