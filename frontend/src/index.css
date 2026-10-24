@@ -1169,3 +1169,27 @@ thead th.hide-col { padding-left: 1.75rem; padding-right: 1.75rem; } /* room for
 .exp-desc { max-width: 18rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .exp-amt { font-weight: 700; font-variant-numeric: tabular-nums; }
 .prod-table tbody tr.clickable { cursor: pointer; }
+
+/* Statement: the year's months as buttons, and a bar per line of "how it adds up". */
+.month-strip { display: flex; align-items: center; gap: 0.3rem; flex-wrap: wrap; max-width: 1000px; margin: 0 auto 1rem; padding: 0.5rem 0.7rem; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; }
+.month-year { display: flex; align-items: center; gap: 0.4rem; margin-right: 0.4rem; padding-right: 0.7rem; border-right: 1px solid var(--border); font-weight: 700; }
+.month-year button, .month-strip > button { border: 0; background: transparent; color: var(--muted); font: inherit; cursor: pointer; border-radius: 8px; }
+.month-year button { padding: 0.1rem 0.45rem; font-size: 1.2rem; }
+.month-strip > button { padding: 0.35rem 0.7rem; font-size: 0.85rem; }
+.month-strip > button.has { color: var(--text); }
+.month-strip > button:hover { background: var(--line-soft); }
+.month-strip > button.on { background: var(--primary-soft); color: var(--primary); font-weight: 700; }
+.month-strip .month-today { margin-left: auto; border: 1px solid var(--border); }
+.st-tile .change { font-size: 0.74rem; font-weight: 600; }
+.st-tile.hero .change, .st-tile.hero .change .vs { color: #fff; opacity: 0.9; }
+.flow-list { list-style: none; margin: 0 0 1rem; padding: 0; }
+.flow-row { display: grid; grid-template-columns: 14rem 1fr 7rem; align-items: center; gap: 0.9rem; padding: 0.45rem 0; border-bottom: 1px solid var(--line-soft); font-size: 0.95rem; }
+.flow-row.sub { color: var(--muted); font-size: 0.9rem; padding-left: 0.9rem; }
+.flow-label { font-weight: 600; }
+.flow-row.sub .flow-label { font-weight: 400; }
+.flow-bar { height: 12px; border-radius: 9px; background: var(--line-soft); overflow: hidden; }
+.flow-bar i { display: block; height: 100%; border-radius: 9px; }
+.flow-amt { text-align: right; font-variant-numeric: tabular-nums; }
+.flow-row.total { margin-top: 0.3rem; padding: 0.7rem 0.75rem; border: 0; border-radius: 10px; background: var(--success-tint); font-size: 1.15rem; font-weight: 700; }
+.flow-row.total .flow-bar { background: none; }
+@media (max-width: 700px) { .flow-row { grid-template-columns: 9rem 1fr 6rem; gap: 0.5rem; } }

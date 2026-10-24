@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import api, { errorMessage } from '../api/client'
 import { useAuth } from '../auth/AuthContext'
+import Change from '../components/Change'
 import ExportButtons from '../components/ExportButtons'
 import { MASK, useReveal } from '../components/Reveal'
 import { ClockIcon, ReturnIcon } from '../components/icons'
@@ -36,6 +37,8 @@ export default function Statement() {
   const show = !!shown.all
 
   const key = `${year}-${pad(month)}`
+  const [yearTrend, setYearTrend] = useState(null) // { year, months: Set of month numbers that have sales or expenses }
+  const [before, setBefore] = useState(null) // { key, summary } for the month before the one shown
   const range = useMemo(
     () => ({ from: toDateStr(new Date(year, month - 1, 1)), to: toDateStr(new Date(year, month, 0)) }),
     [year, month],
@@ -50,11 +53,43 @@ export default function Statement() {
     return () => { live = false }
   }, [key, range])
 
+  useEffect(() => {
+    let live = true
+    api
+      .get('/reports/trend', { params: { from: `${year}-01-01`, to: `${year}-12-31` } })
+      .then((res) => {
+        if (!live) return
+        const months = new Set(res.data.points
+          .filter((p) => Number(p.orders) > 0 || Number(p.revenue) > 0 || Number(p.expenses) > 0)
+          .map((p) => new Date(`${p.period}T00:00:00`).getMonth() + 1))
+        setYearTrend({ year, months })
+      })
+      .catch(() => live && setYearTrend(null))
+    return () => { live = false }
+  }, [year, key])
+
+  useEffect(() => {
+    let live = true
+    const d = new Date(year, month - 2, 1)
+    const prev = { from: toDateStr(d), to: toDateStr(new Date(d.getFullYear(), d.getMonth() + 1, 0)) }
+    api
+      .get('/reports/summary', { params: prev })
+      .then((res) => live && setBefore({ key, summary: res.data }))
+      .catch(() => live && setBefore(null))
+    return () => { live = false }
+  }, [key, year, month])
+
   const go = (y, m) => {
     const d = new Date(y, m - 1, 1) // Date rolls month 0 / 13 into the neighbouring year for prev/next
     setParams({ month: `${d.getFullYear()}-${pad(d.getMonth() + 1)}` })
   }
 
+  const active = yearTrend?.year === year ? yearTrend.months : new Set()
+  const prevSummary = before?.key === key ? before.summary : null
+  const prevName = MONTHS[(month + 10) % 12].slice(0, 3)
+  const compare = { label: `vs ${prevName}`, period: MONTHS[(month + 10) % 12] }
+  const change = (now, was, better) =>
+    prevSummary && show && <Change now={now} before={was} compare={compare} better={better} />
   const loading = result?.key !== key
   const summary = result?.key === key ? result.summary : null
   const period = `${MONTHS[month - 1]} ${year}`
@@ -64,6 +99,15 @@ export default function Statement() {
   const pct = (part, whole) => (show ? pctOf(part, whole) : MASK)
   const tone = (n) => (!show ? 'masked' : n < 0 ? 'neg' : 'pos')
   const neg = (n) => show && n < 0
+  const flowRows = summary && paid ? [
+    { label: 'Total sold', value: Number(paid.revenue), color: 'var(--primary)', signed: '' },
+    { label: 'Cost of goods', value: Number(paid.cost), color: 'var(--muted)', signed: '−' },
+    { label: neg(paid.profit) ? 'Gross loss' : 'Gross profit', value: Math.abs(Number(paid.profit)), color: 'var(--success)', signed: '', tone: tone(paid.profit) },
+    ...(Number(paid.delivery) > 0 ? [{ label: 'plus delivery charged to customers', value: Number(paid.delivery), color: '#2dd4bf', signed: '+', sub: true }] : []),
+    ...summary.expenses.byType.map((t) => ({ label: `less ${EXPENSE_LABEL[t.type].toLowerCase()}`, value: Number(t.total), color: '#a78bfa', signed: '−', sub: true })),
+    { label: neg(summary.netProfit) ? 'Net loss' : 'Net profit', value: Math.abs(Number(summary.netProfit)), signed: '', total: true, tone: tone(summary.netProfit) },
+  ] : []
+  const flowMax = Math.max(1, ...flowRows.map((r) => r.value))
 
   return (
     <section>
@@ -73,18 +117,20 @@ export default function Statement() {
         <ExportButtons range={range} platformId="" printTitle={`Statement - ${period}`} />
       </div>
 
-      <div className="month-bar no-print">
-        <div className="month-nav" role="group" aria-label="Choose month">
-          <button type="button" onClick={() => go(year, month - 1)} aria-label="Previous month">‹</button>
-          <select aria-label="Month" value={month} onChange={(e) => go(year, Number(e.target.value))}>
-            {MONTHS.map((name, i) => <option key={name} value={i + 1}>{name}</option>)}
-          </select>
-          <input aria-label="Year" type="number" min="2000" max="2100" value={year}
-                 onChange={(e) => e.target.value.length === 4 && go(Number(e.target.value), month)} />
-          <button type="button" onClick={() => go(year, month + 1)} aria-label="Next month">›</button>
+      <div className="month-strip no-print" role="group" aria-label="Choose month">
+        <div className="month-year">
+          <button type="button" onClick={() => go(year - 1, month)} aria-label="Previous year">‹</button>
+          <span>{year}</span>
+          <button type="button" onClick={() => go(year + 1, month)} aria-label="Next year">›</button>
         </div>
+        {MONTHS.map((name, i) => (
+          <button key={name} type="button" aria-current={i + 1 === month ? 'date' : undefined}
+                  className={`${i + 1 === month ? 'on' : ''}${active.has(i + 1) ? ' has' : ''}`}
+                  title={active.has(i + 1) ? `${name} has sales or expenses` : `${name}: nothing recorded`}
+                  onClick={() => go(year, i + 1)}>{name.slice(0, 3)}</button>
+        ))}
         {key !== currentMonth() && (
-          <button type="button" className="btn secondary small" onClick={() => setParams({})}>This month</button>
+          <button type="button" className="month-today" onClick={() => setParams({})}>This month</button>
         )}
       </div>
 
@@ -110,41 +156,32 @@ export default function Statement() {
           <div className="statement-body">
             <div className="statement-tiles">
               <div className="st-tile accent-blue"><span>Total sold</span><b>{money(paid.revenue)}</b>
-                <small>{paid.orders} paid order{paid.orders === 1 ? '' : 's'}</small></div>
+                <small>{paid.orders} paid order{paid.orders === 1 ? '' : 's'}</small>{change(paid.revenue, prevSummary?.realized.revenue, 'up')}</div>
               <div className={`st-tile ${!show ? 'accent-slate' : paid.profit < 0 ? 'accent-red' : 'accent-green'}`}>
                 <span>{neg(paid.profit) ? 'Gross loss' : 'Gross profit'}</span><b>{money(paid.profit)}</b>
-                <small>{pct(paid.profit, paid.revenue)} of sales</small></div>
+                <small>{pct(paid.profit, paid.revenue)} of sales</small>{change(paid.profit, prevSummary?.realized.profit, 'up')}</div>
               <div className="st-tile accent-violet"><span>Expenses</span><b>{money(summary.expenses.total)}</b>
-                <small>delivery, commission, ads…</small></div>
+                <small>delivery, commission, ads…</small>{change(summary.expenses.total, prevSummary?.expenses.total, 'down')}</div>
               <div className={`st-tile hero ${neg(summary.netProfit) ? 'loss' : ''}`}>
                 <span>{neg(summary.netProfit) ? 'Net loss' : 'Net profit'}</span><b>{money(summary.netProfit)}</b>
-                <small>{pct(summary.netProfit, paid.revenue)} net margin</small></div>
+                <small>{pct(summary.netProfit, paid.revenue)} net margin</small>{change(summary.netProfit, prevSummary?.netProfit, 'up')}</div>
             </div>
 
             <h3 className="ledger-title">How it adds up</h3>
-            <table className="ledger">
-              <tbody>
-                <tr><th scope="row">Total sold</th><td className="num">{money(paid.revenue)}</td></tr>
-                <tr><th scope="row">Total cost of goods</th><td className="num">{money(paid.cost)}</td></tr>
-                <tr>
-                  <th scope="row">{neg(paid.profit) ? 'Gross loss' : 'Gross profit'}</th>
-                  <td className={`num ${tone(paid.profit)}`}>{money(paid.profit)}</td>
-                </tr>
-                {Number(paid.delivery) > 0 && (
-                  <tr><th scope="row" className="sub">plus delivery charged to customers</th>
-                    <td className="num">{money(paid.delivery)}</td></tr>
-                )}
-                {summary.expenses.byType.map((t) => (
-                  <tr key={t.type}><th scope="row" className="sub">less {EXPENSE_LABEL[t.type].toLowerCase()}</th>
-                    <td className="num">{money(t.total)}</td></tr>
-                ))}
-                <tr className={`ledger-total${neg(summary.netProfit) ? ' loss' : ''}`}>
-                  <th scope="row">{neg(summary.netProfit) ? 'Net loss' : 'Net profit'}</th>
-                  <td className={`num ${tone(summary.netProfit)}`}>{money(summary.netProfit)}</td>
-                </tr>
-                <tr><th scope="row" className="muted">Net margin</th><td className="num muted">{pct(summary.netProfit, paid.revenue)}</td></tr>
-              </tbody>
-            </table>
+            <ol className="flow-list" aria-label="How net profit is worked out">
+              {flowRows.map((r) => (
+                <li key={r.label} className={`flow-row${r.sub ? ' sub' : ''}${r.total ? ' total' : ''}`}>
+                  <span className="flow-label">{r.label}</span>
+                  <span className="flow-bar" aria-hidden="true">
+                    {show && !r.total && r.value > 0 && (
+                      <i style={{ width: `${Math.max(1.5, (r.value / flowMax) * 100)}%`, background: r.color }} />
+                    )}
+                  </span>
+                  <b className={`flow-amt ${r.tone ?? ''}`}>{r.signed}{money(r.value)}</b>
+                </li>
+              ))}
+              <li className="flow-row muted"><span className="flow-label">Net margin</span><span className="flow-bar" /><b className="flow-amt">{pct(summary.netProfit, paid.revenue)}</b></li>
+            </ol>
 
             <h3 className="ledger-title">By platform</h3>
             <div className="ledger-scroll">
@@ -158,7 +195,7 @@ export default function Statement() {
               <tbody>
                 {summary.byPlatform.map((r) => (
                   <tr key={r.platformId}>
-                    <td>{r.platformName}</td>
+                    <td><span className="rep-pill">{r.platformName}</span></td>
                     <td className="num">{r.orders}</td>
                     <td className="num">{money(r.revenue)}</td>
                     <td className="num">{money(r.cost)}</td>
