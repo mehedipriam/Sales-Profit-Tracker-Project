@@ -1157,3 +1157,15 @@ thead th.hide-col { padding-left: 1.75rem; padding-right: 1.75rem; } /* room for
 .stk-chg.down { background: var(--danger-soft); color: var(--danger); }
 .stk-flow { white-space: nowrap; font-variant-numeric: tabular-nums; }
 .dash-lowstock > .link { margin-left: auto; white-space: nowrap; }
+
+/* Expenses: a red total card beside the by-type ring, type pills and bold amounts. */
+.exp-hero .net-hero { justify-content: center; gap: 0.4rem; }
+.exp-rank { flex: 1; min-width: 0; }
+.exp-rank > div { display: flex; align-items: center; gap: 0.6rem; padding: 0.3rem 0; font-size: 0.84rem; }
+.exp-dot { flex: none; width: 9px; height: 9px; border-radius: 50%; }
+.exp-rank-name { width: 8.5rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.exp-rank b { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.exp-type { display: inline-block; padding: 0.2rem 0.7rem; border-radius: 999px; font-size: 0.76rem; font-weight: 600; white-space: nowrap; color: var(--c); background: color-mix(in srgb, var(--c) 16%, transparent); }
+.exp-desc { max-width: 18rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.exp-amt { font-weight: 700; font-variant-numeric: tabular-nums; }
+.prod-table tbody tr.clickable { cursor: pointer; }

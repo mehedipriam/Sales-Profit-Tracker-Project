@@ -20,10 +20,13 @@ public interface ExpenseRepository extends JpaRepository<Expense, Long> {
               and e.type in :types
               and (:orderId = 0L or e.orderId = :orderId)
               and e.expenseDate >= :from and e.expenseDate < :to
+              and (lower(coalesce(e.description, '')) like :q escape '\\'
+                   or e.orderId in (select o.id from SaleOrder o
+                                    where o.tenantId = :tenantId and lower(o.orderNo) like :q escape '\\'))
             """)
     Page<Expense> search(@Param("tenantId") Long tenantId, @Param("types") Collection<ExpenseType> types,
                          @Param("orderId") long orderId, @Param("from") LocalDate from, @Param("to") LocalDate to,
-                         Pageable pageable);
+                         @Param("q") String q, Pageable pageable);
 
     @Query("""
             select new com.salestracker.expense.ExpenseTypeTotals(e.type, count(e), sum(e.amount))

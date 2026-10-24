@@ -31,11 +31,12 @@ public class ExpenseController {
     public PageResponse<ExpenseResponse> list(@AuthenticationPrincipal AuthUser user,
                                               @RequestParam(required = false) ExpenseType type,
                                               @RequestParam(required = false) Long orderId,
+                                              @RequestParam(required = false) String q,
                                               @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
                                               @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
                                               @RequestParam(defaultValue = "0") int page,
                                               @RequestParam(defaultValue = "20") int size) {
-        return service.list(user.tenantId(), type, orderId, DateRange.of(from, to), page, size);
+        return service.list(user.tenantId(), type, orderId, DateRange.of(from, to), q, page, size);
     }
 
     /** Total and per-type breakdown for the date range (all types, whatever the list is filtered to). */

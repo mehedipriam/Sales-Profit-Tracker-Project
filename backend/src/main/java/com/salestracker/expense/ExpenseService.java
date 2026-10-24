@@ -44,14 +44,20 @@ public class ExpenseService {
 
     // ---- user-facing CRUD ----
 
-    @Transactional(readOnly = true)
     public PageResponse<ExpenseResponse> list(Long tenantId, ExpenseType type, Long orderId, DateRange range,
+                                              int page, int size) {
+        return list(tenantId, type, orderId, range, null, page, size);
+    }
+
+    /** q matches the description or the order number the expense belongs to. */
+    @Transactional(readOnly = true)
+    public PageResponse<ExpenseResponse> list(Long tenantId, ExpenseType type, Long orderId, DateRange range, String q,
                                               int page, int size) {
         Collection<ExpenseType> types = type == null ? List.of(ExpenseType.values()) : List.of(type);
         Pageable newestFirst = PageRequest.of(Math.max(page, 0), Math.min(Math.max(size, 1), 100),
                 Sort.by(Sort.Order.desc("expenseDate"), Sort.Order.desc("id")));
         Page<Expense> result = expenses.search(tenantId, types, orderId == null ? 0L : orderId,
-                range.from().toLocalDate(), range.toExclusive().toLocalDate(), newestFirst);
+                range.from().toLocalDate(), range.toExclusive().toLocalDate(), Search.pattern(q), newestFirst);
         return new PageResponse<>(responses(result.getContent()), result.getNumber(),
                 result.getTotalPages(), result.getTotalElements());
     }
