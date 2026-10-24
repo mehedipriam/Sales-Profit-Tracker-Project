@@ -40,7 +40,7 @@ public class CourierPayoutService {
 
     public record PayoutOrder(Long id, LocalDateTime orderedAt, String customerName, Long courierId,
                               String courierName, String consignmentId, String trackingNumber, String trackingLink,
-                              BigDecimal codAmount,
+                              BigDecimal codAmount, BigDecimal charges, BigDecimal youReceive,
                               OrderStatus status, LocalDate paidOn) {}
 
     public record PayoutsResponse(BigDecimal dueTotal, long dueOrders, BigDecimal transitTotal, long transitOrders,
@@ -166,8 +166,8 @@ public class CourierPayoutService {
         Customer customer = customerById.get(o.getCustomerId());
         return new PayoutOrder(o.getId(), o.getOrderedAt(), customer == null ? null : customer.getName(),
                 o.getCourierId(), c == null ? null : c.getName(), o.getConsignmentId(), o.getTrackingNumber(),
-                c == null ? null : c.trackingLink(o.getTrackingRef()), o.getCodAmount(), o.getStatus(),
-                o.getCourierPaidOn());
+                c == null ? null : c.trackingLink(o.getTrackingRef()), o.getCodAmount(), o.getCourierCharges(),
+                OrderService.youReceive(o), o.getStatus(), o.getCourierPaidOn());
     }
 
     private static Stream<SaleOrder> concat(List<SaleOrder> a, List<SaleOrder> b) {

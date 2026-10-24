@@ -162,7 +162,7 @@ public class DraftService {
         if (req.customerId() != null || req.newCustomer() == null) return req;
         return findByPhone(tenantId, req.newCustomer().phone())
                 .map(c -> new OrderRequest(req.platformId(), c.getId(), null, req.status(), req.deliveryCharge(),
-                        req.courierId(), req.consignmentId(), req.trackingNumber(), req.codAmount(), req.orderedAt(),
+                        req.courierId(), req.consignmentId(), req.trackingNumber(), req.codAmount(), req.deliveryZone(), req.courierFee(), req.courierEarning(), req.orderedAt(),
                         req.notes(), req.items()))
                 .orElse(req);
     }

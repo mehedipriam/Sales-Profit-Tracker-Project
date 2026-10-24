@@ -5,6 +5,9 @@ import com.salestracker.auth.AuthUser;
 import com.salestracker.common.Search;
 import com.salestracker.courier.CourierPayoutService.PayoutsResponse;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.DecimalMax;
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.Pattern;
@@ -15,6 +18,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
@@ -31,11 +35,22 @@ public class CourierController {
     public record CourierRequest(
             @NotBlank @Size(max = 100) String name,
             @Size(max = 300) @Pattern(regexp = "(?i)^\\s*(https?://\\S+)?\\s*$",
-                    message = "must be a web link starting with http:// or https://") String trackingUrl) {}
+                    message = "must be a web link starting with http:// or https://") String trackingUrl,
+            @DecimalMin("0.00") @Digits(integer = 8, fraction = 2) BigDecimal feeInside,
+            @DecimalMin("0.00") @Digits(integer = 8, fraction = 2) BigDecimal feeOutside,
+            @DecimalMin("0.00") @DecimalMax("100.00") @Digits(integer = 3, fraction = 2) BigDecimal codPct) {}
 
-    public record CourierResponse(Long id, String name, String trackingUrl) {
+    public record CourierResponse(Long id, String name, String trackingUrl, BigDecimal feeInside, BigDecimal feeOutside,
+                                  BigDecimal codPct) {
         static CourierResponse of(Courier c) {
-            return new CourierResponse(c.getId(), c.getName(), c.getTrackingUrl());
+            return new CourierResponse(c.getId(), c.getName(), c.getTrackingUrl(), c.getFeeInside(), c.getFeeOutside(),
+                    c.getCodPct());
+        }
+
+        /** The rates are a cost of the business, like cost prices, so Staff doesn't see them. */
+        static CourierResponse of(Courier c, AuthUser user) {
+            return user.role().seesFinancials() ? of(c)
+                    : new CourierResponse(c.getId(), c.getName(), c.getTrackingUrl(), null, null, null);
         }
     }
 
@@ -56,19 +71,19 @@ public class CourierController {
     @Transactional(readOnly = true)
     public List<CourierResponse> list(@AuthenticationPrincipal AuthUser user) {
         return couriers.findByTenantIdAndActiveTrueOrderByName(user.tenantId()).stream()
-                .map(CourierResponse::of).toList();
+                .map(c -> CourierResponse.of(c, user)).toList();
     }
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public CourierResponse create(@AuthenticationPrincipal AuthUser user, @Valid @RequestBody CourierRequest req) {
-        return save(new Courier(user.tenantId(), req.name().trim()), req);
+        return save(user, new Courier(user.tenantId(), req.name().trim()), req);
     }
 
     @PutMapping("/{id}")
     public CourierResponse update(@AuthenticationPrincipal AuthUser user, @PathVariable Long id,
                                   @Valid @RequestBody CourierRequest req) {
-        return save(find(user, id), req);
+        return save(user, find(user, id), req);
     }
 
     /** Deactivate rather than delete: existing orders keep their courier and any cash it still owes. */
@@ -106,7 +121,7 @@ public class CourierController {
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Courier not found"));
     }
 
-    private CourierResponse save(Courier c, CourierRequest req) {
+    private CourierResponse save(AuthUser user, Courier c, CourierRequest req) {
         String name = req.name().trim();
         Courier target = c;
         Optional<Courier> sameName = couriers.findByTenantIdAndName(c.getTenantId(), name)
@@ -120,6 +135,12 @@ public class CourierController {
             target.reactivate();
         }
         target.apply(name, Search.blankToNull(req.trackingUrl()));
-        return CourierResponse.of(couriers.save(target));
+        // Leaving the charges out of an edit keeps what was set; a new courier starts from its own defaults.
+        if (user.role().seesFinancials() && (req.feeInside() != null || req.feeOutside() != null || req.codPct() != null)) {
+            target.applyCharges(req.feeInside() != null ? req.feeInside() : target.getFeeInside(),
+                    req.feeOutside() != null ? req.feeOutside() : target.getFeeOutside(),
+                    req.codPct() != null ? req.codPct() : target.getCodPct());
+        }
+        return CourierResponse.of(couriers.save(target), user);
     }
 }

@@ -13,9 +13,11 @@ import { tint } from '../utils/tint'
 
 const daysSince = (iso) => Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 86400000))
 
-function CourierForm({ courier, onSaved, onCancel }) {
+function CourierForm({ courier, showMoney, onSaved, onCancel }) {
   const [name, setName] = useState(courier?.name ?? '')
   const [trackingUrl, setTrackingUrl] = useState(courier?.trackingUrl ?? '')
+  const [feeInside, setFeeInside] = useState(courier?.feeInside ?? '')
+  const [codPct, setCodPct] = useState(courier?.codPct ?? '')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
 
@@ -23,7 +25,7 @@ function CourierForm({ courier, onSaved, onCancel }) {
     e.preventDefault()
     setError('')
     setBusy(true)
-    const body = { name, trackingUrl }
+    const body = { name, trackingUrl, ...(showMoney ? { feeInside: feeInside || 0, codPct: codPct || 0 } : {}) }
     try {
       if (courier) await api.put(`/couriers/${courier.id}`, body)
       else await api.post('/couriers', body)
@@ -47,6 +49,25 @@ function CourierForm({ courier, onSaved, onCancel }) {
           order with a tracking number gets a one-click link.
         </span>
       </label>
+      {showMoney && (
+        <fieldset>
+          <legend>What this courier keeps from the cash it collects</legend>
+          <div className="row">
+            <label>Usual delivery fee
+              <input type="number" min="0" step="0.01" value={feeInside} placeholder="0" onChange={(e) => setFeeInside(e.target.value)} />
+            </label>
+            <label>COD charge, %
+              <input type="number" min="0" max="100" step="0.01" value={codPct} placeholder="0" onChange={(e) => setCodPct(e.target.value)} />
+            </label>
+          </div>
+          <span className="hint">
+            The usual delivery fee fills in on every order and can be changed on the order when it differs (weight,
+            distance). The COD charge is this percentage of the cash left after the delivery fee, rounded to the nearest
+            taka (Steadfast: 1%). Both are recorded as an automatic Delivery expense and show what you will really
+            receive. Leave them at 0 to record nothing automatically.
+          </span>
+        </fieldset>
+      )}
       {error && <p className="error" role="alert">{error}</p>}
       <div className="actions">
         <button type="button" className="btn secondary" onClick={onCancel}>Cancel</button>
@@ -63,7 +84,7 @@ function PayoutsDue({ rows, couriers, courierId, onCourier, onDone, setError }) 
   const [busy, setBusy] = useState(false)
 
   const picked = rows.filter((r) => selected.has(r.id))
-  const pickedTotal = picked.reduce((s, r) => s + Number(r.codAmount), 0)
+  const pickedTotal = picked.reduce((s, r) => s + Number(r.youReceive), 0)
   const allPicked = rows.length > 0 && picked.length === rows.length
   const toggle = (id) => setSelected((s) => {
     const next = new Set(s)
@@ -111,7 +132,7 @@ function PayoutsDue({ rows, couriers, courierId, onCourier, onDone, setError }) 
                            onChange={() => setSelected(allPicked ? new Set() : new Set(rows.map((r) => r.id)))} />
                   </th>
                   <th>Order</th><th>Customer</th><th>Courier</th><th>Parcel / tracking</th>
-                  <th className="num">Cash collected</th>
+                  <th className="num">Cash collected</th><th className="num">Courier keeps</th><th className="num">You receive</th>
                 </tr>
               </thead>
               <tbody>
@@ -136,7 +157,9 @@ function PayoutsDue({ rows, couriers, courierId, onCourier, onDone, setError }) 
                           ? <> <Tracking number={r.trackingNumber} link={r.trackingLink} /></>
                           : r.trackingLink && <> <a href={r.trackingLink} target="_blank" rel="noopener noreferrer">Track ↗</a></>}
                       </td>
-                      <td className="num"><b>{money(r.codAmount)}</b></td>
+                      <td className="num">{money(r.codAmount)}</td>
+                      <td className="num muted">{Number(r.charges) > 0 ? `−${money(r.charges)}` : '—'}</td>
+                      <td className="num"><b>{money(r.youReceive)}</b></td>
                     </tr>
                   )
                 })}
@@ -187,7 +210,7 @@ function RecentPayouts({ rows, onDone, setError }) {
           <div key={r.id} className="cour-recent-row">
             <span className="cour-tick" aria-hidden="true">✓</span>
             <div className="cour-recent-main">
-              <b>{money(r.codAmount)}</b> from {r.courierName}
+              <b>{money(r.youReceive)}</b> from {r.courierName}
               <small className="muted">
                 <Link to={`/orders/${r.id}`}>Order #{r.id}</Link> · {r.customerName} · received{' '}
                 {new Date(`${r.paidOn}T00:00:00`).toLocaleDateString('en-GB', { dateStyle: 'medium' })}
@@ -290,6 +313,11 @@ export default function Couriers() {
                   </div>
                 </div>
               )}
+              {showMoney && (Number(c.feeInside) > 0 || Number(c.codPct) > 0) && (
+                <div className="cour-rates">
+                  Usual delivery fee {money(c.feeInside)} · COD {Number(c.codPct)}%
+                </div>
+              )}
               <div className={`cour-track${c.trackingUrl ? ' ok' : ''}`} title={c.trackingUrl ?? ''}>
                 {c.trackingUrl ?? 'No tracking link set'}
               </div>
@@ -314,6 +342,7 @@ export default function Couriers() {
         <Modal title={editing.id ? 'Edit courier' : 'Add courier'} onClose={() => setEditing(null)}>
           <CourierForm
             courier={editing.id ? editing : null}
+            showMoney={showMoney}
             onSaved={() => { setEditing(null); load() }}
             onCancel={() => setEditing(null)}
           />

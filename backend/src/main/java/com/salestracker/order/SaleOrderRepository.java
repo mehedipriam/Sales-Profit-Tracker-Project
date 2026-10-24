@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
@@ -149,11 +150,23 @@ public interface SaleOrderRepository extends JpaRepository<SaleOrder, Long> {
                                     @Param("platformId") long platformId,
                                     @Param("from") LocalDateTime from, @Param("to") LocalDateTime to);
 
+    /** What delivery earned on paid orders sent by courier: the charge to the customer less what the courier kept. */
+    @Query("""
+            select coalesce(sum(o.deliveryCharge - o.courierFee - o.courierCodFee), 0)
+            from SaleOrder o
+            where o.tenantId = :tenantId
+              and o.status = com.salestracker.order.OrderStatus.PAID and o.courierId is not null
+              and (:platformId = 0L or o.platformId = :platformId)
+              and o.orderedAt >= :from and o.orderedAt < :to
+            """)
+    BigDecimal courierDeliveryProfit(@Param("tenantId") Long tenantId, @Param("platformId") long platformId,
+                                     @Param("from") LocalDateTime from, @Param("to") LocalDateTime to);
+
     // ---- courier payouts: cash a courier collected (or will collect) and hasn't paid out yet ----
 
     /** Unpaid courier cash per courier and status (PENDING = still on the way, PAID = delivered, cash collected). */
     @Query("""
-            select new com.salestracker.order.CourierTotals(o.courierId, o.status, count(o), sum(o.codAmount))
+            select new com.salestracker.order.CourierTotals(o.courierId, o.status, count(o), sum(o.codAmount - o.courierFee - o.courierCodFee))
             from SaleOrder o
             where o.tenantId = :tenantId
               and o.courierId is not null and o.courierPaidOn is null and o.codAmount > 0

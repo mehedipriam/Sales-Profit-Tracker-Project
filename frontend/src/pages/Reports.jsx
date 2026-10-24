@@ -158,7 +158,7 @@ export default function Reports() {
         <div className={loading ? 'stale' : undefined} aria-busy={loading}>
           
           <div className="rep-hero">
-            <NetHero realized={realized} expenses={summary.expenses.total} netProfit={summary.netProfit} hidden={!show}
+            <NetHero realized={realized} expenses={summary.expenses.total} netProfit={summary.netProfit} deliveryProfit={summary.courierDeliveryProfit} hidden={!show}
                      change={change(summary.netProfit, previous?.netProfit, 'up')} />
             <PlatformDonut rows={soldRows} platforms={platforms} total={realized.revenue} show={show} />
           </div>

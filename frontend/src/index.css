@@ -1259,3 +1259,19 @@ button.cour-mini { cursor: pointer; }
 .cour-tick { flex: none; display: grid; place-items: center; width: 2rem; height: 2rem; border-radius: 50%; background: var(--success-soft); color: var(--success); font-weight: 700; }
 .cour-recent-main { flex: 1; min-width: 0; }
 .cour-recent-main small { display: block; font-size: 0.76rem; }
+
+/* Courier charges: the rates on a courier's card and the "what you will receive" box in the order form. */
+.cour-rates { font-size: 0.78rem; color: var(--muted); }
+.cour-calc { display: flex; flex-direction: column; gap: 0.35rem; padding: 0.75rem 0.9rem; border: 1px solid var(--border); border-radius: 10px; background: var(--field-bg); font-size: 0.9rem; }
+.cour-calc > div { display: flex; justify-content: space-between; gap: 1rem; }
+.cour-calc b { font-variant-numeric: tabular-nums; }
+.cour-calc-total { padding-top: 0.35rem; border-top: 1px solid var(--border); font-weight: 700; }
+
+/* Order form: the small "Earn from courier charge" option under the products. */
+.earn-box { margin-top: 0.9rem; padding: 0.7rem 0.9rem; border: 1px dashed var(--border); border-radius: 10px; display: flex; flex-direction: column; gap: 0.6rem; }
+.earn-tick { flex-direction: row; align-items: center; gap: 0.5rem; font-weight: 600; }
+.earn-tick input { width: 1rem; height: 1rem; margin: 0; accent-color: var(--primary); }
+
+/* The small line under Gross profit: what delivery earned, and the two added together. */
+.net-hero-delivery { display: block; margin-top: 0.35rem; padding-top: 0.35rem; border-top: 1px solid rgba(255, 255, 255, 0.25); font-size: 0.74rem; opacity: 0.95; }
+.net-hero-delivery b { margin-left: 0.3rem; font-size: 0.82rem; }

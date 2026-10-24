@@ -27,6 +27,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
@@ -102,7 +103,13 @@ public class OrderService {
                 customerById.get(o.getCustomerId()).getName(),
                 o.getStatus(), o.getItems().size(), courierInfo(o, courierById.get(o.getCourierId())),
                 sum(o, OrderItem::lineRevenue), o.getDeliveryCharge(),
-                sum(o, OrderItem::lineCost), sum(o, OrderItem::lineProfit))).toList();
+                sum(o, OrderItem::lineCost),
+                // What the order earns: the products' profit, plus (when a courier carried it) what the customer paid
+                // for delivery less what the courier kept of it, so a delivery that earns adds to the profit and one
+                // that costs more than it was charged takes from it. Without a courier the delivery cost is not known
+                // here, so only the products count. Ads, commission and other expenses stay out; they are listed on the order.
+                o.getCourierId() == null ? sum(o, OrderItem::lineProfit)
+                        : sum(o, OrderItem::lineProfit).add(o.getDeliveryCharge()).subtract(o.getCourierCharges()))).toList();
         return new PageResponse<>(content, result.getNumber(), result.getTotalPages(), result.getTotalElements());
     }
 
@@ -164,6 +171,7 @@ public class OrderService {
     /** Every write path ends here so the automatic commission expense and the stock can never drift from the order. */
     private OrderDetail saved(SaleOrder order) {
         expenses.syncCommission(order);
+        expenses.syncCourierCharges(order);
         stock.syncOrder(order);
         return detail(order);
     }
@@ -241,6 +249,8 @@ public class OrderService {
     private void applyCourier(SaleOrder order, OrderRequest req) {
         if (req.courierId() == null) {
             order.applyCourier(null, null, null, null);
+            order.applyCourierCharges(null, BigDecimal.ZERO, BigDecimal.ZERO);
+            order.setCourierEarning(null);
             return;
         }
         Courier courier = couriers.findByIdAndTenantId(req.courierId(), order.getTenantId())
@@ -250,13 +260,40 @@ public class OrderService {
                 : sum(order, OrderItem::lineRevenue).add(order.getDeliveryCharge());
         order.applyCourier(courier.getId(), Search.blankToNull(req.consignmentId()),
                 Search.blankToNull(req.trackingNumber()), cod);
+
+        // What the courier keeps from the cash: its delivery fee for the zone, then its COD percentage of what is left
+        // after that fee, rounded to the nearest taka (5.49 becomes 5, 5.50 becomes 6). A parcel paid in advance has no
+        // cash to take a COD charge from, but the delivery fee still applies.
+        String zone = "OUTSIDE".equals(req.deliveryZone()) ? "OUTSIDE" : "INSIDE";
+        // The delivery fee typed on the order wins (it changes with weight and distance); without one the courier's usual fee applies.
+        BigDecimal fee = req.courierFee() != null ? req.courierFee()
+                : "OUTSIDE".equals(zone) ? courier.getFeeOutside() : courier.getFeeInside();
+        BigDecimal codFee = BigDecimal.ZERO;
+        if (cod.signum() > 0 && courier.getCodPct().signum() > 0) {
+            codFee = cod.subtract(fee).max(BigDecimal.ZERO).multiply(courier.getCodPct())
+                    .divide(BigDecimal.valueOf(100), 0, RoundingMode.HALF_UP);
+        }
+        if (req.courierEarning() != null) {
+            // The owner typed what they earn from the courier charge: the courier keeps the rest of what the customer
+            // paid for delivery, and that replaces the fee and COD calculation for this order.
+            fee = order.getDeliveryCharge().subtract(req.courierEarning()).max(BigDecimal.ZERO);
+            codFee = BigDecimal.ZERO;
+        }
+        order.setCourierEarning(req.courierEarning());
+        order.applyCourierCharges(zone, fee, codFee);
+    }
+
+    /** The cash that actually reaches the business: what the courier collects less its charges. */
+    public static BigDecimal youReceive(SaleOrder o) {
+        return o.getCodAmount() == null ? BigDecimal.ZERO : o.getCodAmount().subtract(o.getCourierCharges());
     }
 
     /** The courier block of an order response; null when the order has no courier. */
     public static CourierInfo courierInfo(SaleOrder o, Courier courier) {
         if (o.getCourierId() == null || courier == null) return null;
         return new CourierInfo(courier.getId(), courier.getName(), o.getConsignmentId(), o.getTrackingNumber(),
-                courier.trackingLink(o.getTrackingRef()), o.getCodAmount(), o.getCourierPaidOn());
+                courier.trackingLink(o.getTrackingRef()), o.getCodAmount(), o.getCourierPaidOn(),
+                o.getDeliveryZone(), o.getCourierFee(), o.getCourierCodFee(), youReceive(o), o.getCourierEarning());
     }
 
     private Long resolveCustomer(Long tenantId, Platform platform, OrderRequest req) {

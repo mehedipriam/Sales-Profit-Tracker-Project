@@ -68,7 +68,7 @@ public class ReportService {
     public record SummaryResponse(LocalDate from, LocalDate to, Long platformId,
                                   Totals realized, Totals pending, long returnedOrders, long cancelledOrders,
                                   ExpenseBreakdown expenses, BigDecimal netProfit,
-                                  List<PlatformRow> byPlatform) {}
+                                  List<PlatformRow> byPlatform, BigDecimal courierDeliveryProfit) {}
 
     /** period = the day, or the first day of the month when granularity is "month". profit is gross. */
     public record TrendPoint(LocalDate period, long orders, BigDecimal revenue, BigDecimal cost, BigDecimal profit,
@@ -149,7 +149,7 @@ public class ReportService {
                 DashboardService.totals(byStatus, delivery, OrderStatus.RETURNED).orders(),
                 DashboardService.totals(byStatus, delivery, OrderStatus.CANCELLED).orders(),
                 breakdown, DashboardService.netProfit(realized, totalSpend),
-                rows);
+                rows, orders.courierDeliveryProfit(tenantId, pid, range.from(), range.toExclusive()));
     }
 
     /** Realized (PAID) revenue, cost and gross profit plus expenses and net profit over time, zero-filled so gaps show as gaps in activity. */

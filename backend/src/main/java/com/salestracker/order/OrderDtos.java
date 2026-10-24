@@ -39,6 +39,9 @@ public final class OrderDtos {
                                @Size(max = 64) String consignmentId,
                                @Size(max = 300) String trackingNumber,
                                @DecimalMin("0.00") @Digits(integer = 10, fraction = 2) BigDecimal codAmount,
+                               @Pattern(regexp = "INSIDE|OUTSIDE") String deliveryZone,
+                               @DecimalMin("0.00") @Digits(integer = 8, fraction = 2) BigDecimal courierFee,
+                               @DecimalMin("0.00") @Digits(integer = 8, fraction = 2) BigDecimal courierEarning,
                                LocalDateTime orderedAt,
                                @Size(max = 5000) String notes,
                                @NotEmpty @Size(max = 100) List<@Valid ItemRequest> items) {}
@@ -51,7 +54,15 @@ public final class OrderDtos {
      */
     public record CourierInfo(Long courierId, String courierName, String consignmentId, String trackingNumber,
                               String trackingLink,
-                              BigDecimal codAmount, LocalDate paidOn) {}
+                              BigDecimal codAmount, LocalDate paidOn,
+                              String deliveryZone, BigDecimal deliveryFee, BigDecimal codFee, BigDecimal youReceive,
+                              BigDecimal earning) {
+        /** The courier's own charges are a cost of the business, so Staff doesn't see them. */
+        public CourierInfo hideCharges() {
+            return new CourierInfo(courierId, courierName, consignmentId, trackingNumber, trackingLink, codAmount, paidOn,
+                    deliveryZone, null, null, null, null);
+        }
+    }
 
     public record ItemResponse(Long productId, String productName, int quantity, BigDecimal costPrice,
                                BigDecimal soldPrice, BigDecimal lineRevenue, BigDecimal lineCost,
@@ -72,7 +83,7 @@ public final class OrderDtos {
         /** Phase 7b: same boundary as the dashboard/reports - Staff records the sale, not its margin. */
         public OrderDetail hideFinancials() {
             return new OrderDetail(id, orderNo, orderedAt, platformId, platformName, customerId, customerName, customerPhone,
-                    customerAddress, status, null, deliveryCharge, courier, notes, items.stream().map(ItemResponse::hideFinancials).toList(),
+                    customerAddress, status, null, deliveryCharge, courier == null ? null : courier.hideCharges(), notes, items.stream().map(ItemResponse::hideFinancials).toList(),
                     revenue, null, null, List.of());
         }
     }
@@ -81,7 +92,8 @@ public final class OrderDtos {
                                OrderStatus status, int itemCount, CourierInfo courier,
                                BigDecimal revenue, BigDecimal deliveryCharge, BigDecimal cost, BigDecimal profit) {
         public OrderSummary hideFinancials() {
-            return new OrderSummary(id, orderNo, orderedAt, platformName, customerName, status, itemCount, courier, revenue,
+            return new OrderSummary(id, orderNo, orderedAt, platformName, customerName, status, itemCount,
+                    courier == null ? null : courier.hideCharges(), revenue,
                     deliveryCharge, null, null);
         }
     }

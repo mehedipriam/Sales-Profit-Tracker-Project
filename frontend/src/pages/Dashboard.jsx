@@ -178,6 +178,11 @@ export default function Dashboard() {
                 <span>{show && realized.profit < 0 ? 'Gross loss' : 'Gross profit'}</span>
                 <b>{m(realized.profit)}</b>
                 <small>revenue − cost</small>
+                <span className="net-hero-delivery" title="Delivery charged to customers less what the courier kept, on orders sent by courier">
+                  Delivery {show && Number(summary.courierDeliveryProfit) < 0 ? 'loss' : 'profit'}{' '}
+                  {show ? `${Number(summary.courierDeliveryProfit) < 0 ? '−' : '+'}${money(Math.abs(Number(summary.courierDeliveryProfit)))}` : MASK}
+                  <b>= {m(Number(realized.profit) + Number(summary.courierDeliveryProfit))}</b>
+                </span>
               </div>
             </div>
             {/* revenue − cost + delivery charged − expenses, as on Reports */}

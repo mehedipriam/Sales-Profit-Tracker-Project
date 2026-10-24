@@ -66,6 +66,9 @@ export default function OrderForm() {
   const [trackingNumber, setTrackingNumber] = useState('')
   const [codAmount, setCodAmount] = useState('') // empty: the courier collects everything the customer pays
   const [savedCourier, setSavedCourier] = useState(null) // the edited order's courier block as stored
+  const [earnOn, setEarnOn] = useState(false) // type what you earn from the courier charge instead of the courier's rates
+  const [earning, setEarning] = useState('')
+  const [courierFee, setCourierFee] = useState('') // what the courier takes for delivery; empty: the courier's usual fee
   const [lines, setLines] = useState([])
   const [original, setOriginal] = useState(null) // { platformId, rate, expenses } of the order being edited
   const [newExpenses, setNewExpenses] = useState([]) // expense rows typed here, saved with the order
@@ -114,6 +117,10 @@ export default function OrderForm() {
         setCourierId(String(o.courier.courierId))
         setConsignmentId(o.courier.consignmentId ?? '')
         setTrackingNumber(o.courier.trackingNumber ?? '')
+        // Only Owner and Admin are sent the fee; it is kept as typed so editing the order doesn't change it.
+        setCourierFee(o.courier.deliveryFee != null ? String(o.courier.deliveryFee) : '')
+        setEarnOn(o.courier.earning != null)
+        setEarning(o.courier.earning != null ? String(o.courier.earning) : '')
         // Still the full amount the customer pays: leave it empty so it keeps following the order total.
         const full = Number(o.revenue) + Number(o.deliveryCharge)
         setCodAmount(Math.abs(Number(o.courier.codAmount) - full) < 0.005 ? '' : o.courier.codAmount)
@@ -145,6 +152,16 @@ export default function OrderForm() {
   const units = lines.reduce((s, l) => s + Number(l.quantity || 0), 0)
   const customerPays = revenue + delivery
   const collects = codAmount === '' ? customerPays : Number(codAmount)
+  // What the courier keeps, worked out the way the server does: its delivery fee for the zone, then its COD
+  // percentage of what is left of the cash, to the nearest taka. Only Owner and Admin are told the rates.
+  const chosenCourier = couriers.find((c) => String(c.id) === courierId)
+  const usualFee = Number(chosenCourier?.feeInside ?? 0)
+  const feeNow = courierFee === '' ? usualFee : Number(courierFee)
+  const courierPct = chosenCourier ? Number(chosenCourier.codPct ?? 0) : 0
+  const courierCod = collects > 0 && courierPct > 0 ? Math.round((Math.max(collects - feeNow, 0) * courierPct) / 100) : 0
+  const earnNow = earning === '' ? 0 : Number(earning)
+  const courierKeeps = earnOn ? Math.max(delivery - earnNow, 0) : feeNow + courierCod
+  const hasRates = showMoney && chosenCourier && (usualFee > 0 || courierPct > 0 || earnOn)
   // A courier removed from the list still shows on the orders that already use it.
   const courierOptions = savedCourier && !couriers.some((c) => c.id === savedCourier.courierId)
     ? [...couriers, { id: savedCourier.courierId, name: `${savedCourier.courierName} (removed)` }]
@@ -205,6 +222,8 @@ export default function OrderForm() {
       consignmentId: courierId ? consignmentId : null,
       trackingNumber: courierId ? trackingNumber : null,
       codAmount: courierId && codAmount !== '' ? codAmount : null,
+      courierFee: courierId && !earnOn && courierFee !== '' ? courierFee : null,
+      courierEarning: courierId && earnOn && earning !== '' ? earning : null,
       items: lines.map((l) => ({ productId: l.productId, quantity: Number(l.quantity), soldPrice: l.soldPrice,
         ...(showMoney && l.cost !== '' ? { costPrice: l.cost } : {}),
       })),
@@ -391,6 +410,27 @@ export default function OrderForm() {
                 </table>
               </div>
             )}
+            {showMoney && (
+              <div className="earn-box">
+                <label className="earn-tick">
+                  <input type="checkbox" checked={earnOn} disabled={!courierId}
+                         onChange={(e) => setEarnOn(e.target.checked)} />
+                  Earn from courier charge
+                  {!courierId && <span className="muted"> (pick a courier below first)</span>}
+                </label>
+                {earnOn && courierId && (
+                  <label>
+                    What you earn from the courier charge
+                    <input type="number" min="0" step="0.01" value={earning} placeholder="e.g. 20"
+                           onChange={(e) => setEarning(e.target.value)} />
+                    <span className="hint">
+                      The part of the {money(delivery)} the customer paid for delivery that you keep; the courier takes the
+                      rest. This replaces the courier's fee and COD charge for this order.
+                    </span>
+                  </label>
+                )}
+              </div>
+            )}
           </div>
 
           <div className="of-card">
@@ -421,6 +461,17 @@ export default function OrderForm() {
               <input maxLength={300} value={trackingNumber} placeholder="e.g. DA2409281234 or https://…"
                      onChange={(e) => setTrackingNumber(e.target.value)} />
             </label>
+            {hasRates && !earnOn && (
+              <label>
+                Courier's delivery fee
+                <input type="number" min="0" step="0.01" value={courierFee} placeholder={usualFee.toFixed(2)}
+                       onChange={(e) => setCourierFee(e.target.value)} />
+                <span className="hint">
+                  What the courier takes for this parcel; it changes with the weight and where it goes. Leave empty to
+                  use {chosenCourier.name}'s usual {money(usualFee)}.
+                </span>
+              </label>
+            )}
             {courierId && (
               <label>
                 Cash the courier collects
@@ -441,6 +492,25 @@ export default function OrderForm() {
                 )}
               </label>
             )}
+            {hasRates && (courierKeeps > 0 || earnOn) && (
+              <div className="cour-calc" aria-live="polite">
+                <div><span>Cash collected</span><b>{money(collects)}</b></div>
+                {earnOn
+                  ? <div><span>Courier keeps (charged {money(delivery)} − your earning {money(earnNow)})</span><b>−{money(courierKeeps)}</b></div>
+                  : <>
+                    <div><span>Delivery fee</span><b>−{money(feeNow)}</b></div>
+                    <div><span>COD charge ({courierPct}%)</span><b>−{money(courierCod)}</b></div>
+                  </>}
+                <div className="cour-calc-total"><span>You receive</span><b>{money(collects - courierKeeps)}</b></div>
+                {delivery > 0 && (
+                  <small className="muted">
+                    The customer paid {money(delivery)} for delivery and the courier keeps {money(courierKeeps)}, so
+                    delivery {delivery - courierKeeps >= 0 ? 'earns you' : 'costs you'} {money(Math.abs(delivery - courierKeeps))}.
+                    The charges are added to the order's expenses for you.
+                  </small>
+                )}
+              </div>
+            )}
           </div>
 
           <div className="of-card">
@@ -450,7 +520,7 @@ export default function OrderForm() {
               <input type="number" min="0" step="0.01" placeholder="0" value={deliveryCharge}
                      onChange={(e) => setDeliveryCharge(e.target.value)} />
               <span className="hint">Money the customer paid for delivery on top of the products. Leave empty for free delivery.
-                Record what the courier charged you as a Delivery expense; the two cancel out in net profit.</span>
+                What the courier takes for delivery is worked out from its rates (see Couriers) and recorded for you.</span>
             </label>
             <label>
               Notes
@@ -520,6 +590,8 @@ export default function OrderForm() {
               )}
               {delivery > 0 && <div className="sum-strong"><dt>Customer pays</dt><dd>{money(customerPays)}</dd></div>}
               {courierId && <div><dt>Courier collects</dt><dd>{money(collects)}</dd></div>}
+              {hasRates && (courierKeeps > 0 || earnOn) && <div><dt>Courier keeps</dt><dd>−{money(courierKeeps)}</dd></div>}
+              {hasRates && (courierKeeps > 0 || earnOn) && <div className="sum-strong"><dt>You receive</dt><dd>{money(collects - courierKeeps)}</dd></div>}
             </dl>
             {showMoney && (
               <>

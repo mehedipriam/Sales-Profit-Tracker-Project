@@ -32,6 +32,10 @@ export default function OrderDetails({ id, onClose }) {
   const o = order
   const delivery = Number(o?.deliveryCharge ?? 0)
   const expenseTotal = (o?.expenses ?? []).reduce((sum, e) => sum + Number(e.amount), 0)
+  // What the courier keeps is already in the expenses, so it is shown with the delivery and left out of "other".
+  const courierKeeps = Number(o?.courier?.deliveryFee ?? 0) + Number(o?.courier?.codFee ?? 0)
+  const deliveryEarns = o?.courier ? delivery - courierKeeps : 0 // only a courier's charges are known
+  const otherExpenses = Math.max(expenseTotal - courierKeeps, 0)
 
   return (
     <Modal title={o ? `Order ${o.orderNo}` : 'Order'} onClose={onClose} wide>
@@ -64,6 +68,12 @@ export default function OrderDetails({ id, onClose }) {
                     : o.courier.trackingLink && <a href={o.courier.trackingLink} target="_blank" rel="noopener noreferrer">Track parcel ↗</a>}
                   <span>Cash to collect {money(o.courier.codAmount)}
                     {o.courier.paidOn ? ` · paid out ${day(o.courier.paidOn)}` : ' · courier still holds it'}</span>
+                  {o.courier.youReceive != null && Number(o.courier.deliveryFee) + Number(o.courier.codFee) > 0 && (
+                    <span>
+                      Courier keeps {money(Number(o.courier.deliveryFee) + Number(o.courier.codFee))}
+                      {' '}(delivery {money(o.courier.deliveryFee)} + COD {money(o.courier.codFee)}) · you receive {money(o.courier.youReceive)}
+                    </span>
+                  )}
                 </>
               ) : <span className="muted">No courier (handed over directly)</span>}
             </div>
@@ -106,9 +116,16 @@ export default function OrderDetails({ id, onClose }) {
               <span className={`num${shown.cost ? '' : ' masked'}`}>{shown.cost ? money(o.cost) : MASK}</span>
               <span className="muted">Profit on products</span>
               <span className={`num${shown.profit ? '' : ' masked'}`}>{shown.profit ? money(o.profit) : MASK}</span>
-              {o.expenses.length > 0 && <>
-                <span className="muted">Expenses on this order</span>
-                <span className={`num${shown.cost ? '' : ' masked'}`}>{shown.cost ? money(expenseTotal) : MASK}</span>
+              {o.courier && (delivery > 0 || courierKeeps > 0) && <>
+                <span className="muted">{deliveryEarns >= 0 ? 'Delivery earns you' : 'Delivery costs you'}
+                  {courierKeeps > 0 && ` (${money(delivery)} charged − ${money(courierKeeps)} to the courier)`}</span>
+                <span className={`num${shown.profit ? '' : ' masked'}`}>{shown.profit ? money(deliveryEarns) : MASK}</span>
+              </>}
+              <span className="total">Profit on this order</span>
+              <span className={`num total${shown.profit ? '' : ' masked'}`}>{shown.profit ? money(Number(o.profit) + deliveryEarns) : MASK}</span>
+              {otherExpenses > 0 && <>
+                <span className="muted">Other expenses on this order (ads, commission…)</span>
+                <span className={`num${shown.cost ? '' : ' masked'}`}>{shown.cost ? money(otherExpenses) : MASK}</span>
               </>}
             </>}
           </div>

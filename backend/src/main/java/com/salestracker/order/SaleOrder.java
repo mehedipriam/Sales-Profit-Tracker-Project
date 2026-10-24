@@ -62,6 +62,21 @@ public class SaleOrder implements TenantOwned {
     @Column(name = "courier_paid_on")
     private LocalDate courierPaidOn;
 
+    /** INSIDE or OUTSIDE Dhaka, which decides the courier's delivery fee; null without a courier. */
+    @Column(name = "delivery_zone")
+    private String deliveryZone;
+
+    /** What the courier charged for this order, worked out when it was saved: the delivery fee and the COD charge. */
+    @Column(name = "courier_fee", nullable = false)
+    private BigDecimal courierFee = BigDecimal.ZERO;
+
+    @Column(name = "courier_cod_fee", nullable = false)
+    private BigDecimal courierCodFee = BigDecimal.ZERO;
+
+    /** The amount typed as earned from the courier charge; null when the charges are worked out from the courier's rates. */
+    @Column(name = "courier_earning")
+    private BigDecimal courierEarning;
+
     @Column(name = "ordered_at", nullable = false)
     private LocalDateTime orderedAt;
 
@@ -100,6 +115,14 @@ public class SaleOrder implements TenantOwned {
         this.codAmount = courierId == null ? null : codAmount;
     }
 
+    public void applyCourierCharges(String zone, BigDecimal fee, BigDecimal codFee) {
+        this.deliveryZone = zone;
+        this.courierFee = fee == null ? BigDecimal.ZERO : fee;
+        this.courierCodFee = codFee == null ? BigDecimal.ZERO : codFee;
+    }
+
+    public void setCourierEarning(BigDecimal courierEarning) { this.courierEarning = courierEarning; }
+
     public void setCourierPaidOn(LocalDate courierPaidOn) { this.courierPaidOn = courierPaidOn; }
 
     public void setStatus(OrderStatus status) { this.status = status; }
@@ -120,6 +143,12 @@ public class SaleOrder implements TenantOwned {
     public String getTrackingRef() { return trackingNumber != null ? trackingNumber : consignmentId; }
     public BigDecimal getCodAmount() { return codAmount; }
     public LocalDate getCourierPaidOn() { return courierPaidOn; }
+    public String getDeliveryZone() { return deliveryZone; }
+    public BigDecimal getCourierEarning() { return courierEarning; }
+    public BigDecimal getCourierFee() { return courierFee; }
+    public BigDecimal getCourierCodFee() { return courierCodFee; }
+    /** Everything the courier keeps out of this order's cash. */
+    public BigDecimal getCourierCharges() { return courierFee.add(courierCodFee); }
     public LocalDateTime getOrderedAt() { return orderedAt; }
     public String getNotes() { return notes; }
     public List<OrderItem> getItems() { return items; }

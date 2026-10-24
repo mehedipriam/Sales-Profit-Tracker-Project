@@ -3,6 +3,7 @@ package com.salestracker.courier;
 import com.salestracker.tenant.TenantOwned;
 import jakarta.persistence.*;
 
+import java.math.BigDecimal;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
@@ -31,6 +32,17 @@ public class Courier implements TenantOwned {
     @Column(name = "tracking_url")
     private String trackingUrl;
 
+    /** What the courier charges to deliver one parcel inside / outside Dhaka (0 = nothing charged automatically). */
+    @Column(name = "fee_inside", nullable = false)
+    private BigDecimal feeInside = BigDecimal.ZERO;
+
+    @Column(name = "fee_outside", nullable = false)
+    private BigDecimal feeOutside = BigDecimal.ZERO;
+
+    /** The courier's COD charge: this percentage of the cash it collects after its delivery fee. */
+    @Column(name = "cod_pct", nullable = false)
+    private BigDecimal codPct = BigDecimal.ZERO;
+
     @Column(nullable = false)
     private boolean active = true;
 
@@ -39,11 +51,19 @@ public class Courier implements TenantOwned {
     public Courier(Long tenantId, String name) {
         this.tenantId = tenantId;
         this.name = name;
+        // Steadfast's COD charge is 1%; any other courier starts with none until the owner enters it.
+        if ("Steadfast".equalsIgnoreCase(name)) this.codPct = BigDecimal.ONE;
     }
 
     public void apply(String name, String trackingUrl) {
         this.name = name;
         this.trackingUrl = trackingUrl;
+    }
+
+    public void applyCharges(BigDecimal feeInside, BigDecimal feeOutside, BigDecimal codPct) {
+        this.feeInside = feeInside == null ? BigDecimal.ZERO : feeInside;
+        this.feeOutside = feeOutside == null ? BigDecimal.ZERO : feeOutside;
+        this.codPct = codPct == null ? BigDecimal.ZERO : codPct;
     }
 
     public void deactivate() { this.active = false; }
@@ -74,4 +94,7 @@ public class Courier implements TenantOwned {
     public String getName() { return name; }
     public String getTrackingUrl() { return trackingUrl; }
     public boolean isActive() { return active; }
+    public BigDecimal getFeeInside() { return feeInside; }
+    public BigDecimal getFeeOutside() { return feeOutside; }
+    public BigDecimal getCodPct() { return codPct; }
 }

@@ -6,7 +6,7 @@ import { WalletIcon } from './icons'
  * The headline net profit banner (Dashboard, Reports), with how it's worked out alongside; `change` as on Stat.
  * `hidden` masks every amount and keeps the banner out of its loss colours, which would give the figure away.
  */
-export default function NetHero({ realized, expenses, netProfit, change, hidden = false }) {
+export default function NetHero({ realized, expenses, netProfit, change, deliveryProfit, hidden = false }) {
   const revenue = Number(realized.revenue)
   const margin = revenue > 0 ? (Number(netProfit) / revenue) * 100 : null
   const loss = !hidden && netProfit < 0
@@ -24,6 +24,12 @@ export default function NetHero({ realized, expenses, netProfit, change, hidden 
           <span>{!hidden && Number(realized.profit) < 0 ? 'Gross loss' : 'Gross profit'}</span>
           <b>{m(realized.profit)}</b>
           <small>revenue − cost</small>
+          {deliveryProfit != null && (
+            <span className="net-hero-delivery" title="Delivery charged to customers less what the courier kept, on orders sent by courier">
+              Delivery {!hidden && Number(deliveryProfit) < 0 ? 'loss' : 'profit'} {hidden ? MASK : `${Number(deliveryProfit) < 0 ? '−' : '+'}${m(Math.abs(Number(deliveryProfit)))}`}
+              <b>= {m(Number(realized.profit) + Number(deliveryProfit))}</b>
+            </span>
+          )}
         </div>
       </div>
       {/* revenue − cost + delivery charged − expenses */}
