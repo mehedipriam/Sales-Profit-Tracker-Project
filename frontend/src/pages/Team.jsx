@@ -1,8 +1,11 @@
 import { useCallback, useEffect, useState } from 'react'
 import api, { errorMessage } from '../api/client'
 import Modal from '../components/Modal'
+import Stat from '../components/Stat'
+import { ReceiptIcon, TruckIcon, UsersIcon, WalletIcon } from '../components/icons'
 import { useAuth } from '../auth/AuthContext'
 import { ROLE_LABELS } from '../auth/roles'
+import { tint } from '../utils/tint'
 
 const ROLE_HINTS = {
   OWNER: 'Owners have full access, including the business settings (store name, currency) and managing every team '
@@ -63,6 +66,15 @@ function StaffForm({ member, isSelf, roles, onSaved, onCancel }) {
   )
 }
 
+// One line on each card; the full rules are in ROLE_HINTS, shown in the form and under the cards.
+const ROLE_SHORT = {
+  OWNER: 'Full access, including the business settings and every team member.',
+  ADMIN: 'Sees everything an Owner does and manages Staff, but not the business settings.',
+  STAFF: 'Records and manages sales day to day. Never sees profit, costs or reports.',
+}
+const ROLE_ICON = { OWNER: '👑 ', ADMIN: '🛡 ', STAFF: '' }
+const FILTERS = [['', 'All'], ['OWNER', 'Owner'], ['ADMIN', 'Admin'], ['STAFF', 'Staff'], ['removed', 'Removed']]
+
 export default function Team() {
   const { user } = useAuth()
   const isOwner = user.role === 'OWNER'
@@ -71,6 +83,8 @@ export default function Team() {
   const assignable = isOwner ? ['STAFF', 'ADMIN', 'OWNER'] : ['STAFF']
   const [members, setMembers] = useState([])
   const [editing, setEditing] = useState(null)
+  const [search, setSearch] = useState('')
+  const [filter, setFilter] = useState('')
   const [error, setError] = useState('')
 
   const load = useCallback(() => {
@@ -89,35 +103,85 @@ export default function Team() {
     }
   }
 
+  const count = (role) => members.filter((m) => m.active && m.role === role).length
+  const q = search.trim().toLowerCase()
+  const shown = members.filter((m) => {
+    if (filter === 'removed' ? m.active : !m.active && filter !== '') return false
+    if (filter && filter !== 'removed' && m.role !== filter) return false
+    return !q || m.fullName.toLowerCase().includes(q) || m.email.toLowerCase().includes(q)
+  })
+
   return (
     <section>
       <div className="page-head">
-        <h1>Team</h1>
+        <div>
+          <h1>Team</h1>
+          <p className="muted prod-sub">Who can sign in to your business, and what they can do</p>
+        </div>
         <button className="btn" onClick={() => setEditing({})}>+ Add member</button>
       </div>
       {error && <p className="error" role="alert">{error}</p>}
-      <div className="table-wrap">
-        <table>
-          <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th /></tr></thead>
-          <tbody>
-            {members.map((m) => (
-              <tr key={m.id}>
-                <td>{m.fullName}</td>
-                <td>{m.email}</td>
-                <td>{ROLE_LABELS[m.role]}</td>
-                <td>{m.active ? 'Active' : <span className="muted">Deactivated</span>}</td>
-                <td className="row-actions">
-                  {canManage(m) && <button className="link" onClick={() => setEditing(m)}>Edit</button>}
-                  {m.role !== 'OWNER' && m.id !== user.id && canManage(m) && m.active && (
-                    <button className="link danger" onClick={() => deactivate(m)}>Remove access</button>
-                  )}
-                </td>
-              </tr>
-            ))}
-            {members.length === 0 && <tr><td colSpan={5} className="empty">No team members yet.</td></tr>}
-          </tbody>
-        </table>
+
+      <div className="stats kpis">
+        <Stat label="Members" value={members.filter((m) => m.active).length} icon={<UsersIcon />} accent="blue"
+              hint={members.some((m) => !m.active) ? `${members.filter((m) => !m.active).length} removed` : 'everyone who can sign in'} />
+        <Stat label="Owners" value={count('OWNER')} icon={<WalletIcon />} accent="amber" />
+        <Stat label="Admins" value={count('ADMIN')} icon={<ReceiptIcon />} accent="violet" />
+        <Stat label="Staff" value={count('STAFF')} icon={<TruckIcon />} accent="teal" />
       </div>
+
+      <div className="rep-bar">
+        <input type="search" className="prod-search" value={search} placeholder="Search name or email…"
+               aria-label="Search the team by name or email" onChange={(e) => setSearch(e.target.value)} />
+        <div className="dash-tabs" role="tablist" aria-label="Role">
+          {FILTERS.map(([value, label]) => (
+            <button key={value} type="button" role="tab" aria-selected={filter === value}
+                    className={filter === value ? 'on' : ''} onClick={() => setFilter(value)}>{label}</button>
+          ))}
+        </div>
+      </div>
+
+      <div className="cour-grid">
+        {shown.map((m) => (
+          <div key={m.id} className={`dash-card cour-card${m.active ? '' : ' team-off'}`}>
+            <div className="cour-top">
+              <span className="cust-av team-av" style={m.active ? tint(m.fullName) : undefined} aria-hidden="true">
+                {m.fullName.trim().charAt(0).toUpperCase()}
+              </span>
+              <div className="team-who">
+                <b>{m.fullName}{m.id === user.id && <span className="team-you">You</span>}</b>
+                <small className="muted">{m.email}</small>
+              </div>
+            </div>
+            <div className="team-row">
+              <span className={`team-role ${m.role}`}>{ROLE_ICON[m.role]}{ROLE_LABELS[m.role]}</span>
+              <span className={`team-status${m.active ? '' : ' off'}`}><i />{m.active ? 'Active' : 'Deactivated'}</span>
+            </div>
+            <p className="team-can">{m.active ? ROLE_SHORT[m.role] : 'Cannot sign in. Their sales history stays.'}</p>
+            <div className="team-acts">
+              {canManage(m) && <button className="link" onClick={() => setEditing(m)}>Edit</button>}
+              {m.role !== 'OWNER' && m.id !== user.id && canManage(m) && m.active && (
+                <button className="link danger" onClick={() => deactivate(m)}>Remove access</button>
+              )}
+            </div>
+          </div>
+        ))}
+        <button type="button" className="cour-add" onClick={() => setEditing({})}>
+          <span>＋</span>
+          {members.length === 0 ? 'No team members yet.' : 'Add a team member'}
+        </button>
+      </div>
+      {shown.length === 0 && members.length > 0 && <p className="empty-note">No one matches these filters.</p>}
+
+      <div className="team-roles">
+        {['OWNER', 'ADMIN', 'STAFF'].map((r) => (
+          <div key={r} className="dash-card">
+            <h3 className="team-roles-title">{ROLE_ICON[r]}{ROLE_LABELS[r]}</h3>
+            <p>{ROLE_HINTS[r]}</p>
+          </div>
+        ))}
+      </div>
+
       {editing && (
         <Modal title={editing.id ? `Edit ${editing.fullName}` : 'Add team member'} onClose={() => setEditing(null)}>
           <StaffForm

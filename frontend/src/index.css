@@ -1285,3 +1285,26 @@ button.cour-mini { cursor: pointer; }
 .plat-bar { height: 6px; margin-top: 0.3rem; border-radius: 9px; background: var(--line-soft); overflow: hidden; }
 .plat-bar i { display: block; height: 100%; border-radius: 9px; }
 .plat-hint { margin-top: 1rem; padding: 0.7rem 1rem; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); color: var(--muted); font-size: 0.82rem; }
+
+/* Team: a card per member with a role pill, a status dot and what the role can do. */
+.team-av { width: 3rem; height: 3rem; font-size: 1.1rem; }
+.team-off { opacity: 0.65; }
+.team-off .team-av { background: var(--line-soft); color: var(--muted); }
+.team-who { min-width: 0; }
+.team-who b { display: block; font-size: 1.02rem; }
+.team-who small { display: block; overflow-wrap: anywhere; }
+.team-you { margin-left: 0.4rem; padding: 0.05rem 0.45rem; border-radius: 999px; background: var(--primary-soft); color: var(--primary); font-size: 0.68rem; font-weight: 700; }
+.team-row { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; }
+.team-role { padding: 0.2rem 0.7rem; border-radius: 999px; font-size: 0.76rem; font-weight: 700; }
+.team-role.OWNER { background: var(--warning-soft); color: var(--warning); }
+.team-role.ADMIN { background: rgba(167, 139, 250, 0.18); color: #a78bfa; }
+.team-role.STAFF { background: rgba(45, 212, 191, 0.16); color: #14b8a6; }
+.team-status { display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.76rem; }
+.team-status i { width: 8px; height: 8px; border-radius: 50%; background: var(--success); }
+.team-status.off i { background: var(--muted); }
+.team-can { margin: 0; font-size: 0.78rem; line-height: 1.45; color: var(--muted); }
+.team-acts { display: flex; gap: 0.8rem; margin-top: auto; padding-top: 0.7rem; border-top: 1px solid var(--line-soft); }
+.team-acts .link:last-child:not(:first-child) { margin-left: auto; }
+.team-roles { display: grid; grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr)); gap: 1rem; margin-top: 1.4rem; }
+.team-roles-title { margin: 0 0 0.4rem; font-size: 0.95rem; text-transform: none; letter-spacing: 0; color: var(--text); }
+.team-roles p { margin: 0; font-size: 0.8rem; line-height: 1.5; color: var(--muted); }
