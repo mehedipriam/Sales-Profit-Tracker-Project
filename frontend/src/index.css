@@ -1275,3 +1275,13 @@ button.cour-mini { cursor: pointer; }
 /* The small line under Gross profit: what delivery earned, and the two added together. */
 .net-hero-delivery { display: block; margin-top: 0.35rem; padding-top: 0.35rem; border-top: 1px solid rgba(255, 255, 255, 0.25); font-size: 0.74rem; opacity: 0.95; }
 .net-hero-delivery b { margin-left: 0.3rem; font-size: 0.82rem; }
+
+/* Platforms: the commission pill, the share of the period's sales and the note about how commission works. */
+.plat-rate { align-self: flex-start; padding: 0.2rem 0.7rem; border-radius: 999px; font-size: 0.76rem; font-weight: 600; background: rgba(167, 139, 250, 0.18); color: #a78bfa; }
+.plat-rate.none { background: var(--bg); border: 1px solid var(--border); color: var(--muted); }
+.cour-mini b.pos { color: var(--success); }
+.cour-mini b.neg { color: var(--danger); }
+.plat-share { font-size: 0.76rem; color: var(--muted); }
+.plat-bar { height: 6px; margin-top: 0.3rem; border-radius: 9px; background: var(--line-soft); overflow: hidden; }
+.plat-bar i { display: block; height: 100%; border-radius: 9px; }
+.plat-hint { margin-top: 1rem; padding: 0.7rem 1rem; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); color: var(--muted); font-size: 0.82rem; }
